@@ -1,0 +1,5 @@
+# Per-repo lint config. Run via `make lint` (which calls scripts/lint.sh).
+# Production profile, no skip_list — we comply in full. A rule skipped here is
+# not our problem to live with: this layer is converged by teams who did not
+# write it, so the surprise lands on their fleet.
+profile: production

@@ -1,0 +1,29 @@
+---
+# Pinned upstream .deb, not the distro package (why, in tasks/main.yml). Bump BOTH
+# lines together, and only after GPG-verifying the new .deb against rclone's signed
+# SHA256SUMS — procedure and signing-key fingerprint in docs/rclone/upgrading.md.
+rclone_version: v1.74.4
+rclone_deb_sha256: a9da2eaa70428c6dcc5acbb0b7eac0faec4c61643e0b468d9fe09ddf79b7e929
+
+# Vault keys, set elsewhere. Absent, the role installs rclone and renders no
+# rclone.conf, so a host that runs no backups needs none of them.
+#
+# R2 remote: all three or none, asserted (ADR-0010). R2 is a per-PROJECT bucket, so it
+# belongs in the vault of the group that shares it (group_vars/<service>_hosts/vault.yml)
+# — not fleet-wide, where an unrelated future service would inherit it, and not per-host,
+# where a second box for the same service needs its own copy:
+#   rclone_r2_access_key_id
+#   rclone_r2_secret_access_key
+#   rclone_r2_endpoint
+#
+# The remote name is hardcoded to `r2` — service backup roles reference it as
+# `r2:bucket/...`. Change in lockstep if renamed.
+#
+# Optional crypt wrapper — OFF unless both are set. Both or neither, asserted
+# (ADR-0010). Set, they add an `[r2crypt]` stanza wrapping `r2:backups` with
+# client-side encryption, which a service opts into by pointing its backup
+# destination at `r2crypt:` instead of `r2:` (docs/rclone/encryption.md). Unset,
+# backups write to plain `r2:`. Scope (fleet vs per-project) is decided when it is
+# turned on.
+#   rclone_crypt_password   (vaulted, obscured form)
+#   rclone_crypt_password2  (vaulted, obscured form — used as salt)

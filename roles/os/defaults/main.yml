@@ -1,0 +1,46 @@
+---
+os_apt_packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - python3
+  - python3-pip
+  - python3-debian # required by ansible.builtin.deb822_repository (docker/caddy roles)
+  - sqlite3
+  - ufw
+  - unattended-upgrades
+  - apt-listchanges
+  # fail2ban is NOT here — the fail2ban role owns its package and its config.
+
+# Name the box in a zone YOU own — never a client's, never the provider's. A
+# service's public origin often lives in DNS you neither control nor can trust
+# from the inside; box name and service origin are separate concerns. Set this
+# fleet-wide in group_vars/all. Empty leaves the box named by its inventory key
+# alone, which is a legal hostname.
+os_hostname_domain: ""
+os_hostname: "{{ inventory_hostname }}{{ ('.' ~ os_hostname_domain) if os_hostname_domain | length > 0 else '' }}"
+
+# Swap — minimum 1G, set higher per host_vars when needed.
+os_swap_enabled: true
+os_swap_file: /swapfile
+os_swap_size: 1G
+os_swap_swappiness: 10 # 10 = prefer RAM, only swap under pressure
+os_swap_vfs_cache_pressure: 50
+
+# Timezone — IANA name. Also the clock os_unattended_reboot_time is read in, so
+# the two are one decision. This default is one region's; set it fleet-wide.
+os_timezone: America/Sao_Paulo
+
+# playbooks/update.yml overrides this to 0 to force a refresh before the
+# dist-upgrade; 3600 skips an apt-update on re-runs within the hour.
+os_apt_cache_valid_time: 3600
+
+# Auto-reboot stays ON so an overnight security kernel takes effect, but the
+# MINUTE is derived per host: a fleet must never reboot at once, and that holds
+# here as much as in update.yml (which gets it from serial: 1). Seeding on
+# inventory_hostname keeps the render stable run-to-run (no
+# changed-every-converge). 60 slots inside one hour is spread, not uniqueness —
+# widen past ~10 hosts. The hour is LOCAL time (os_timezone) and assumed
+# off-peak; move it if your traffic is not.
+os_unattended_reboot_hour: "03"
+os_unattended_reboot_time: "{{ os_unattended_reboot_hour }}:{{ '%02d' | format(59 | random(seed=inventory_hostname)) }}"

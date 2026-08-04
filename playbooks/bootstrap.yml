@@ -1,0 +1,58 @@
+---
+# First-contact play — run ONCE per fresh host, as root, before the baseline.
+# Creates the unprivileged account every other playbook connects as.
+#
+#   ansible-playbook fabbrito.infra.bootstrap -e target=<host>
+#
+# Connects as root over the cloud-provider-injected key. `ansible_user: root` is a
+# play var, not only the `remote_user` keyword: the consumer's inventory-wide
+# `ansible_user` would otherwise win, and that account does not exist yet.
+# `deploy_authorized_keys` is a vaulted contract var; unpopulated, the play has no
+# keys to install and cannot run.
+#
+# `hosts: bootstrap_target_unspecified` is a deliberate inventory mismatch:
+# forgetting -e target= matches zero hosts instead of fanning user-creation +
+# sudoers writes across the whole fleet.
+- name: Bootstrap deploy user
+  hosts: "{{ target | default('bootstrap_target_unspecified') }}"
+  serial: 1
+  remote_user: root
+  become: true
+  gather_facts: false
+  vars:
+    # ansible_user ONLY. deploy_user must NOT be pinned here: a play var beats
+    # the consumer's group_vars, so pinning it would create one account while
+    # every later play connects as another — a fresh box, converged, unreachable.
+    ansible_user: root
+  tasks:
+    - name: Assert the deploy account is named
+      ansible.builtin.assert:
+        that:
+          - deploy_user is defined
+          - deploy_user | length > 0
+        fail_msg: >-
+          deploy_user is unset. It names the account this play creates and every
+          later play connects as, so bootstrapping without it strands the host.
+          Set it fleet-wide.
+        quiet: true
+
+    - name: Create deploy user
+      ansible.builtin.user:
+        name: "{{ deploy_user }}"
+        shell: /bin/bash
+        create_home: true
+        state: present
+
+    - name: Install deploy authorized keys
+      ansible.posix.authorized_key:
+        user: "{{ deploy_user }}"
+        key: "{{ item }}"
+        state: present
+      loop: "{{ deploy_authorized_keys }}"
+
+    - name: Grant deploy passwordless sudo
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/90-deploy
+        content: "{{ deploy_user }} ALL=(ALL) NOPASSWD:ALL\n"
+        mode: "0440"
+        validate: visudo -cf %s

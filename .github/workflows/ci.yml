@@ -1,0 +1,48 @@
+name: CI
+
+# `make check` is the whole gate this repo can run: fmt-check, playbook syntax,
+# ansible-lint at the production profile, shellcheck, collection build. There is
+# deliberately no vault step and no dry-run leg — this repo owns no inventory and
+# reaches no host, so the `--check --diff` half belongs to the consuming repo
+# (README.md, "Where the gate lives").
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      # prettier (npx), shfmt and shellcheck back `make check`. npx and
+      # shellcheck are preinstalled on ubuntu-latest; shfmt is not.
+      - name: Install ansible + lint toolchain
+        run: pip install ansible-core ansible-lint
+
+      - name: Install shfmt
+        env:
+          SHFMT_VERSION: v3.13.1
+        run: |
+          sudo curl -fsSL -o /usr/local/bin/shfmt \
+            "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64"
+          sudo chmod +x /usr/local/bin/shfmt
+          shfmt --version
+
+      # Into .collections/, which scripts/lint.sh also stages this collection
+      # into so fabbrito.infra.* resolves during the syntax check.
+      - name: Install Ansible collections
+        run: make deps
+
+      - name: fmt-check + lint
+        run: make check

@@ -1,0 +1,195 @@
+---
+# Per-host route list. One entry per vhost; several upstreams behind one name.
+#
+#   caddy_routes:
+#     - host: intranet.example.org
+#       tls: acme                       # acme | cert  — REQUIRED, see below
+#       default_upstream: 127.0.0.1:3000
+#
+# Fields:
+#   host             the site address, a BARE hostname. `http://` disables
+#                    automatic HTTPS and with it the port-80 vhost that answers
+#                    the ACME challenge (ADR-0006); `https://` only pins the port.
+#   tls              `acme` — emit no `tls` line, so Caddy auto-provisions over
+#                    HTTP-01. `cert` — emit `tls <pem> <key>` from a Cloudflare
+#                    origin cert, named by `cert:` (default "default").
+#   proxied_by       optional; a key of caddy_proxy_ranges. Names WHO fronts this
+#                    route. Omit when nothing does.
+#   default_upstream the catch-all. Required unless `redirect_to` is set.
+#   upstreams        optional; a list of {paths, to} matched BEFORE the catch-all.
+#   max_body_paths   optional; per-path body caps overriding caddy_max_body.
+#   cert             optional; names an entry in caddy_extra_certs. `cert` mode only.
+#   redirect_to      optional; emit a 301 vhost (uri preserved) instead of a proxy.
+#
+# `tls` AND `proxied_by` MUST STAY TWO FIELDS. Under ADR-0005's policy (a zone you
+# own → proxied → origin cert) they correlate, but that is policy, not law — a
+# Cloudflare-proxied name CAN answer HTTP-01, a CF rule lets
+# /.well-known/acme-challenge/* through. Fused into one discriminator, a
+# CF-proxied ACME route renders no trust block: {client_ip} becomes the Cloudflare
+# edge IP for every request, so anything upstream that keys on client IP sees the
+# whole internet as a handful of addresses, with no error and no diff (ADR-0008).
+#
+# THE CATCH-ALL IS A NAMED FIELD rather than an `upstreams` entry listing no
+# paths: two path-less entries would validate clean and race on matcher
+# specificity. `default_upstream` makes two catch-alls and zero catch-alls
+# unrepresentable.
+#
+#   # ONE UPSTREAM — the catch-all is the app itself.
+#   default_upstream: 127.0.0.1:3000
+#
+#   # TWO UPSTREAMS — an SPA lands in front of an API. A CONFIG CHANGE, not a
+#   # refactor: the API keeps its own prefixes, the SPA takes everything else.
+#   upstreams:
+#     - paths: [/api/*, /webhooks/*, /health/*, /report, /report/*]
+#       to: 127.0.0.1:3000
+#   default_upstream: 127.0.0.1:8080
+#
+# THE PATH LIST IS THE WHOLE SAFETY PROPERTY once something other than the app
+# owns the catch-all, and it is NOT derivable from `/api`: public prefixes that
+# carry no `/api` — webhook callbacks, signed links mailed to users, health
+# checks — are the common case, not the exception. Miss one and it reaches the
+# SPA container as a 200 with the wrong body rather than a 404. Two matcher
+# facts, both tested:
+# `path /api/*` does NOT match `/api` itself, so list a bare prefix and its `/*`
+# form separately (`/api*` would also swallow `/apixyz`); and `handle` blocks sort
+# by matcher specificity rather than source order, which lets the matcher-less
+# catch-all fall last.
+#
+# `paths` entries must be LITERAL strings, never Jinja, and NOTHING HERE ENFORCES
+# THAT — not the role, not the linter. It cannot be: Ansible renders a var before
+# the role sees it, so `/api/{{ version }}/*` arrives as `/api/v1/*` and any
+# assert inspects the rendered string and passes. A Jinja path renders correctly,
+# which is why nobody would notice. The check must read this list RAW to assert
+# the app's mounted prefixes are a subset of it, which puts it in the consuming
+# repo — it is the only replacement for the safety a single catch-all gave away.
+caddy_routes: []
+
+# Extra routes appended to caddy_routes — a var-precedence mechanism, not an
+# escape hatch. Ansible's var namespace is flat and does not merge, so a group
+# that COMPUTES caddy_routes cannot be appended to from host_vars: anything set
+# there replaces the whole group value. This is the host-level append-point;
+# one-off vhosts (a legacy domain 301'ing to its replacement) use it too.
+#   caddy_extra_routes:
+#     - { host: legacy.example.com, tls: cert, redirect_to: https://new.example.com }
+caddy_extra_routes: []
+
+# Host-wide request body cap. Caddy sets NO body limit by default. A route
+# overrides per-path via max_body_paths, so an author writes only what is unusual
+# and no host renders an unbounded edge by omission.
+#
+#   max_body_paths:
+#     - { paths: [/api/auth/*], max: 64KB }
+#     - { paths: [/api/v1/*],   max: 25MiB }  # == the app's own upload cap
+#
+# COUPLED NUMBER, AND THE UNIT IS PART OF IT: Caddy parses sizes the SI way, so
+# `25MB` is 25,000,000 — ~1.2 MB short of the 26,214,400 an app that calls its cap
+# "25 MB" almost certainly means. Nothing reports the near-miss: the config
+# validates, uploads mostly work, and a file in the gap dies at the edge as a bare
+# 413 instead of reaching the app's own typed refusal. Write the binary unit, and
+# raise the app's cap and this one together or neither.
+#
+# THE CAPS CANNOT HANG OFF AN UPSTREAM ENTRY: with one upstream there are no
+# `upstreams` at all, only default_upstream, yet /api/auth/* and /api/v1/* must
+# still differ.
+#
+# The default cap renders against a NEGATED matcher (`not path <every overridden
+# path>`), never as a bare matcher-less `request_body`. Measured on caddy 2.8.0:
+# request_body handlers COMPOSE rather than override — each wraps the body reader,
+# so where two apply the SMALLEST limit wins and source order changes nothing. A
+# bare directive silently clamps every cap above to this value: the override is
+# dead, the config validates clean, and an upload the app accepts dies at the edge
+# as a 413. Mutually-exclusive matchers are the only shape that works.
+caddy_max_body: 1MB
+
+# URI prefixes whose NEXT PATH SEGMENT is a credential. The role compiles these
+# into ONE alternation and renders it on BOTH loggers (ADR-0009):
+#
+#   request>uri regexp "^(/a/|/b/)[^/?]+" "${1}REDACTED"
+#
+#   caddy_redact_uri_prefixes:
+#     - /webhooks/<provider>/ # POST .../:secret  — a payment settlement callback
+#     - /documents/public/    # GET  .../:token   — a signed link mailed to a user
+#
+# THE LIST IS THE SCHEMA; A RAW REGEX FIELD WAS REJECTED for two reasons:
+#
+#   1. Two `regexp` filters on one field do NOT both apply. On the 2.8.x floor the
+#      second SILENTLY OVERWRITES the first — validates clean, warns about
+#      nothing, and the dropped pattern is a credential written to disk in the
+#      clear. A list cannot become two filters, so the trap is unreachable.
+#   2. Caddy validates neither the prefixes nor the field names: a pattern naming
+#      a prefix that never occurs, or a typo'd field like `resp_headers>Locaton`,
+#      each answers "Valid configuration" and redacts nothing. The failure is
+#      silent and one-directional — the secret reaches disk in the clear.
+#
+# Adding a secret-bearing path later is ONE list entry. A secret of a different
+# SHAPE (not the segment after a fixed prefix) is a role change.
+caddy_redact_uri_prefixes: []
+
+# Who may front a route. `proxied_by: cloudflare` on a route selects an entry
+# here; the template renders the global `servers` trust block from it.
+#
+# Keyed by provider, not hardcoded to Cloudflare: the CDN that ends up in front of
+# a route need not be CF, and a `cloudflare:` field could not express that without
+# a rename. A host with nothing in front of it renders neither `proxied_by` nor
+# this table.
+caddy_proxy_ranges:
+  cloudflare:
+    # NOT X-Forwarded-For. ADR-0008: XFF is a client-appendable list, so trusting
+    # it means trusting its leftmost token, which a trusted peer can forge.
+    client_ip_headers: [CF-Connecting-IP]
+    # Source of truth: https://www.cloudflare.com/ips/
+    # Order matches CF's published list for easy diffing. Refresh when CF announces.
+    ranges:
+      - 103.21.244.0/22
+      - 103.22.200.0/22
+      - 103.31.4.0/22
+      - 104.16.0.0/13
+      - 104.24.0.0/14
+      - 108.162.192.0/18
+      - 131.0.72.0/22
+      - 141.101.64.0/18
+      - 162.158.0.0/15
+      - 172.64.0.0/13
+      - 173.245.48.0/20
+      - 188.114.96.0/20
+      - 190.93.240.0/20
+      - 197.234.240.0/22
+      - 198.41.128.0/17
+      - 2400:cb00::/32
+      - 2606:4700::/32
+      - 2803:f800::/32
+      - 2405:b500::/32
+      - 2405:8100::/32
+      - 2a06:98c0::/29
+      - 2c0f:f248::/32
+
+# ACME staging hatch — an ACME directory URL, e.g. Let's Encrypt staging during a
+# bring-up that would otherwise burn the 5-per-week duplicate-certificate limit.
+#
+# MUST STAY EMPTY BY DEFAULT: naming any CA collapses Caddy's issuer chain to it
+# and drops the ZeroSSL fallback — ADR-0006 pins the CHALLENGE (HTTP-01) and
+# deliberately leaves the CA unpinned. Set it as an extra var for a single run;
+# never persist it to a file — a staging value that survives is a live site
+# serving a certificate no browser trusts, on a green converge.
+caddy_acme_ca: ""
+
+# Cloudflare Origin Certificate. A CF origin cert is 15-year and wildcard
+# `*.<zone>`, shared by every host in the zone, so the DEFAULT cert belongs at
+# GROUP level, not host_vars — shared-vs-specific is the vault split, not just the
+# vars split. The blobs live in group_vars/all/vault.yml as handles
+# `cert_zone_<name>` / `cert_zone_<name>_key`:
+#   caddy_origin_cert: "{{ cert_zone_example }}"
+#   caddy_origin_key:  "{{ cert_zone_example_key }}"
+# Lands at /etc/caddy/certs/default.pem and default.key. `tls: cert` routes that
+# name no `cert:` use it.
+#
+# A multi-zone host (one VPS fronting more than one CF zone) appends the secondary
+# zones per-host via caddy_extra_certs, for the same var-precedence reason as
+# caddy_extra_routes. Routes pick by name:
+#   caddy_extra_certs:
+#     - name: other
+#       cert: "{{ cert_zone_other }}"
+#       key:  "{{ cert_zone_other_key }}"
+caddy_extra_certs: []
+
+caddy_certs_dir: /etc/caddy/certs

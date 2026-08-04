@@ -1,0 +1,42 @@
+---
+# Host-wide, not per-app: the script and units live outside any app's install dir.
+- name: Render docker-cleanup script
+  become: true
+  ansible.builtin.template:
+    src: docker-cleanup.sh.j2
+    dest: /usr/local/sbin/docker-cleanup
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Render docker-cleanup service unit
+  become: true
+  ansible.builtin.template:
+    src: docker-cleanup.service.j2
+    dest: /etc/systemd/system/docker-cleanup.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Render docker-cleanup timer unit
+  become: true
+  ansible.builtin.template:
+    src: docker-cleanup.timer.j2
+    dest: /etc/systemd/system/docker-cleanup.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Flush handlers (daemon-reload before enable)
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable + start docker-cleanup timer
+  become: true
+  ansible.builtin.systemd_service:
+    name: docker-cleanup.timer
+    enabled: true
+    state: started
+  # In --check the unit files above aren't written, so systemd doesn't know the timer.
+  when: not ansible_check_mode

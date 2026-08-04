@@ -1,0 +1,14 @@
+# Rendered by Ansible (roles/docker) — do not edit on host.
+# Source: roles/docker/templates/docker-cleanup.timer.j2
+[Unit]
+Description=Docker system prune timer ({{ inventory_hostname }})
+
+[Timer]
+OnCalendar={{ docker_cleanup_oncalendar }}
+RandomizedDelaySec={{ docker_cleanup_randomized_delay }}
+# Re-run a missed prune as soon as the host is back up (cron would skip it).
+Persistent=true
+Unit=docker-cleanup.service
+
+[Install]
+WantedBy=timers.target

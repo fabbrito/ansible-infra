@@ -1,0 +1,5 @@
+---
+# Service roles intentionally have NO meta deps: playbooks/bootstrap.yml and
+# playbooks/baseline.yml run first by play order and deliver docker. Meta deps
+# would re-walk os+docker on every monitoring converge.
+dependencies: []

@@ -1,0 +1,33 @@
+# Ansible
+*.retry
+# `make deps` installs here, scripts/lint.sh symlinks this collection in
+# alongside them, and `make build` drops the tarball here too.
+.collections/
+# per-project runtime cache created by ansible-lint / ansible-compat
+.ansible/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ruff_cache/
+
+# Node / Bun
+node_modules/
+.bun/
+
+# Editors / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
+Thumbs.db
+
+# Local scratch
+/tmp/
+/.tmp/
+/scratch/
+*.log
+
+docs/plan_*.md

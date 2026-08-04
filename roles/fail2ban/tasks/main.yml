@@ -1,0 +1,66 @@
+---
+- name: Install fail2ban
+  ansible.builtin.apt:
+    name: fail2ban
+    state: present
+    update_cache: true
+
+- name: Log to the systemd journal (so the recidive jail's systemd backend can read fail2ban's own bans)
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/fail2ban.local
+    mode: "0644"
+    content: |
+      [Definition]
+      logtarget = SYSTEMD-JOURNAL
+  notify: Reload fail2ban
+
+- name: Drop jail.local (defaults)
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.local
+    mode: "0644"
+    content: |
+      [DEFAULT]
+      banaction = ufw
+      banaction_allports = ufw
+      findtime = {{ fail2ban_findtime }}
+      bantime  = {{ fail2ban_bantime }}
+      maxretry = {{ fail2ban_maxretry }}
+      backend  = systemd
+      ignoreip = {{ fail2ban_ignoreip | join(' ') }}
+  notify: Reload fail2ban
+
+- name: Enable sshd jail
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.d/sshd.local
+    mode: "0644"
+    content: |
+      [sshd]
+      enabled  = true
+      port     = ssh
+      backend  = systemd
+      maxretry = {{ fail2ban_maxretry }}
+      findtime = {{ fail2ban_findtime }}
+      bantime  = {{ fail2ban_bantime }}
+  notify: Reload fail2ban
+
+- name: Enable recidive jail (repeat offenders)
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.d/recidive.local
+    mode: "0644"
+    content: |
+      [recidive]
+      # reads fail2ban's own bans from journald (requires logtarget=SYSTEMD-JOURNAL in fail2ban.local)
+      enabled  = true
+      banaction = ufw
+      maxretry = {{ fail2ban_recidive_maxretry }}
+      findtime = {{ fail2ban_recidive_findtime }}
+      bantime  = {{ fail2ban_recidive_bantime }}
+  notify: Reload fail2ban
+
+- name: Ensure fail2ban is enabled and running
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: true
+  # In --check apt never installed the package, so systemd doesn't know the unit.
+  when: not ansible_check_mode
