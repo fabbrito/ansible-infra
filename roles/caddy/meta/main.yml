@@ -1,0 +1,5 @@
+---
+# No meta deps: they would re-walk os+docker on every service deploy. The
+# consumer runs playbooks/bootstrap.yml, then playbooks/baseline.yml, by play
+# order.
+dependencies: []

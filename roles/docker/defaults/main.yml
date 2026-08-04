@@ -1,0 +1,18 @@
+---
+docker_users:
+  - "{{ deploy_user }}"
+
+# Weekly host-wide prune: stopped containers, unused networks, and ALL unused images
+# older than docker_cleanup_until. Volumes are NEVER touched (no --volumes).
+# A schedule change takes effect only on a role run that re-renders the timer.
+#
+# THE HOUR IS DERIVED, AND NOT FROM ANYTHING YOU CAN SEE HERE: a prune must not contend
+# with a backup, so it has to clear every backup window on the host plus the randomized
+# smear that extends it. Sun 05:00 clears the windows this default was derived against —
+# re-derive it against yours, and again whenever a backup timer moves. Fleet-wide on
+# purpose: any host that gains a backup wants the same ordering. Scheduling is the only
+# thing keeping the two apart and is not a guarantee; a backup that overruns its smear
+# will meet the prune.
+docker_cleanup_until: 168h
+docker_cleanup_oncalendar: "Sun *-*-* 05:00:00"
+docker_cleanup_randomized_delay: 30m

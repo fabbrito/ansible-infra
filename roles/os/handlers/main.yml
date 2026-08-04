@@ -1,0 +1,21 @@
+---
+# `try-reload-or-restart`, not `service: state=reloaded`. Since Ubuntu 22.10
+# sshd is socket-activated, so ssh.service is frequently INACTIVE mid-play: the
+# apt upgrade in tasks/main.yml replaces openssh-server, whose postinst stops
+# it, and Ansible's multiplexed connection never re-triggers ssh.socket. systemd
+# cannot reload an inactive unit — `systemctl reload ssh` exits 1 with
+# "ssh.service is not active, cannot reload" — so `state: reloaded` failed the
+# play on every fresh host.
+#
+# On an inactive unit `try-` is a NO-OP, which is correct: the next connection
+# activates sshd and it reads the new config on start. Plain `reload-or-restart`
+# would instead START ssh.service, turning a lazily-activated daemon into a
+# persistent one. On an active unit this reloads (SIGHUP) and never restarts, so
+# a bad config cannot drop the live session Ansible is connected through;
+# tasks/main.yml gates correctness before the notify.
+#
+# Raw command: no ansible.builtin.systemd_service state maps to
+# try-reload-or-restart.
+- name: Restart sshd
+  ansible.builtin.command: systemctl try-reload-or-restart ssh # noqa: command-instead-of-module
+  changed_when: true

@@ -1,0 +1,162 @@
+{#
+  The tabs are deliberate: `caddy fmt` rewrites spaces to tabs, so a
+  space-indented render reads as a diff against the formatter forever.
+
+  Every derivation reads caddy_all_routes and NOTHING ELSE — ADR-0008 resolves
+  the caddy_routes + caddy_extra_routes union once, in tasks/main.yml, so a
+  security-critical selectattr() cannot silently miss the extra list.
+-#}
+{% set acme_routes = caddy_all_routes | selectattr('tls', 'equalto', 'acme') | list %}
+{% set proxied_routes = caddy_all_routes | selectattr('proxied_by', 'defined') | list %}
+{% set redact_pattern = '^(' ~ caddy_redact_uri_prefixes | join('|') ~ ')[^/?]+' %}
+{%- macro format_filter(pad) -%}
+{{ pad }}format filter {
+{{ pad }}	request>uri regexp "{{ redact_pattern }}" "${1}REDACTED"
+{{ pad }}	request>headers>Referer delete
+{{ pad }}	resp_headers>Location delete
+{{ pad }}}
+{%- endmacro -%}
+{#
+  The proxy block gets NO schema field, least of all the header_up lines.
+
+  ADR-0008: `header_up` REPLACES — a header we do NOT set is one we forward
+  verbatim from the client, so every client-IP header carries {client_ip},
+  including CF-Connecting-IP on a host with no Cloudflare. Drop one and a client
+  supplies it instead: anything upstream that keys on client IP then buckets the
+  whole internet on the proxy's own address, and nothing reports it. Safety comes
+  from Caddy being SOLE AUTHOR of these headers, never from how the upstream is
+  configured to read them.
+
+  NO `header_up X-Forwarded-Proto https`: ADR-0008 deleted it, Caddy derives it.
+
+  The timeouts bound a HUNG upstream, they do not permit a slow one. Caddy's
+  defaults: dial 3s, read/write NONE. 60s is a ceiling inherited from the config
+  this role replaced, NOT a measurement of your upstreams. Re-derive it against
+  yours; raise it only against a measured call, never to make a symptom go away.
+-#}
+{%- macro proxy(pad, to) -%}
+{{ pad }}reverse_proxy {{ to }} {
+{{ pad }}	header_up Host {host}
+{{ pad }}	header_up X-Real-IP {client_ip}
+{{ pad }}	header_up X-Forwarded-For {client_ip}
+{{ pad }}	header_up CF-Connecting-IP {client_ip}
+{{ pad }}	transport http {
+{{ pad }}		dial_timeout 10s
+{{ pad }}		read_timeout 60s
+{{ pad }}		write_timeout 60s
+{{ pad }}	}
+{{ pad }}}
+{%- endmacro -%}
+# Rendered by Ansible (roles/caddy) — do not edit on host.
+# Source: roles/caddy/templates/Caddyfile.j2
+{
+{% if acme_routes %}
+	# ADR-0006: the email admits ZeroSSL as a fallback issuer. Absent, Caddy's
+	# chain silently shrinks to Let's Encrypt alone. The role asserts it rather
+	# than render empty.
+	email {{ caddy_acme_email }}
+{% if caddy_acme_ca | length > 0 %}
+	# Staging hatch: an extra var for this run only, never persisted to a file.
+	# Naming a CA collapses the issuer chain to it and drops ZeroSSL (ADR-0006).
+	acme_ca {{ caddy_acme_ca }}
+{% endif %}
+{% endif %}
+{% if proxied_routes %}
+{% set provider = caddy_proxy_ranges[proxied_routes[0].proxied_by] %}
+	# ADR-0008: trust is DERIVED — this block renders only because a route
+	# declares `proxied_by: {{ proxied_routes[0].proxied_by }}`. It is
+	# server-level and every vhost shares :443, so trust is all-or-nothing per
+	# host and cannot be scoped to the proxied vhost. A host nobody fronts must
+	# render NOTHING here, or anyone pointing their own zone at this host's IP
+	# arrives as a trusted peer and forges the client address upstream keys on.
+	#
+	# `trusted_proxies_strict` because without it safety rests on LIST ORDER.
+	servers {
+		trusted_proxies static {{ provider.ranges | join(' ') }}
+		trusted_proxies_strict
+		client_ip_headers {{ provider.client_ip_headers | join(' ') }}
+	}
+{% endif %}
+{% if caddy_redact_uri_prefixes %}
+	# ADR-0009, filter 1 of 2 — the DEFAULT logger. Not redundant with the
+	# per-site `log` block below: Caddy's ERROR logger carries the same
+	# request>uri to stderr => journald, and neither that block nor `log_skip`
+	# touches it. Without this, any 5xx on a secret-bearing URL writes the raw
+	# path to the journal.
+	log {
+{{ format_filter('\t\t') }}
+	}
+{% endif %}
+}
+{# The blank line separating vhosts leads each route rather than trailing it, so
+   the file ends at the last `}` — `caddy fmt` strips a trailing blank line. -#}
+{% for r in caddy_all_routes %}
+
+{{ r.host }} {
+{% if r.tls == 'cert' %}
+{% set cert_name = r.cert | default('default') %}
+	tls {{ caddy_certs_dir }}/{{ cert_name }}.pem {{ caddy_certs_dir }}/{{ cert_name }}.key
+{% else %}
+	# No `tls` line: automatic HTTPS over HTTP-01 (ADR-0006). Emitting one
+	# unconditionally, at a default.pem no ACME host writes, stopped an ACME-only
+	# host converging at all.
+{% endif %}
+	# The debian package owns /var/log/caddy as caddy:caddy; tasks/main.yml
+	# pre-creates each file caddy-owned so a root-run `caddy validate` cannot
+	# claim it first.
+	log {
+		output file /var/log/caddy/{{ r.host }}.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+{% if caddy_redact_uri_prefixes %}
+		# ADR-0009, filter 2 of 2 — the ACCESS log. Redact, never suppress:
+		# `log_skip` would drop status, latency and client_ip too, and a
+		# secret-bearing route is the one you most need those for in an incident.
+{{ format_filter('\t\t') }}
+{% endif %}
+	}
+{% if r.redirect_to is defined %}
+	redir {{ r.redirect_to }}{uri} 301
+{% else %}
+	encode zstd gzip
+{% set overridden_paths = r.max_body_paths | default([]) | map(attribute='paths') | flatten | list %}
+{% for cap in r.max_body_paths | default([]) %}
+	@body{{ loop.index }} path {{ cap.paths | join(' ') }}
+	request_body @body{{ loop.index }} {
+		max_size {{ cap.max }}
+	}
+{% endfor %}
+{% if overridden_paths %}
+	# THE NEGATED MATCHER IS LOAD-BEARING. Measured on caddy 2.8.0: request_body
+	# handlers COMPOSE — each wraps the body reader, so the SMALLEST limit wins
+	# and source order changes nothing. A bare matcher-less `request_body` clamps
+	# every cap above to {{ caddy_max_body }}, validates clean, and 413s an upload
+	# the app accepts.
+	@body_default not path {{ overridden_paths | join(' ') }}
+	request_body @body_default {
+		max_size {{ caddy_max_body }}
+	}
+{% else %}
+	request_body {
+		max_size {{ caddy_max_body }}
+	}
+{% endif %}
+{% if r.upstreams | default([]) %}
+{% for u in r.upstreams %}
+	@upstream{{ loop.index }} path {{ u.paths | join(' ') }}
+	handle @upstream{{ loop.index }} {
+{{ proxy('\t\t', u.to) }}
+	}
+{% endfor %}
+	# The matcher-less `handle` is the catch-all: `handle` blocks sort by matcher
+	# SPECIFICITY, not source order, which is what makes this fall last.
+	handle {
+{{ proxy('\t\t', r.default_upstream) }}
+	}
+{% else %}
+{{ proxy('\t', r.default_upstream) }}
+{% endif %}
+{% endif %}
+}
+{% endfor %}

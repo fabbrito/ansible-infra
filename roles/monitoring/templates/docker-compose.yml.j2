@@ -1,0 +1,70 @@
+# Rendered by Ansible (roles/monitoring) — do not edit on host.
+# Source: roles/monitoring/templates/docker-compose.yml.j2
+#
+# Observability stack: Beszel (hub + agent) for metrics, Dozzle for logs. One
+# compose project, loopback-bound, reached over `ssh -L` (docs/monitoring/access.md).
+# We author this file; the images are upstream. Secrets interpolate from the .env
+# beside it; everything else is baked from role vars and stays reviewable here.
+name: monitoring
+
+services:
+  # ── Beszel hub ───────────────────────────────────────────────────────────────
+  # Web UI + embedded PocketBase datastore. LOOPBACK ONLY — docker bypasses ufw,
+  # so a 0.0.0.0 bind publishes an ops dashboard that has no auth until its first
+  # admin exists. Shares a socket volume with the agent: on one box they talk over
+  # the socket, never a TCP port.
+  beszel:
+    image: henrygd/beszel:{{ monitoring_hub_version }}
+    restart: unless-stopped
+    environment:
+      APP_URL: {{ monitoring_app_url }}
+      # First-run only: creates the admin when no user exists, so re-rendering
+      # every converge stays idempotent.
+      USER_EMAIL: {{ monitoring_admin_email }}
+      USER_PASSWORD: ${BESZEL_ADMIN_PASSWORD}
+    ports:
+      - "{{ monitoring_hub_bind }}:{{ monitoring_hub_port }}:8090"
+    volumes:
+      - beszel_data:/beszel_data
+      - beszel_socket:/beszel_socket
+{% if monitoring_agent_paired %}
+
+  # ── Beszel agent ─────────────────────────────────────────────────────────────
+  # Host + container metrics for the hub. host networking to read the box's real
+  # interfaces and disks; docker socket READ-ONLY for per-container stats; system
+  # D-Bus socket READ-ONLY so host systemd units surface too (needs systemd 243+;
+  # Ubuntu clears it). Rendered only once paired (ADR-0001): KEY + TOKEN come from
+  # the hub's one-time "Add System" step — KEY public, TOKEN the secret from .env.
+  beszel-agent:
+    image: henrygd/beszel-agent:{{ monitoring_agent_version }}
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      LISTEN: /beszel_socket/beszel.sock
+      HUB_URL: {{ monitoring_app_url }}
+      KEY: "{{ monitoring_agent_key }}"
+      TOKEN: ${BESZEL_AGENT_TOKEN}
+    volumes:
+      - beszel_agent_data:/var/lib/beszel-agent
+      - beszel_socket:/beszel_socket
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:ro
+{% endif %}
+
+  # ── Dozzle ───────────────────────────────────────────────────────────────────
+  # Real-time container log viewer. Loopback-bound, same boundary as the hub — it
+  # has NO auth of its own at all. docker socket READ-ONLY: it only reads logs.
+  dozzle:
+    image: amir20/dozzle:{{ monitoring_dozzle_version }}
+    restart: unless-stopped
+    environment:
+      DOZZLE_NO_ANALYTICS: "true"
+    ports:
+      - "{{ monitoring_dozzle_bind }}:{{ monitoring_dozzle_port }}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+volumes:
+  beszel_data:
+  beszel_agent_data:
+  beszel_socket:

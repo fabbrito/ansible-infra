@@ -1,0 +1,227 @@
+---
+# --- Hostname: name the box <inventory key>.<domain> (FQDN) ---
+# Order-independent: nothing else in the baseline reads the live hostname.
+- name: Set system hostname
+  ansible.builtin.hostname:
+    name: "{{ os_hostname }}"
+  tags: [hostname]
+
+# The hostname module does NOT touch /etc/hosts. The live hostname must map to
+# a loopback IP here or `sudo` warns "unable to resolve host" (glibc reads
+# /etc/hosts before DNS). The regexp is anchored to os_hostname, so this adds a
+# line and never rewrites the 127.0.1.1 entry the cloud image already ships —
+# that one usually resolves in the provider's public DNS and is worth keeping.
+- name: Add the FQDN to /etc/hosts on 127.0.1.1
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1\s+{{ os_hostname | regex_escape }}\b'
+    insertafter: '^127\.0\.1\.1\s'
+    line: "127.0.1.1 {{ os_hostname }} {{ inventory_hostname }}"
+    state: present
+  tags: [hostname]
+
+# --- Swap FIRST (>= 1G; tiny VPS without it OOMs during the apt run that follows) ---
+- name: Stat swapfile
+  ansible.builtin.stat:
+    path: "{{ os_swap_file }}"
+  register: os_swap_stat
+  when: os_swap_enabled
+  tags: [swap]
+
+# Gate Format + Enable on active-in-/proc/swaps, not file existence: a run that
+# allocated the file but died before mkswap leaves it on disk, and existence
+# gating would then skip Format/Enable until someone deletes it by hand.
+- name: Check if swapfile is active in /proc/swaps
+  ansible.builtin.command: "grep -q '^{{ os_swap_file }} ' /proc/swaps"
+  register: os_swap_active
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: os_swap_enabled
+  tags: [swap]
+
+- name: Allocate swapfile
+  ansible.builtin.command: "fallocate -l {{ os_swap_size }} {{ os_swap_file }}"
+  args:
+    creates: "{{ os_swap_file }}"
+  when: os_swap_enabled
+  tags: [swap]
+
+- name: Secure swapfile permissions
+  ansible.builtin.file:
+    path: "{{ os_swap_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+  when:
+    - os_swap_enabled
+    - os_swap_stat.stat.exists or not ansible_check_mode
+  tags: [swap]
+
+- name: Format swapfile
+  ansible.builtin.command: "mkswap {{ os_swap_file }}"
+  when:
+    - os_swap_enabled
+    - os_swap_active.rc | default(1) != 0
+  changed_when: true
+  tags: [swap]
+
+- name: Enable swap (runtime)
+  ansible.builtin.command: "swapon {{ os_swap_file }}"
+  when:
+    - os_swap_enabled
+    - os_swap_active.rc | default(1) != 0
+  changed_when: true
+  tags: [swap]
+
+- name: Persist swap in /etc/fstab
+  ansible.posix.mount:
+    path: none
+    src: "{{ os_swap_file }}"
+    fstype: swap
+    opts: sw
+    state: present
+  when:
+    - os_swap_enabled
+    - os_swap_stat.stat.exists or not ansible_check_mode
+  tags: [swap]
+
+- name: Tune vm.swappiness
+  ansible.posix.sysctl:
+    name: vm.swappiness
+    value: "{{ os_swap_swappiness }}"
+    state: present
+    sysctl_set: true
+    reload: true
+  when:
+    - os_swap_enabled
+    - os_swap_stat.stat.exists or not ansible_check_mode
+  tags: [swap]
+
+- name: Tune vm.vfs_cache_pressure
+  ansible.posix.sysctl:
+    name: vm.vfs_cache_pressure
+    value: "{{ os_swap_vfs_cache_pressure }}"
+    state: present
+    sysctl_set: true
+    reload: true
+  when:
+    - os_swap_enabled
+    - os_swap_stat.stat.exists or not ansible_check_mode
+  tags: [swap]
+
+# --- Full apt upgrade FIRST so the base layer lands on a current system ---
+# Otherwise Docker/Caddy land beside deps superseded minutes later. Costs 2-5
+# min on a fresh image.
+- name: Apt update + dist-upgrade + autoremove
+  ansible.builtin.apt:
+    update_cache: true
+    upgrade: dist
+    autoremove: true
+    autoclean: true
+    cache_valid_time: "{{ os_apt_cache_valid_time }}"
+  tags: [apt-upgrade]
+
+- name: Check if reboot is required (kernel/libc updates)
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: os_reboot_required
+  tags: [apt-upgrade]
+
+- name: Reboot if needed
+  ansible.builtin.reboot:
+    msg: "Reboot triggered by bootstrap apt-upgrade"
+    connect_timeout: 5
+    reboot_timeout: 600
+    pre_reboot_delay: 5
+    post_reboot_delay: 30
+    test_command: uptime
+  when: os_reboot_required.stat.exists
+  tags: [apt-upgrade]
+
+# --- Apt base packages (relies on swap headroom on tiny VPS) ---
+- name: Apt base packages
+  ansible.builtin.apt:
+    name: "{{ os_apt_packages }}"
+    state: present
+    update_cache: false # already refreshed above
+  tags: [apt]
+
+# --- Timezone ---
+- name: Set system timezone
+  community.general.timezone:
+    name: "{{ os_timezone }}"
+  tags: [timezone]
+
+# --- Unattended security upgrades (config-only — needs unattended-upgrades from apt step) ---
+- name: Enable unattended-upgrades (apt periodic)
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+  tags: [upgrades]
+
+- name: Configure unattended-upgrades policy
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    mode: "0644"
+    content: |
+      Unattended-Upgrade::Allowed-Origins {
+          "${distro_id}:${distro_codename}-security";
+          "${distro_id}ESMApps:${distro_codename}-apps-security";
+          "${distro_id}ESM:${distro_codename}-infra-security";
+      };
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "{{ os_unattended_reboot_time }}";
+      Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+  tags: [upgrades]
+
+# --- SSH hardening LAST: pubkey-only; root SSH allowed but key-only (break-glass) ---
+# Root stays reachable via the cloud-injected key registered in the provider
+# account, with passwords blocked — that is the break-glass path if the
+# unprivileged account is lost. Daily ops go through `deploy_user`, created by
+# playbooks/bootstrap.yml.
+- name: Disable password auth + harden sshd
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/10-infra-hardening.conf
+    mode: "0644"
+    content: |
+      PasswordAuthentication no
+      PermitRootLogin prohibit-password
+      PubkeyAuthentication yes
+      KbdInteractiveAuthentication no
+      ChallengeResponseAuthentication no
+      UsePAM yes
+      X11Forwarding no
+      MaxAuthTries 3
+      ClientAliveInterval 300
+      ClientAliveCountMax 2
+  notify: Restart sshd
+  tags: [ssh]
+
+# Validate the FULL merged config (sshd reads every drop-in) before the handler
+# reloads: a syntax error aborts the play instead of locking out `deploy`.
+#
+# `-G`, never `-t`: `sshd -t` stats the privsep chroot /run/sshd and dies
+# ("Missing privilege separation directory") BEFORE it reports a verdict.
+# /run/sshd is systemd's `RuntimeDirectory=sshd` on ssh.service, which is
+# socket-activated since Ubuntu 22.10: it exists only while that unit runs, and
+# the apt upgrade above replaces openssh-server, whose postinst stops it, while
+# Ansible's multiplexed connection never re-triggers ssh.socket. Re-runs hide
+# it — by then a new session has restarted ssh.service. `-T` is `-t` plus a
+# dump, same check; creating /run/sshd ourselves is worse — systemd owns it and
+# deletes it on the next ssh.service stop.
+#
+# `-G` needs OpenSSH >= 9.3 (Ubuntu >= 23.10). 22.04 ships 8.9p1 without it and
+# is not socket-activated, so /run/sshd is present and `-t` is safe there.
+- name: Validate sshd config
+  ansible.builtin.command:
+    argv:
+      - sshd
+      - "{{ '-G' if ansible_facts['distribution_version'] is version('23.10', '>=') else '-t' }}"
+  changed_when: false
+  tags: [ssh]

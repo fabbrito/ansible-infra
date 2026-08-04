@@ -1,0 +1,8 @@
+---
+# `caddy reload` over `systemctl reload caddy`: talks straight to the admin API
+# on localhost:2019, returns as soon as the config loads, and errors better.
+- name: Reload caddy
+  ansible.builtin.command:
+    cmd: caddy reload --config /etc/caddy/Caddyfile --force
+  changed_when: true
+  when: not ansible_check_mode

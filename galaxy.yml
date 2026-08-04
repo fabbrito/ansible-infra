@@ -1,0 +1,69 @@
+---
+# Collection manifest. Consumed by `ansible-galaxy collection install`, which is
+# how downstream repos take this layer — never by vendoring or a submodule.
+#
+# Starts at 1.0.0 by choice, not by rule: ansible-lint's version floor
+# (galaxy[version-incorrect]) is opt-in and this repo does not enable it. 0.x
+# would say the contract may still move, and the README's var table is a
+# contract we intend to hold. Tag the repo to match on every release;
+# downstreams pin that tag in their requirements.yml.
+namespace: capybaralabs
+name: infra
+version: 1.0.0
+readme: README.md
+
+authors:
+  - Fabrício Brito (@fabbrito)
+
+description: >-
+  Baseline convergence for long-lived Ubuntu VPS hosts — OS hardening, firewall,
+  fail2ban, Docker, rclone/R2 backups, Caddy reverse proxy, and a loopback-bound
+  monitoring stack. Service roles stay in the consuming repo.
+
+license_file: LICENSE
+
+tags:
+  - infrastructure
+  - linux
+  - ubuntu
+  - docker
+  - caddy
+  - firewall
+  - backup
+
+# Mirrors the bounds the source repo pinned. Pinned to majors so a breaking
+# collection release arrives as a chosen upgrade, not as drift.
+dependencies:
+  community.docker: ">=5.0.0,<6.0.0"
+  community.general: ">=13.0.0,<14.0.0"
+  ansible.posix: ">=2.0.0,<3.0.0"
+
+repository: https://github.com/fabbrito/ansible-infra
+documentation: https://github.com/fabbrito/ansible-infra/blob/master/README.md
+homepage: https://github.com/fabbrito/ansible-infra
+issues: https://github.com/fabbrito/ansible-infra/issues
+
+# Repo-local development tooling and authoring rules. They lint and govern this
+# repo; they are not part of what a downstream installs, and shipping them would
+# put a second Makefile, a second scripts/, and our house style on their disk
+# under ansible/collections/. AGENTS.md especially: a consumer's own agents read
+# whatever lands in their tree.
+# build_ignore is the ONLY exclusion list the build reads — .gitignore is not
+# consulted, so a gitignored directory still ships unless it is named here.
+# .collections/ holds `make deps`' installs AND lint.sh's symlink back to this
+# repo, so omitting it vendored all three dependency collections plus a
+# recursive copy of ourselves: a 259MB tarball.
+build_ignore:
+  - .collections
+  - .ansible
+  - .github
+  - .githooks
+  - .gitignore
+  - .ansible-lint
+  - .prettierignore
+  - .prettierrc.json
+  - AGENTS.md
+  - CLAUDE.md
+  - Makefile
+  - scripts
+  - tests

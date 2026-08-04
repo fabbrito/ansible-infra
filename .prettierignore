@@ -1,0 +1,11 @@
+# No vault files here — this collection holds no secrets and no inventory.
+
+# Jinja templates with non-YAML syntax
+*.j2
+
+# Tooling
+.git/
+.collections/
+node_modules/
+*.lock
+scratch/
