@@ -30,8 +30,11 @@ done < <(git diff --cached --name-only --diff-filter=ACMR)
 
 status=0
 
+# $1 is the file, $2 is why it cannot be here. Say which rule refused it: a
+# guard that only says "rejected" gets renamed around rather than obeyed.
 reject() {
-	printf 'pre-commit rejected: %s\n' "$1" >&2
+	printf '\n  %s\n' "$1" >&2
+	printf '  → %s\n' "$2" >&2
 	status=1
 }
 
@@ -48,30 +51,90 @@ reject() {
 #
 # Certificates and keys go with them: an origin cert or a host key belongs to
 # somebody's fleet, and fleet data is barred from this repo by the same rule as
-# credentials. Graded against the index (`git show :file`) rather than the tree,
-# because the index is what the commit records.
+# credentials.
+#
+# Names are matched case-folded (`${name,,}`) and by prefix as well as suffix,
+# because a name guard is only as good as the renames it survives: `.PEM`,
+# `.vault_pass.txt` and a bare `id_ed25519` all defeated the plain lowercase
+# suffix list this replaced. The content scan below is what makes the name list
+# a convenience rather than the whole defence.
 for file in "${staged[@]}"; do
-	case ${file##*/} in
-		.vault_pass | vault.yml | vault.yaml | *.vault.yml | *.vault.yaml)
-			reject "$file — this repo holds no vault (AGENTS.md > Secrets)"
+	name=${file##*/}
+	name=${name,,}
+
+	case $name in
+		.vault_pass* | vault.y*ml | *.vault.y*ml | *vault_pass*)
+			reject "$file" \
+				'this repo holds no vault — AGENTS.md > Secrets'
+			continue
 			;;
-		*.key | *.pem | *.crt | *.p12 | *.pfx)
-			reject "$file — key and certificate material belongs to a fleet"
+		*.key | *.pem | *.crt | *.cer | *.der | *.p12 | *.pfx | *.jks | \
+			*.p8 | *.asc | *.gpg | *.ppk | id_rsa* | id_dsa* | \
+			id_ecdsa* | id_ed25519*)
+			reject "$file" \
+				'key or certificate material belongs to a fleet'
+			continue
+			;;
+		.env | .env.* | *.env)
+			reject "$file" \
+				'an env file carries a consumer credential'
+			continue
 			;;
 	esac
+
+	# Content, not name. Graded against the index (`git show :file`) rather
+	# than the tree, because the index is what the commit records. `grep -I`
+	# treats a binary blob as a non-match, so a tarball costs one read.
+	#
+	# Each pattern is bracket-broken on one character ([E], [$]) so this file
+	# does not match itself and block its own commit. Do not "tidy" them.
+	if git show ":$file" 2>/dev/null |
+		grep -Iq -E -e 'BEGIN [A-Z ]*PRIVATE KE[Y]' \
+			-e 'BEGIN CERTIFICAT[E]' \
+			-e 'PRIVATE KEY BLOC[K]' \
+			-e '[$]ANSIBLE_VAULT;' \
+			-e 'AKIA[0-9A-Z]{16}'; then
+		reject "$file" \
+			'contains key, certificate or vault material — not the name, the bytes'
+	fi
 done
 
 if ((status != 0)); then
-	printf '\n%s\n' 'Nothing was committed. Unstage it first.' >&2
+	cat >&2 <<-'EOF'
+
+		  Nothing was committed, and nothing above is fixable by renaming the
+		  file: the guard reads the staged bytes too. This repo has no vault
+		  and no inventory to attach one to, so there is nothing here to
+		  encrypt — an encrypted secret is as wrong in this tree as a plain
+		  one. The secret belongs in the consuming repo.
+
+		  git restore --staged <file>
+
+	EOF
 	exit 1
 fi
 
 printf '==> %s\n' 'make check'
 make check || status=1
 
+# `--no-verify` is named last and once, as an escape from a broken hook rather
+# than a way past a red gate. It used to sit beside `make fmt` as a peer option,
+# which reads as a choice between fixing the tree and not fixing it.
 if ((status != 0)); then
-	printf '\n%s\n%s\n' 'pre-commit failed. Fix it with "make fmt", or' \
-		'commit with --no-verify.' >&2
+	cat >&2 <<-'EOF'
+
+		  The gate is red, so this commit would break "green between commits"
+		  — AGENTS.md > Commits. Every commit is green, not just the tip:
+		  a red one mid-branch is a revert that does not build.
+
+		    make fmt      formatting failures fix themselves
+		    make check    re-run the gate
+
+		  Scope the commit down if the failure is in work you have not
+		  finished; do not commit around it. --no-verify is for a hook that
+		  is itself broken, not for a gate that is telling you something.
+
+	EOF
 fi
 
 exit $status

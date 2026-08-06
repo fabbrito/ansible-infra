@@ -192,9 +192,11 @@ make test     # golden render tests — CI runs it
   - `make build` — build the collection tarball
 - **`.githooks/` enforces two rules the gate cannot.** `pre-commit` runs `make check` against the working tree, which is
   what makes "green between commits" a fact rather than an intention, and rejects a staged vault, key or certificate
-  outright — this repo's no-secrets rule is structural, so there is nothing to encrypt, only something to refuse.
-  `commit-msg` grades the subject against **Commits** above. Both are opt-in per clone and skippable with `--no-verify`;
-  neither ships to a consumer (`build_ignore`).
+  outright — this repo's no-secrets rule is structural, so there is nothing to encrypt, only something to refuse. It
+  refuses on **the staged bytes as well as the name**, because a name guard is defeated by a rename; the marker patterns
+  are bracket-broken (`CERTIFICAT[E]`) so the hook does not match itself. `commit-msg` grades the subject and body
+  against **Commits** above. Both are opt-in per clone and skippable with `--no-verify` — which is for a hook that is
+  itself broken, not for a gate that is telling you something. Neither ships to a consumer (`build_ignore`).
 - **Collection dependencies are pinned to majors in `galaxy.yml`**, which is what a consumer resolves, and mirrored in
   `requirements.yml` for local linting. **Change both or neither.** The `ansible-core` floor lives in
   `meta/runtime.yml`, enforced at install time and re-checked by `scripts/lint.sh`.
