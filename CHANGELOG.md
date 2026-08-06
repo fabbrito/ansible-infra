@@ -6,6 +6,19 @@ consumers pin the tag, so a change that is not released is a change nobody gets.
 A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
 that, and the next correction is 1.0.1.
 
+## 1.1.0
+
+### Changed
+
+- `bootstrap` asserts `deploy_authorized_keys` is defined and non-empty, before it creates anything. Empty was the case
+  worth closing: the key loop was a no-op over `[]`, so the play went on to grant passwordless sudo and exited
+  **green**, leaving an account nobody holds a key for on a box that reports itself converged. Unset died at the key
+  loop instead, after the account existed but before the sudoers write.
+- Minor rather than major, deliberately: [ADR-0001](docs/adr/0001-secrets-in-vault-and-an-absent-secret-skips.md) and
+  the README contract both already listed the var as required, so the contract did not move — only its enforcement. No
+  converged fleet can be running with it empty either, because such a host was never reachable as `deploy_user` to begin
+  with.
+
 ## 1.0.1
 
 - Citations in rendered files are qualified with the collection. `# Source:` paths, ADR references and `docs/` pointers
