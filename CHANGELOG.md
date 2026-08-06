@@ -6,7 +6,7 @@ consumers pin the tag, so a change that is not released is a change nobody gets.
 A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
 that, and the next correction is 1.0.1.
 
-## Unreleased
+## 1.0.1
 
 - Citations in rendered files are qualified with the collection. `# Source:` paths, ADR references and `docs/` pointers
   now read `fabbrito.infra …`; unqualified, they resolved against the consuming repo's own tree, where `ADR-0006` is
