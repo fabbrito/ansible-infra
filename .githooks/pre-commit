@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+#
+# The gate, before the commit lands. This repo's gate is `make check` — format,
+# playbook syntax, ansible-lint at the production profile, shellcheck, and a
+# collection build — and the whole of it runs in seconds, so there is nothing
+# slow worth deferring to push time. AGENTS.md asks that every commit leave
+# `make check` green, not just the tip of the branch; that is only enforceable
+# here.
+#
+# Enable once per clone:  make hooks
+# Skip for one commit:    git commit --no-verify
+#
+# This grades the working tree, not the index — prettier and ansible-lint read
+# from disk, and ansible cannot parse half a playbook. Partially staged work is
+# checked as it exists on disk. The secret guard below is the exception, and
+# reads the index on purpose.
+#
+# No errexit, per the house Bash style: failures are counted in `status` so the
+# secret guard and the gate each report, rather than the first one hiding the
+# rest.
+set -uo pipefail
+
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+staged=()
+while IFS= read -r file; do
+	staged+=("$file")
+done < <(git diff --cached --name-only --diff-filter=ACMR)
+((${#staged[@]} == 0)) && exit 0
+
+status=0
+
+reject() {
+	printf 'pre-commit rejected: %s\n' "$1" >&2
+	status=1
+}
+
+# Secrets first, and this one hard-stops instead of falling through to the gate:
+# a credential is permanent once committed, even if the next commit removes it,
+# so nothing after this point is worth running.
+#
+# The list rejects OUTRIGHT rather than grading what it finds. A sibling repo
+# that owns an inventory checks a staged vault is still encrypted; here there is
+# no vault to encrypt. AGENTS.md makes that structural — no vault.yml, no
+# .vault_pass, no inventory to attach them to — so an encrypted vault is as
+# wrong in this tree as a decrypted one, and the guard says so rather than
+# waving through the tidy half of a file that cannot belong here at all.
+#
+# Certificates and keys go with them: an origin cert or a host key belongs to
+# somebody's fleet, and fleet data is barred from this repo by the same rule as
+# credentials. Graded against the index (`git show :file`) rather than the tree,
+# because the index is what the commit records.
+for file in "${staged[@]}"; do
+	case ${file##*/} in
+		.vault_pass | vault.yml | vault.yaml | *.vault.yml | *.vault.yaml)
+			reject "$file — this repo holds no vault (AGENTS.md > Secrets)"
+			;;
+		*.key | *.pem | *.crt | *.p12 | *.pfx)
+			reject "$file — key and certificate material belongs to a fleet"
+			;;
+	esac
+done
+
+if ((status != 0)); then
+	printf '\n%s\n' 'Nothing was committed. Unstage it first.' >&2
+	exit 1
+fi
+
+printf '==> %s\n' 'make check'
+make check || status=1
+
+if ((status != 0)); then
+	printf '\n%s\n%s\n' 'pre-commit failed. Fix it with "make fmt", or' \
+		'commit with --no-verify.' >&2
+fi
+
+exit $status

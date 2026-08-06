@@ -4,6 +4,7 @@
 #
 #   make            # show this help
 #   make deps       # install the collections the roles depend on
+#   make hooks      # point git at .githooks (once per clone)
 #   make check      # fmt-check + lint (what CI runs)
 
 .DEFAULT_GOAL := help
@@ -29,6 +30,14 @@ deps: ## Install/upgrade the Ansible collections the roles depend on
 	ansible-galaxy collection install -r requirements.yml --upgrade -p $(COLLECTIONS_DIR)/
 
 ##@ Local checks
+
+# core.hooksPath is per-clone and git will not set it for you — a hook that
+# nobody enabled is worth nothing, so this is the one setup step besides `deps`.
+# Both hooks name this target in their own header.
+.PHONY: hooks
+hooks: ## Enable the repo's git hooks (once per clone)
+	git config core.hooksPath .githooks
+	@printf 'hooks enabled — pre-commit runs "make check", commit-msg grades the subject\n'
 
 .PHONY: check
 check: fmt-check lint ## fmt-check + lint (what CI runs)

@@ -5,6 +5,6 @@ ufw_allowed_ports: [80, 443]
 
 # Stamped into every rule comment this role writes, so a hand-added rule stands
 # out in `ufw status`. The default only says a converge wrote it; override with
-# the converging repo's name to say which one. Changing it rewrites every rule
+# the consuming repo's name to say which one. Changing it rewrites every rule
 # comment on the next converge — once, harmlessly.
 ufw_rule_tag: ansible

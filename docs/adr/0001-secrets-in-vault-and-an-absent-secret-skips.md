@@ -31,6 +31,8 @@ converged end states — not degraded ones.
   skipping is not a converged end state here — the hub starts, serves, and never creates a first user, so it answers to
   whoever reaches it. Assert when absence leaves nothing to do or leaves the host unsafe; skip everywhere else, and say
   in the role which one you chose.
-- **Absence is indistinguishable from a typo.** A misspelled vault key does not fail the run — it silently skips the
-  task that needed it, and the host converges "successfully" without the thing you meant to configure. Read the play
-  output; a skipped task you expected to run is the signal.
+- **Absence is indistinguishable from a typo, for a lone key.** A misspelled vault key does not fail the run — it
+  silently skips the task that needed it, and the host converges "successfully" without the thing you meant to
+  configure. Read the play output; a skipped task you expected to run is the signal. A typo inside a _grouped_ secret is
+  the exception and fails loudly: `rclone`'s R2 triple and its crypt pair are asserted all-or-nothing
+  ([ADR-0010](0010-roles-assert-their-preconditions-not-their-outcomes.md)).

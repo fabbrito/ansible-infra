@@ -57,35 +57,37 @@ work or fails loudly, and which one is stated below.
 
 **Required to converge anything**
 
-| Var                 | Where            | What it buys                                                            |
-| ------------------- | ---------------- | ----------------------------------------------------------------------- |
-| `deploy_user`       | `group_vars/all` | The unprivileged account Ansible connects as and services run under.    |
-| `infra_install_dir` | `group_vars/all` | Where role tasks install service trees (compose stacks, configs, data). |
+| Var           | Where            | What it buys                                                         |
+| ------------- | ---------------- | -------------------------------------------------------------------- |
+| `deploy_user` | `group_vars/all` | The unprivileged account Ansible connects as and services run under. |
 
 **Required by `bootstrap`**
 
-| Var                      | Where                  | What it buys                                                                          |
-| ------------------------ | ---------------------- | ------------------------------------------------------------------------------------- |
-| `deploy_authorized_keys` | `group_vars/all/vault` | The pubkeys authorized for `deploy_user`. Empty → no keys, and the play is pointless. |
-| `deploy_user`            | `group_vars/all`       | Asserted here too — `bootstrap` creates this account, so it cannot be defaulted.      |
+| Var                      | Where                  | What it buys                                                                                                                                                                                                                                          |
+| ------------------------ | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deploy_authorized_keys` | `group_vars/all/vault` | The pubkeys authorized for `deploy_user`. Unset → the play fails on an undefined variable, after the account exists. Empty → the account and its passwordless sudo are created with no key on it, so the host converges unreachable as `deploy_user`. |
+| `deploy_user`            | `group_vars/all`       | Asserted here too — `bootstrap` creates this account, so it cannot be defaulted.                                                                                                                                                                      |
 
 **Optional — absent, the role skips that work rather than failing**
 
-| Var                                                          | Effect when absent                                                             |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| `ghcr_login_username` + `ghcr_pull_token`                    | `docker` skips the registry login.                                             |
-| `rclone_r2_access_key_id`, `_secret_access_key`, `_endpoint` | `rclone` installs the binary, renders no remote. All three or none — asserted. |
-| `os_hostname_domain`                                         | The box is named by its inventory key alone.                                   |
+| Var                                                          | Effect when absent                                                                                                                 |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `ghcr_pull_token`                                            | `docker` skips the registry login.                                                                                                 |
+| `ghcr_login_username`                                        | Required whenever the token is set — the login task templates it unconditionally and fails on an undefined variable.               |
+| `rclone_r2_access_key_id`, `_secret_access_key`, `_endpoint` | `rclone` installs the binary, renders no remote named `r2`. All three or none — asserted.                                          |
+| `rclone_crypt_password` + `rclone_crypt_password2`           | No `r2crypt` wrapper is rendered and backups write to the plain remote. Both or neither — asserted. See docs/rclone/encryption.md. |
+| `os_hostname_domain`                                         | The box is named by its inventory key alone.                                                                                       |
 
 **Required once a host joins the group that needs it**
 
-| Var                                                    | Group            | Effect when absent                                                                                         |
-| ------------------------------------------------------ | ---------------- | ---------------------------------------------------------------------------------------------------------- |
-| `caddy_acme_email`                                     | caddy hosts      | Asserted, but only if a route uses `tls: acme`.                                                            |
-| `caddy_routes`                                         | caddy hosts      | Defaults to `[]` — a live proxy answering nothing. Join the group in the same change that gives it routes. |
-| `caddy_origin_cert` / `caddy_origin_key`               | caddy hosts      | No origin cert written; `tls: cert` routes have nothing to serve.                                          |
-| `monitoring_admin_email` + `monitoring_admin_password` | monitoring hosts | Asserted. Without them the hub creates no first user and answers unauthenticated.                          |
-| `monitoring_agent_token`                               | monitoring hosts | The agent is not rendered. Hub and Dozzle still come up, so a box can join before it is paired.            |
+| Var                                                    | Group            | Effect when absent                                                                                                                                                                                                               |
+| ------------------------------------------------------ | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `caddy_acme_email`                                     | caddy hosts      | Asserted, but only if a route uses `tls: acme`.                                                                                                                                                                                  |
+| `caddy_routes`                                         | caddy hosts      | Defaults to `[]` — a live proxy answering nothing. Join the group in the same change that gives it routes.                                                                                                                       |
+| `caddy_origin_cert` / `caddy_origin_key`               | caddy hosts      | No origin cert written; `tls: cert` routes have nothing to serve.                                                                                                                                                                |
+| `monitoring_admin_email` + `monitoring_admin_password` | monitoring hosts | Asserted. Without them the hub creates no first user and answers unauthenticated.                                                                                                                                                |
+| `monitoring_agent_key` + `monitoring_agent_token`      | monitoring hosts | Minted together by the hub (see docs/monitoring/access.md). No token → the agent is not rendered, and hub and Dozzle still come up, so a box can join before it is paired. Token without key → the agent starts and never pairs. |
+| `infra_install_dir`                                    | monitoring hosts | Where the role installs the stack tree. Undefined-variable failure when `monitoring` creates its directory. A contract var, so it carries no role prefix.                                                                        |
 
 Every role's own vars are documented in its `defaults/main.yml`, which is the role's public API — read it before
 overriding anything.
@@ -109,13 +111,14 @@ The collection version in `galaxy.yml` and the git tag move together, and consum
 act: bump the pin, re-run the consumer's gate, then converge. Nothing here auto-updates, and `version:` pointing at a
 branch defeats the whole arrangement.
 
-Dependencies are pinned to majors in `galaxy.yml` (mirrored in `requirements.yml` for local linting — change both or
-neither), and the `ansible-core` floor lives in `meta/runtime.yml`, enforced at install time.
+Dependencies are pinned to majors in `galaxy.yml`, and the `ansible-core` floor lives in `meta/runtime.yml`, enforced at
+install time.
 
 ## Development
 
 ```bash
 make deps    # install the collections the roles depend on
+make hooks   # enable the repo's git hooks — once per clone
 make fmt     # prettier + shfmt
 make check   # fmt-check + lint — must be green to commit
 ```

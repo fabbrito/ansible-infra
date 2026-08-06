@@ -16,6 +16,11 @@ token scoped to one bucket cannot do things rclone assumes it can.
 An `r2` S3 remote, plus an optional fleet-wide `r2crypt` **crypt wrapper** over the backups bucket. Services opt into
 encryption by pointing their destination at `r2crypt:` instead of `r2:`.
 
+**A bucket is scoped per project, not per host**, and its token lives in the vault of the group that shares it. Per-host
+buckets were the obvious alternative and lose: a second box serving the same service would need its own bucket and its
+own copy of the credentials, which makes scaling a service a credential-provisioning task. This is the decision the
+hardening runbook and the role's defaults both follow.
+
 Two settings on the R2 remote are forced by the scoped token, and both look like mistakes until you know why:
 
 - **No `acl = private`.** R2's "Object Read & Write" tokens deny `PutObjectAcl`, so rclone's per-PUT

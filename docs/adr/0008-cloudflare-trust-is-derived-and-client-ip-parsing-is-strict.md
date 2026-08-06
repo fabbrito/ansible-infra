@@ -91,9 +91,10 @@ silently the moment one is not.
   unpinned ([ADR-0004](0004-caddy-from-the-official-apt-package.md)) and track current stable, so this is satisfied with
   room to spare. A host somehow below the floor **fails to start** rather than silently ignoring the option — the
   correct failure mode, and the reason the floor is worth stating rather than discovering.
-- **The route schema must let a route declare its TLS mode in a form the template can test**, because the global trust
-  block is now derived from it. [ADR-0005](0005-tls-mode-follows-dns-zone-ownership.md) already makes TLS mode a
-  per-route property; this makes a _second_ thing depend on it.
+- **The route schema must let a route name who fronts it**, because the global trust block is derived from that field
+  and nothing else. TLS mode is deliberately _not_ the discriminator: a proxied name can still answer HTTP-01, so fusing
+  the two into one field renders no trust block for a proxied ACME route — silently. The role's `defaults/main.yml` says
+  so at the field.
 - **`header_up CF-Connecting-IP {client_ip}` must survive on hosts with no Cloudflare.** On such a box it reads as
   obvious dead cruft. It is not: `header_up` overwrites, so without it the client's own `CF-Connecting-IP` reaches the
   upstream verbatim, and anything keying on client IP then trusts a value the client wrote — **one bucket for the entire
@@ -107,5 +108,6 @@ silently the moment one is not.
   scheme, and we no longer overwrite it. That is the truth, and an application keying on it (secure cookies under
   `trust proxy`) sees a case it never saw before. Cloudflare's _Always Use HTTPS_ and Caddy's own HTTP→HTTPS redirect
   are what keep it to `https` in practice.
-- **Adding a non-Cloudflare proxy in front of a host is a new decision, not a config tweak.** The trust block names
-  Cloudflare's ranges specifically, and the header list names Cloudflare's header.
+- **A second proxy provider is a config change; a second provider _on one host_ is not possible.** The role keys ranges
+  and client-IP header by provider, so adding one is a new entry rather than a code change. But a host asserts that at
+  most one provider fronts it: ranges could union, `client_ip_headers` cannot.

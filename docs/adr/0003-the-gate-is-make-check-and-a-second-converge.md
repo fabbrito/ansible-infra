@@ -18,7 +18,7 @@ drift hides in the noise.
 Three gates, in increasing order of truthfulness.
 
 1. **`make check`** — static only, touches no host: formatting, playbook syntax, `ansible-lint` at the **production**
-   profile, `shellcheck`. This is what CI runs, and every commit leaves it green.
+   profile, `shellcheck`, and a collection build. This is what CI runs, and every commit leaves it green.
 2. **A dry-run** — `--check --diff` against a real host, read the diff.
 3. **A second converge** — run the play twice. **The second run must report zero changed.** This is the closest thing to
    a real test that exists here, and it is the one that catches the failure mode above.
@@ -30,5 +30,6 @@ Three gates, in increasing order of truthfulness.
 - **Check mode lies, and we accept that.** A task whose prerequisite package was never really installed cannot run under
   `--check`, so it is gated `when: not ansible_check_mode` to keep the dry-run reporting cleanly. A dry-run is therefore
   not proof — but an _unexpected_ diff is always real, which is enough to make it worth running.
-- **Destructive playbooks are excluded from dry-runs by name**, in `scripts/lint.sh`. A new destructive playbook adds
-  itself to that skip list; forgetting to means CI dry-runs it.
+- **Gate 1 syntax-checks every playbook and dry-runs none.** There is no host to dry-run against, so the
+  `--check --diff` leg — and any exclusion a destructive play needs there — belongs to the consuming repo's gate, not to
+  `scripts/lint.sh`.

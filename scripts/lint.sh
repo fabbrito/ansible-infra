@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Static checks. Run from repo root: ./scripts/lint.sh
 #
-# This repo is a collection, not a controller: no inventory, no host. The
+# This repo is a collection, not a control node: no inventory, no host. The
 # dry-run leg the consuming repo runs (TEST_HOST=<host>, --check --diff) has no
 # equivalent here — what can be proven upstream is proven here, the rest is the
 # consumer's gate. README.md, "Where the gate lives".
@@ -36,12 +36,13 @@ if [[ $oldest != "$min_core" ]]; then
 	exit 1
 fi
 
-# baseline.yml names its roles by FQCN, and ansible resolves those only through a
-# collections path — the repo root BEING the collection root is not enough. Stage
-# a symlink at <path>/ansible_collections/<ns>/<name> so a syntax-check resolves
-# capybaralabs.infra.* against the working tree, uncommitted edits included.
-# Cheaper and more honest than rebuilding a tarball per run. `make deps` installs
-# the third-party collections into the same tree, so one path serves both.
+# baseline.yml names its roles by FQCN, and ansible resolves those only through
+# a collections path — the repo root BEING the collection root is not enough.
+# Stage a symlink at <path>/ansible_collections/<ns>/<name> so a syntax-check
+# resolves capybaralabs.infra.* against the working tree, uncommitted edits
+# included. Cheaper and more honest than rebuilding a tarball per run. `make
+# deps` installs the third-party collections into the same tree, so one path
+# serves both.
 staged='.collections/ansible_collections/capybaralabs'
 mkdir -p "$staged" || exit 1
 ln -sfn "$PWD" "$staged/infra" || exit 1
@@ -101,7 +102,9 @@ fi
 # repo — a 259MB tarball that built green. Inspect the contents, not the status.
 bold ''
 bold '==> collection build'
-if ansible-galaxy collection build --force --output-path .collections >/dev/null 2>&1; then
+build_out='.collections'
+if ansible-galaxy collection build --force \
+	--output-path "$build_out" >/dev/null 2>&1; then
 	tarball=".collections/capybaralabs-infra-$(
 		awk '$1 == "version:" { print $2 }' galaxy.yml
 	).tar.gz"

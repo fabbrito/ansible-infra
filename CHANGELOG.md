@@ -5,7 +5,7 @@ together — consumers pin the tag, so a change that is not released is a change
 
 ## 1.0.0
 
-Initial extraction from the controller repo these roles grew in, so a second team can take the same baseline without
+Initial extraction from the consumer repo these roles grew in, so a second team can take the same baseline without
 taking the fleet it was written for.
 
 ### Roles
