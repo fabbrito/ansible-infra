@@ -17,6 +17,10 @@ make sense as the consequence of a decision recorded here.
 | [0009](0009-secret-bearing-urls-are-redacted-in-every-logger.md)            | Secret-bearing URIs are redacted — never suppressed — in every logger.    |
 | [0010](0010-roles-assert-their-preconditions-not-their-outcomes.md)         | A role asserts its own inputs, and asserts nothing else.                  |
 
+0003 and 0010 each carry a dated **Amendment** at the foot, added together: 0003 for the two static gates that read the
+rendered bytes rather than the tasks, 0010 for the line between them — asserts validate the consumer's input, goldens
+validate our output. Read both before proposing either mechanism do the other's job.
+
 Every one of these explains a role. Decisions about running a fleet — how inventory expresses service composition, which
 repo owns a host, where a secret sits in a vault — belong to the consuming repo, which records them itself. An ADR added
 here meets the same bar.

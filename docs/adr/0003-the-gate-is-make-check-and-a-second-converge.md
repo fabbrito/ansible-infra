@@ -33,3 +33,28 @@ Three gates, in increasing order of truthfulness.
 - **Gate 1 syntax-checks every playbook and dry-runs none.** There is no host to dry-run against, so the
   `--check --diff` leg — and any exclusion a destructive play needs there — belongs to the consuming repo's gate, not to
   `scripts/lint.sh`.
+
+## Amendment — two more static gates (2026-08-06)
+
+The three gates above stand. Two more sit between gate 1 and gate 2, and both exist because gate 1 turned out to have a
+blind spot the original text did not name: **it reads the tasks, never the bytes they produce.**
+
+`ansible-lint` at the production profile will pass a template that renders a Caddyfile granting proxy trust to the whole
+internet, because the task is a well-formed `template:` and the rendered file is somebody else's problem.
+`caddy validate` will pass it too — it is valid Caddyfile. Nothing between "the YAML is clean" and "a host converged"
+was looking at the output.
+
+1. **`make sanity`** — `ansible-test sanity`, the 34 checks ansible-core ships. Cheap coverage of the things a
+   collection is expected to get right and this repo had never been checked on. Out of `make check` on cost alone: a
+   cold run builds a venv per supported Python, and the pre-commit hook runs `check` on every commit.
+2. **`make test`** — golden renders. Fixtures go through the real templates and the resulting bytes are diffed against
+   checked-in expectations. One fixture per _decision_, each naming the branch it pins.
+
+Both are static, both touch no host, and CI runs them alongside `make check`.
+
+The consequence worth stating plainly: **a template change with no golden diff means either you changed nothing or you
+have no fixture for the branch you touched.** Adding a branch means adding a fixture, in the same commit. The mechanics,
+and the two rules the layout cannot enforce, are in `tests/README.md`.
+
+What this does **not** change: gates 2 and 3 remain the truthful ones. A golden proves we render what we meant to
+render, never that the host likes it.
