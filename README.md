@@ -156,3 +156,7 @@ Bash follows the [YSAP style guide](https://style.ysap.sh); `make fmt` applies t
 scripts under `scripts/` use no `set -e` by policy — errexit hides the failure that matters, and each check records its
 own. That policy is about the scripts the gate lints. Scripts this repo _renders onto a host_ are a separate call:
 `roles/docker`'s cleanup unit does set errexit, because a systemd oneshot should fail its unit rather than press on.
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).
