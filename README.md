@@ -12,10 +12,14 @@ service, which is also where inventory, secrets and the converge itself live.
 ```yaml
 # requirements.yml, in the consuming repo
 collections:
-  - name: git+ssh://git@github.com/fabbrito/ansible-infra.git
+  - name: git+https://github.com/fabbrito/ansible-infra.git
     type: git
     version: v1.0.0 # a tag, never a branch — see Versioning
 ```
+
+The repo is public, so `https` needs no credential — which is what makes this installable from a CI runner without
+handing it a deploy key. `git+ssh://git@github.com/…` still works if you would rather the fetch go over your existing
+key.
 
 Declare where collections live **before** installing, or Ansible will not find what you just installed and the FQCNs
 below fail to resolve:
