@@ -1,24 +1,36 @@
 ---
 # --- Hostname: name the box <inventory key>.<domain> (FQDN) ---
-# Order-independent: nothing else in the baseline reads the live hostname.
-- name: Set system hostname
-  ansible.builtin.hostname:
-    name: "{{ os_hostname }}"
+# Opt-in, and the whole block is skipped when neither var is set: naming the box
+# after the inventory key alone would RENAME a host that already carries an
+# FQDN, on a converge that reports green. Order-independent otherwise — nothing
+# else in the baseline reads the live hostname.
+- name: Name the box
+  when: os_hostname | length > 0 or os_hostname_domain | length > 0
   tags: [hostname]
+  block:
+    - name: Resolve the target hostname
+      ansible.builtin.set_fact:
+        os_hostname_target: >-
+          {{ os_hostname if os_hostname | length > 0
+             else inventory_hostname ~ '.' ~ os_hostname_domain }}
 
-# The hostname module does NOT touch /etc/hosts. The live hostname must map to
-# a loopback IP here or `sudo` warns "unable to resolve host" (glibc reads
-# /etc/hosts before DNS). The regexp is anchored to os_hostname, so this adds a
-# line and never rewrites the 127.0.1.1 entry the cloud image already ships —
-# that one usually resolves in the provider's public DNS and is worth keeping.
-- name: Add the FQDN to /etc/hosts on 127.0.1.1
-  ansible.builtin.lineinfile:
-    path: /etc/hosts
-    regexp: '^127\.0\.1\.1\s+{{ os_hostname | regex_escape }}\b'
-    insertafter: '^127\.0\.1\.1\s'
-    line: "127.0.1.1 {{ os_hostname }} {{ inventory_hostname }}"
-    state: present
-  tags: [hostname]
+    - name: Set system hostname
+      ansible.builtin.hostname:
+        name: "{{ os_hostname_target }}"
+
+    # The hostname module does NOT touch /etc/hosts. The live hostname must map
+    # to a loopback IP here or `sudo` warns "unable to resolve host" (glibc
+    # reads /etc/hosts before DNS). The regexp is anchored to the resolved name,
+    # so this adds a line and never rewrites the 127.0.1.1 entry the cloud image
+    # already ships — that one usually resolves in the provider's public DNS and
+    # is worth keeping.
+    - name: Add the FQDN to /etc/hosts on 127.0.1.1
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.1\.1\s+{{ os_hostname_target | regex_escape }}\b'
+        insertafter: '^127\.0\.1\.1\s'
+        line: "127.0.1.1 {{ os_hostname_target }} {{ inventory_hostname }}"
+        state: present
 
 # --- Swap FIRST (>= 1G; tiny VPS without it OOMs during the apt run that follows) ---
 - name: Stat swapfile
