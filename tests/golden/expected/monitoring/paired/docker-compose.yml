@@ -1,10 +1,11 @@
-# Rendered by Ansible (roles/monitoring) — do not edit on host.
-# Source: roles/monitoring/templates/docker-compose.yml.j2
+# Rendered by Ansible — do not edit on host.
+# Source: fabbrito.infra collection — roles/monitoring/templates/docker-compose.yml.j2
 #
 # Observability stack: Beszel (hub + agent) for metrics, Dozzle for logs. One
-# compose project, loopback-bound, reached over `ssh -L` (docs/monitoring/access.md).
-# We author this file; the images are upstream. Secrets interpolate from the .env
-# beside it; everything else is baked from role vars and stays reviewable here.
+# compose project, loopback-bound, reached over `ssh -L`
+# (fabbrito.infra docs/monitoring/access.md). We author this file; the images
+# are upstream. Secrets interpolate from the .env beside it; everything else is
+# baked from role vars and stays reviewable here.
 name: monitoring
 
 services:
@@ -32,8 +33,9 @@ services:
   # Host + container metrics for the hub. host networking to read the box's real
   # interfaces and disks; docker socket READ-ONLY for per-container stats; system
   # D-Bus socket READ-ONLY so host systemd units surface too (needs systemd 243+;
-  # Ubuntu clears it). Rendered only once paired (ADR-0001): KEY + TOKEN come from
-  # the hub's one-time "Add System" step — KEY public, TOKEN the secret from .env.
+  # Ubuntu clears it). Rendered only once paired (fabbrito.infra ADR-0001):
+  # KEY + TOKEN come from the hub's one-time "Add System" step — KEY public,
+  # TOKEN the secret from .env.
   beszel-agent:
     image: henrygd/beszel-agent:0.18.7
     restart: unless-stopped

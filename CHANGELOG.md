@@ -8,6 +8,10 @@ that, and the next correction is 1.0.1.
 
 ## Unreleased
 
+- Citations in rendered files are qualified with the collection. `# Source:` paths, ADR references and `docs/` pointers
+  now read `fabbrito.infra …`; unqualified, they resolved against the consuming repo's own tree, where `ADR-0006` is
+  somebody else's decision and `roles/caddy/…` is somebody else's role. Affects the bytes of every rendered file, so the
+  goldens moved with it.
 - ADR-0011 records that distribution is a git tag and there is no Galaxy publish, along with the three things that would
   reopen it. The argument that publishing was needed for a downstream collection to depend on this one is false and the
   ADR says so: git dependencies resolve transitively, tested.
