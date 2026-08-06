@@ -81,7 +81,12 @@ Commits follow `type(scope): subject`.
   how big it was.
 - **Subject** — concise, imperative, lowercase, no trailing period.
 - **Bias hard to terse.** Subject-only by default; add a body only when one line can't carry it, and then write short
-  bullet topics, not prose.
+  bullet topics, not prose. `commit-msg` caps the subject at **72 columns** and the body at **5 bullets, each at most 2
+  lines of 80 columns**, with trailers limited to an allowlist. Needing more means the commit is describing its own
+  size, or it should have been two commits.
+  - **The caps are the rule, not an obstacle in front of it.** Widening a line, inventing a `Note:` trailer, or packing
+    two topics into one bullet satisfies the hook and breaks the convention it enforces. The caps are two-axis (count
+    _and_ width) precisely because a one-axis cap invites that.
 - **One commit per change.** Each fix or refactor is atomic and independently revertable.
 - **Green between commits.** Every commit leaves `make check` passing; the pre-commit hook enforces it. Never commit a
   red tree.
