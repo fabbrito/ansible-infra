@@ -126,7 +126,13 @@ overriding anything.
 This repo can only prove the static half, and it splits by cost. `make check` is the fast leg — formatting, playbook
 syntax, `ansible-lint` at the **production** profile, `shellcheck`, and that the collection builds — and the pre-commit
 hook runs it on every commit. `make sanity` is `ansible-test sanity`, the 34 checks ansible-core ships; it builds a venv
-per supported Python on first run, so it stays out of `check`. CI runs both.
+per supported Python on first run, so it stays out of `check`. `make test` renders the templates against checked-in
+fixtures and diffs the bytes. CI runs all three.
+
+That last one exists because linting and validating both stop short of the same thing. `ansible-lint` reads the tasks
+and `caddy validate` reads the syntax; neither can see a config that is _valid_ and says the wrong thing — a proxy-trust
+block on a host nothing fronts, a body cap silently clamped by a matcher-less default, a redaction filter naming a
+prefix that never occurs. Asserts check what the consumer sets; goldens check what we emit.
 
 The half that matters most is not provable here, because this repo has no inventory and reaches no host:
 
@@ -153,6 +159,7 @@ make hooks   # enable the repo's git hooks — once per clone
 make fmt     # prettier + shfmt
 make check   # fmt-check + lint — must be green to commit
 make sanity  # ansible-test sanity — CI runs it; slow on a cold venv
+make test    # golden render tests — CI runs it
 ```
 
 `make check` needs `ansible-lint`, `shellcheck`, `shfmt` and `npx` on top of `ansible-core`; `make deps` installs the

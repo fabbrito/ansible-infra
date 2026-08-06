@@ -150,6 +150,7 @@ There is no unit-test suite — why static checks and not a suite is ADR-0003's.
 ```bash
 make check    # fmt-check + lint — must be green to commit
 make sanity   # ansible-test sanity — CI runs it; slow on a cold venv
+make test     # golden render tests — CI runs it
 ```
 
 - **`make check` is static** — formatting, playbook syntax, `ansible-lint` (must stay clean at the **production**
@@ -162,6 +163,11 @@ make sanity   # ansible-test sanity — CI runs it; slow on a cold venv
   that skip rather than reporting green.
 - **`tests/sanity/ignore-<core>.txt` takes no comments and no blank lines** — the `ignores` test rejects both. The
   reasoning for each entry goes in `tests/README.md`.
+- **`make test` pins the rendered BYTES of the templates.** Asserts validate the consumer's input; goldens validate our
+  output, and the gap between them is where this repo's worst bugs live — a config that is valid and says the wrong
+  thing passes both `ansible-lint` and the tool's own validator. **A template change with no golden diff means you
+  changed nothing or you have no fixture for the branch you touched.** Adding a branch means adding a fixture, in the
+  same commit. `tests/README.md` has the layout and the two rules it cannot enforce.
 - **The gate that matters is the consumer's and you cannot run it.** A `--check --diff` dry-run against a real box, and
   a second converge reporting zero changed, both belong to the consuming repo. Behaviour changes therefore land as a
   release the consumer adopts deliberately — never as a quiet fix to a branch someone tracks.
@@ -177,6 +183,7 @@ make sanity   # ansible-test sanity — CI runs it; slow on a cold venv
   - `make hooks` — point `core.hooksPath` at `.githooks` (once per clone)
   - `make fmt` / `make check` — autofix / verify
   - `make sanity` — `ansible-test sanity` (CI; not part of `check`)
+  - `make test` / `make golden-update` — golden renders: verify / accept
   - `make build` — build the collection tarball
 - **`.githooks/` enforces two rules the gate cannot.** `pre-commit` runs `make check` against the working tree, which is
   what makes "green between commits" a fact rather than an intention, and rejects a staged vault, key or certificate

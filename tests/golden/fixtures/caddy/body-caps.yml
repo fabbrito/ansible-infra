@@ -1,0 +1,28 @@
+---
+# The negated matcher, which is the branch that validates clean while being
+# wrong. request_body handlers COMPOSE — the smallest limit wins wherever two
+# apply — so a bare matcher-less default silently clamps every override below to
+# caddy_max_body. Both configs pass `caddy validate`; only the render differs.
+#
+# The golden therefore has to pin `@body_default not path <every overridden
+# path>` literally, including the path ORDER, which comes from flattening
+# max_body_paths in declaration order.
+#
+# Paired with `upstreams`, so the same fixture also pins the `handle` blocks and
+# the matcher-less catch-all that must fall last.
+caddy_acme_email: ops@example.org
+
+caddy_routes:
+  - host: app.example.org
+    tls: acme
+    max_body_paths:
+      - paths: [/api/auth/*]
+        max: 64KB
+      - paths: [/api/v1/upload, /api/v1/upload/*]
+        max: 25MiB
+    upstreams:
+      - paths: [/api/*, /webhooks/*, /health]
+        to: 127.0.0.1:3000
+    default_upstream: 127.0.0.1:8080
+
+caddy_extra_routes: []

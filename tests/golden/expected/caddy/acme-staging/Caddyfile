@@ -1,0 +1,41 @@
+# Rendered by Ansible (roles/caddy) — do not edit on host.
+# Source: roles/caddy/templates/Caddyfile.j2
+{
+	# ADR-0006: the email admits ZeroSSL as a fallback issuer. Absent, Caddy's
+	# chain silently shrinks to Let's Encrypt alone. The role asserts it rather
+	# than render empty.
+	email ops@example.org
+	# Staging hatch: an extra var for this run only, never persisted to a file.
+	# Naming a CA collapses the issuer chain to it and drops ZeroSSL (ADR-0006).
+	acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+app.example.org {
+	# No `tls` line: automatic HTTPS over HTTP-01 (ADR-0006). Emitting one
+	# unconditionally, at a default.pem no ACME host writes, stopped an ACME-only
+	# host converging at all.
+	# The debian package owns /var/log/caddy as caddy:caddy; tasks/main.yml
+	# pre-creates each file caddy-owned so a root-run `caddy validate` cannot
+	# claim it first.
+	log {
+		output file /var/log/caddy/app.example.org.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+	}
+	encode zstd gzip
+	request_body {
+		max_size 1MB
+	}
+	reverse_proxy 127.0.0.1:3000 {
+		header_up Host {host}
+		header_up X-Real-IP {client_ip}
+		header_up X-Forwarded-For {client_ip}
+		header_up CF-Connecting-IP {client_ip}
+		transport http {
+			dial_timeout 10s
+			read_timeout 60s
+			write_timeout 60s
+		}
+	}
+}

@@ -1,0 +1,18 @@
+---
+# The staging hatch, alone in a fixture because it is the one var whose whole
+# risk is that it PERSISTS. ADR-0006 pins the challenge and deliberately leaves
+# the CA unpinned; naming one collapses the issuer chain to it and drops the
+# ZeroSSL fallback, so a value that survives past the run it was meant for is a
+# live site serving a certificate no browser trusts, on a green converge.
+#
+# The golden's job here is small and exact: `acme_ca` appears when this is set,
+# and every other fixture proves it is absent when it is not.
+caddy_acme_email: ops@example.org
+caddy_acme_ca: https://acme-staging-v02.api.letsencrypt.org/directory
+
+caddy_routes:
+  - host: app.example.org
+    tls: acme
+    default_upstream: 127.0.0.1:3000
+
+caddy_extra_routes: []

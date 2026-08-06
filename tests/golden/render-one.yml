@@ -1,0 +1,36 @@
+---
+# One fixture. Included per file by render.yml, which owns the loop.
+
+# fixtures/<role>/<case>.yml — the directory names the role, so adding a role to
+# the harness is a directory plus a steps file, never an edit here.
+- name: Identify the fixture
+  ansible.builtin.set_fact:
+    golden_role: "{{ golden_fixture | dirname | basename }}"
+    golden_case: "{{ golden_fixture | basename | splitext | first }}"
+
+- name: Name the output directory
+  ansible.builtin.set_fact:
+    golden_case_out: "{{ golden_out }}/{{ golden_role }}/{{ golden_case }}"
+
+# Defaults FIRST, fixture second, and the order is the point twice over. It
+# makes a changed default show up as a golden diff, which is most of why these
+# exist. And because both land at the same precedence, re-reading the defaults
+# each iteration is what clears a var the PREVIOUS fixture set — so every var a
+# fixture may set has to be declared in the role's defaults, or it leaks into
+# every fixture sorted after it.
+- name: Load the role defaults
+  ansible.builtin.include_vars:
+    file: "{{ golden_repo }}/roles/{{ golden_role }}/defaults/main.yml"
+
+- name: Load the fixture
+  ansible.builtin.include_vars:
+    file: "{{ golden_fixture }}"
+
+- name: Ensure the output directory
+  ansible.builtin.file:
+    path: "{{ golden_case_out }}"
+    state: directory
+    mode: "0755"
+
+- name: Render the role's templates
+  ansible.builtin.include_tasks: "steps/{{ golden_role }}.yml"

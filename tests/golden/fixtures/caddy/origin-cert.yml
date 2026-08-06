@@ -1,0 +1,28 @@
+---
+# `tls: cert` in both its forms — the default cert and a named one from
+# caddy_extra_certs — plus a redirect vhost, which is the branch that renders no
+# proxy and no body cap at all.
+#
+# No cert material here and none needed: the template emits PATHS under
+# caddy_certs_dir, never the blobs. Writing them is a separate task, and this
+# repo ships no key.
+caddy_extra_certs:
+  - name: other
+    cert: unused-by-the-template
+    key: unused-by-the-template
+
+caddy_routes:
+  - host: app.example.org
+    tls: cert
+    default_upstream: 127.0.0.1:3000
+
+  - host: other.example.net
+    tls: cert
+    cert: other
+    default_upstream: 127.0.0.1:3001
+
+  - host: legacy.example.org
+    tls: cert
+    redirect_to: https://app.example.org
+
+caddy_extra_routes: []

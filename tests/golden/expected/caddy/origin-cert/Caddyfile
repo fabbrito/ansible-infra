@@ -1,0 +1,74 @@
+# Rendered by Ansible (roles/caddy) — do not edit on host.
+# Source: roles/caddy/templates/Caddyfile.j2
+{
+}
+
+app.example.org {
+	tls /etc/caddy/certs/default.pem /etc/caddy/certs/default.key
+	# The debian package owns /var/log/caddy as caddy:caddy; tasks/main.yml
+	# pre-creates each file caddy-owned so a root-run `caddy validate` cannot
+	# claim it first.
+	log {
+		output file /var/log/caddy/app.example.org.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+	}
+	encode zstd gzip
+	request_body {
+		max_size 1MB
+	}
+	reverse_proxy 127.0.0.1:3000 {
+		header_up Host {host}
+		header_up X-Real-IP {client_ip}
+		header_up X-Forwarded-For {client_ip}
+		header_up CF-Connecting-IP {client_ip}
+		transport http {
+			dial_timeout 10s
+			read_timeout 60s
+			write_timeout 60s
+		}
+	}
+}
+
+other.example.net {
+	tls /etc/caddy/certs/other.pem /etc/caddy/certs/other.key
+	# The debian package owns /var/log/caddy as caddy:caddy; tasks/main.yml
+	# pre-creates each file caddy-owned so a root-run `caddy validate` cannot
+	# claim it first.
+	log {
+		output file /var/log/caddy/other.example.net.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+	}
+	encode zstd gzip
+	request_body {
+		max_size 1MB
+	}
+	reverse_proxy 127.0.0.1:3001 {
+		header_up Host {host}
+		header_up X-Real-IP {client_ip}
+		header_up X-Forwarded-For {client_ip}
+		header_up CF-Connecting-IP {client_ip}
+		transport http {
+			dial_timeout 10s
+			read_timeout 60s
+			write_timeout 60s
+		}
+	}
+}
+
+legacy.example.org {
+	tls /etc/caddy/certs/default.pem /etc/caddy/certs/default.key
+	# The debian package owns /var/log/caddy as caddy:caddy; tasks/main.yml
+	# pre-creates each file caddy-owned so a root-run `caddy validate` cannot
+	# claim it first.
+	log {
+		output file /var/log/caddy/legacy.example.org.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+	}
+	redir https://app.example.org{uri} 301
+}

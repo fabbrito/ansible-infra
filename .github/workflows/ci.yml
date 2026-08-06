@@ -52,3 +52,9 @@ jobs:
       # commit and a cold sanity venv is slow. CI is where it belongs.
       - name: ansible-test sanity
         run: make sanity
+
+      # The leg that catches what neither ansible-lint nor `caddy validate`
+      # will: a template change that renders a valid config saying the wrong
+      # thing.
+      - name: golden render tests
+        run: make test
