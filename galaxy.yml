@@ -9,7 +9,7 @@
 # consumers pin that tag in their requirements.yml.
 namespace: fabbrito
 name: infra
-version: 1.0.0
+version: 1.0.1
 readme: README.md
 
 # No mailbox: this manifest ships to every consumer and MANIFEST.json is world
