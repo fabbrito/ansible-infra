@@ -6,6 +6,12 @@ consumers pin the tag, so a change that is not released is a change nobody gets.
 A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
 that, and the next correction is 1.0.1.
 
+## Unreleased
+
+- ADR-0011 records that distribution is a git tag and there is no Galaxy publish, along with the three things that would
+  reopen it. The argument that publishing was needed for a downstream collection to depend on this one is false and the
+  ADR says so: git dependencies resolve transitively, tested.
+
 ## 1.0.0
 
 Initial extraction from the consumer repo these roles grew in, so a second team can take the same baseline without
