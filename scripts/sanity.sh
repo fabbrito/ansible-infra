@@ -29,8 +29,8 @@ rm -rf "$stage" && mkdir -p "$dest" || exit 1
 
 # .collections excluded or the copy contains itself; .ansible is local cache.
 # .git is COPIED ON PURPOSE — see the guard below.
-if ! tar -c -C . --exclude=./.collections --exclude=./.ansible . |
-	tar -x -C "$dest"; then
+if ! tar -cf - -C . --exclude=./.collections --exclude=./.ansible . |
+	tar -xf - -C "$dest"; then
 	red "  FAIL could not stage a copy at $dest"
 	exit 1
 fi
