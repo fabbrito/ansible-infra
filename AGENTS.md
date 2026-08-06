@@ -1,24 +1,22 @@
 # Conventions
 
 This is an Ansible **collection**. It ships the roles and playbooks that converge Ubuntu VPS hosts; it does not own an
-inventory, a vault, or a host, and it never reaches one. Everything below follows from that: the artifacts are roles,
-the gate is a static `make check`, and the thing that can go wrong is somebody else's host, on somebody else's converge.
-
-The consuming repo holds inventory, secrets, service roles, and the converge. Read `README.md` for the seam between the
-two before changing anything that crosses it, and `CONTEXT.md` for what each word here means.
+inventory, a vault, or a host, and never reaches one. Everything below follows from that: the artifacts are roles, the
+gate is a static `make check`, and what can go wrong is somebody else's host on somebody else's converge. The consuming
+repo holds inventory, secrets, service roles, and the converge — `README.md` has the seam between the two, `CONTEXT.md`
+the vocabulary.
 
 ## Language
 
 All developer-facing text is **English** — comments, commit messages, variable names, docs. Nothing here renders copy an
-end user reads; if that ever changes, the copy follows the consumer's locale while the code around it stays English.
+end user reads; if that changes, that copy follows the consumer's locale and the code around it stays English.
 
 ## Naming
 
 - **Roles** are kebab-case, named for the thing they install (`caddy`, `fail2ban`). One role per installable concern.
 - **Role variables are prefixed with their role** — `caddy_routes`, `os_swap_size`, `docker_cleanup_until`. Ansible's
   var namespace is flat and has no scoping; the prefix is what keeps two roles from colliding.
-  - `ansible-lint` enforces `var-naming[no-role-prefix]` (production profile, no skip), so an unprefixed role var —
-    including `register:`/`set_fact:` — fails the gate.
+  - `ansible-lint` enforces it (`var-naming[no-role-prefix]`), `register:` and `set_fact:` included.
 - **Vars that cross roles carry no prefix and are a CONTRACT, not a default.** A collection cannot ship `group_vars`, so
   `deploy_user` and `infra_install_dir` are set by the consumer and merely consumed here. Adding one is a breaking
   change to that contract: it goes in the README table and in `CHANGELOG.md`, in the same commit.
@@ -28,18 +26,17 @@ end user reads; if that ever changes, the copy follows the consumer's locale whi
 
 ## Nothing in here names a consumer
 
-This layer is shared across teams and across clients. A comment, a default, or a doc that names a client, a client's
-vendor, a client's domain, or a consuming repo has leaked — it is wrong here even when it is accurate.
+This layer is shared across teams and clients. A comment, a default, or a doc naming a client, a client's vendor, a
+client's domain, or a consuming repo has leaked — wrong here even when accurate.
 
-Keep the fact, drop the name: _"a payment provider's settlement callback"_ carries the same warning as the bank's name
-and travels. The same goes for defaults: a role default that encodes one fleet's domain or mailbox is a bug, because the
-next consumer inherits it silently. Default to empty and assert, or default to empty and skip — and say which.
+**Keep the fact, drop the name:** _"a payment provider's settlement callback"_ carries the same warning as the bank's
+name and travels. Same for defaults — one encoding a fleet's domain or mailbox is a bug the next consumer inherits
+silently. Default to empty and assert, or default to empty and skip; say which.
 
 ## Comments
 
-A comment earns its place by carrying what the YAML can't, in as few words as it takes. Sequencing is most of this
-repo's logic and almost none of it is visible in the tasks, so the facts below are worth writing down — tersely. A
-paragraph is a fact plus padding; keep the fact.
+A comment carries what the YAML can't, in as few words as it takes. Sequencing is most of this repo's logic and almost
+none of it is visible in the tasks, so these four are worth writing down — tersely.
 
 - **Hidden contracts** — what a task assumes, what the next one needs. `ufw` opens ingress before it flips to
   deny-default; `os` swaps before the apt upgrade that would OOM without it. Reorder either and the host breaks.
@@ -50,17 +47,16 @@ paragraph is a fact plus padding; keep the fact.
 - **Why, not how** — the alternative and why it lost: `deb822_repository` over `apt_repository`, `no_check_bucket` on
   the R2 remote, `sshd -G` over `sshd -t`.
 
-Do not restate the module, label the obvious, or repeat the task's own `name:`. Do not narrate, argue with yourself, or
-recount a comment's own history. A line or two; if it genuinely needs more, it is a `docs/` page or an ADR, and the
-comment points at it.
+Do not restate the module, label the obvious, repeat the task's own `name:`, narrate, or recount a comment's own
+history. A line or two; if it genuinely needs more it is a `docs/` page or an ADR, and the comment points at it.
 
 ## Docs
 
-`docs/` splits three ways: `docs/<topic>/` holds **runbooks**, `docs/adr/` holds **decisions**, and `docs/agents/` holds
+`docs/` splits three ways: `docs/<topic>/` holds **runbooks**, `docs/adr/` holds **decisions**, `docs/agents/` holds
 **skill configuration**. The rules below are the runbook rules.
 
-A runbook is a procedure a human follows, in order, to get a result. They are read by operators of fleets we do not run,
-so they describe the role's mechanics and never a particular fleet's inventory.
+A runbook is a procedure a human follows, in order, to get a result — read by operators of fleets we do not run, so it
+describes the role's mechanics and never a particular fleet's inventory.
 
 - **Stay operational.** A runbook is steps and their rationale, not a transcription of what the roles do. The roles are
   the source of truth for mechanics.
@@ -80,27 +76,21 @@ Commits follow `type(scope): subject`.
 - **Type** — `feat`, `fix`, `refactor`, `chore`, `style`, `docs`, `ci`, `build`, `perf`. Name what the commit did, not
   how big it was.
 - **Subject** — concise, imperative, lowercase, no trailing period.
-- **Bias hard to terse.** Subject-only by default; add a body only when one line can't carry it, and then write short
-  bullet topics, not prose. `commit-msg` caps the subject at **72 columns** and the body at **5 bullets, each at most 2
-  lines of 80 columns**, with trailers limited to an allowlist. Needing more means the commit is describing its own
-  size, or it should have been two commits.
-  - **The caps are the rule, not an obstacle in front of it.** Widening a line, inventing a `Note:` trailer, or packing
-    two topics into one bullet satisfies the hook and breaks the convention it enforces. The caps are two-axis (count
-    _and_ width) precisely because a one-axis cap invites that.
+- **Bias hard to terse.** Subject-only by default; a body is short bullet topics, never prose. `commit-msg` caps both
+  and prints the shape on rejection — don't work around a cap, the commit that doesn't fit should have been two.
 - **One commit per change.** Each fix or refactor is atomic and independently revertable.
-- **Green between commits.** Every commit leaves `make check` passing; the pre-commit hook enforces it. Never commit a
-  red tree.
+- **Green between commits.** Every commit leaves `make check` passing; `pre-commit` enforces it.
 - If an AI co-authored, end with a `Co-Authored-By:` trailer naming the model, after a blank line. Never a session URL
   or any other link into a private session.
 
-> [!IMPORTANT] **No internal codes.** Tracking ids coined while working — review-finding ids, plan-step ids, severity
-> labels (`P0`), phase labels — never reach a commit message, a doc, a code comment, or an issue. A reader without your
-> scratch notes cannot resolve them. Either **strip** the label (describe the actual thing) or **promote** it (define it
-> as a real concept in `docs/`, after which it resolves). Real-world ids (CVE numbers, RFC numbers) are fine.
+> [!IMPORTANT] **No internal codes.** Ids coined while working — review-finding ids, plan-step ids, severity labels
+> (`P0`), phase labels — never reach a commit message, doc, comment, or issue: a reader without your scratch notes
+> cannot resolve them. **Strip** the label (describe the thing) or **promote** it (define it in `docs/`, after which it
+> resolves). Real-world ids (CVE, RFC) are fine.
 
 > [!IMPORTANT] **No secrets, no host data, no consumer data.** This repo has no vault and must never acquire one. A
 > credential, a certificate, a private key, a hostname, or a public IP belonging to any fleet does not belong here — not
-> in code, not in a commit message, not in a doc.
+> in code, not in a commit message, not in a doc. `pre-commit` refuses staged secrets by name and by content.
 
 ## Releases
 
@@ -110,14 +100,14 @@ The consumer pins a git tag, so **a change that is not released is a change nobo
 - A change to the contract in `README.md` — a new required var, a default that stopped being safe, a renamed role — is a
   **major** bump and says so in the changelog under "Changed".
 - Never point a consumer at a branch. The pin is the whole safety mechanism.
-- **A new authoring doc or repo-local tooling path is added to `build_ignore` in the same commit.** `build_ignore` is
-  the only exclusion list the build reads — `.gitignore` is not consulted — so anything not named there ships into a
-  consumer's tree, where their own agents read it.
+- **A new authoring doc or repo-local tooling path joins `build_ignore` in the same commit.** It is the only exclusion
+  list the build reads — `.gitignore` is not consulted — so anything unnamed ships into a consumer's tree, where their
+  own agents read it.
 
 ## Secrets
 
-This repo holds none, and that is structural: there is no `vault.yml`, no `.vault_pass`, and no inventory to attach them
-to. What lives here is how roles _behave_ around a consumer's secrets.
+This repo holds none, structurally: no `vault.yml`, no `.vault_pass`, no inventory to attach them to. What lives here is
+how roles _behave_ around a consumer's secrets.
 
 - **Any task that renders a secret carries `no_log: true`.** Without it the value lands in the play output and in the
   consumer's CI logs.
@@ -130,22 +120,22 @@ to. What lives here is how roles _behave_ around a consumer's secrets.
 
 ## Idempotence and safety
 
-These are the invariants that make a converge re-runnable. They're the whole game, and here they are also a promise to a
-team whose hosts we never see.
+The invariants that make a converge re-runnable. **No tool here checks any of them** — they hold because you follow
+them, and they are a promise to a team whose hosts we never see.
 
 - **Every role is safe to re-run.** A second converge on an already-converged host changes nothing. A task that can't
   express this natively gets `creates:`, a `stat` guard, or an explicit `changed_when:` — never a blind `command:` that
-  reports changed on every run.
-- **A converge must not be able to lock the operator out.** Two live examples, and the pattern generalizes: open the
-  firewall port before enabling deny-by-default; validate the sshd config before the handler reloads. When a task can
-  sever Ansible's own connection, the guard comes first, in the same run.
-- **`--check` must survive.** A task that cannot run in check mode (because a prior task's package isn't really
-  installed) is gated `when: not ansible_check_mode`, so the consumer's dry-run reports cleanly instead of erroring.
-  This repo cannot test that; a broken guard surfaces in the consuming repo, which is exactly why it is a rule.
+  reports changed every run.
+- **A converge must not be able to lock the operator out.** Open the firewall port before enabling deny-by-default;
+  validate the sshd config before the handler reloads. When a task can sever Ansible's own connection, the guard comes
+  first, in the same run.
+- **`--check` must survive.** A task that cannot run in check mode (a prior task's package isn't really installed) is
+  gated `when: not ansible_check_mode`, so the consumer's dry-run reports cleanly instead of erroring. A broken guard
+  surfaces only in the consuming repo, which is why it is a rule.
 - **Reboots are explicit and serial.** `update.yml` is `serial: 1`. A fleet never reboots at once.
-- **Rendered files announce themselves.** Every template opens with `# Rendered by Ansible — do not edit on host`, plus
-  its source path. Someone will find the file at 3am and needs to know editing it is pointless.
-- **Service roles declare no meta dependencies.** Bootstrap and the baseline run first, by playbook order. Meta deps
+- **Rendered files announce themselves** — `# Rendered by Ansible — do not edit on host`, plus the source path. Someone
+  finds the file at 3am and needs to know editing it is pointless.
+- **Service roles declare no meta dependencies.** Bootstrap and the baseline run first, by playbook order; meta deps
   would re-walk `os` + `docker` on every service deploy.
 
 ## Verification
@@ -159,26 +149,20 @@ make test     # golden render tests — CI runs it
 ```
 
 - **`make check` is static** — formatting, playbook syntax, `ansible-lint` (must stay clean at the **production**
-  profile), `shellcheck`, and a collection build. It touches no host.
-- **`make sanity` is out of `check` on cost, not on importance.** The pre-commit hook runs `check` on every commit and a
-  first `ansible-test sanity` builds a venv per supported Python; CI runs both. It stages a real copy of the tree under
-  `.collections/` — `ansible-test` demands its cwd physically sit inside `ansible_collections/<ns>/<name>` and resolves
-  symlinks, so the one `lint.sh` stages is no use. That copy **includes `.git`**: `ansible-test` enumerates files
-  through git, and without it every test reports "No tests applicable" and the run exits 0. `scripts/sanity.sh` fails on
-  that skip rather than reporting green.
-- **`tests/sanity/ignore-<core>.txt` takes no comments and no blank lines** — the `ignores` test rejects both. The
-  reasoning for each entry goes in `tests/README.md`.
+  profile), `shellcheck`, and a collection build. It touches no host. FQCN resolution is part of it, so a role renamed
+  without updating `playbooks/baseline.yml` fails there.
+- **`make sanity` is out of `check` on cost, not on importance** — a cold run builds a venv per supported Python. CI
+  runs it. Its staging is delicate and `scripts/sanity.sh` says why, including the guard that fails a silent all-skip.
+- **`tests/sanity/ignore-<core>.txt` takes no comments and no blank lines**; per-entry reasoning goes in
+  `tests/README.md`.
 - **`make test` pins the rendered BYTES of the templates.** Asserts validate the consumer's input; goldens validate our
   output, and the gap between them is where this repo's worst bugs live — a config that is valid and says the wrong
   thing passes both `ansible-lint` and the tool's own validator. **A template change with no golden diff means you
-  changed nothing or you have no fixture for the branch you touched.** Adding a branch means adding a fixture, in the
-  same commit. `tests/README.md` has the layout and the two rules it cannot enforce.
+  changed nothing or you have no fixture for the branch you touched**; adding a branch means adding a fixture, in the
+  same commit. Layout is in `tests/README.md`.
 - **The gate that matters is the consumer's and you cannot run it.** A `--check --diff` dry-run against a real box, and
   a second converge reporting zero changed, both belong to the consuming repo. Behaviour changes therefore land as a
   release the consumer adopts deliberately — never as a quiet fix to a branch someone tracks.
-- **FQCN resolution is part of the gate.** `playbooks/baseline.yml` names its roles `fabbrito.infra.*`;
-  `scripts/lint.sh` stages a symlink so a syntax-check resolves them against the working tree. A role renamed without
-  updating the playbook fails there.
 
 # Tooling
 
@@ -190,24 +174,19 @@ make test     # golden render tests — CI runs it
   - `make sanity` — `ansible-test sanity` (CI; not part of `check`)
   - `make test` / `make golden-update` — golden renders: verify / accept
   - `make build` — build the collection tarball
-- **`.githooks/` enforces two rules the gate cannot.** `pre-commit` runs `make check` against the working tree, which is
-  what makes "green between commits" a fact rather than an intention, and rejects a staged vault, key or certificate
-  outright — this repo's no-secrets rule is structural, so there is nothing to encrypt, only something to refuse. It
-  refuses on **the staged bytes as well as the name**, because a name guard is defeated by a rename; the marker patterns
-  are bracket-broken (`CERTIFICAT[E]`) so the hook does not match itself. `commit-msg` grades the subject and body
-  against **Commits** above. Both are opt-in per clone and skippable with `--no-verify` — which is for a hook that is
-  itself broken, not for a gate that is telling you something. Neither ships to a consumer (`build_ignore`).
+- **`.githooks/` enforces the two rules the gate cannot**, opt-in per clone via `make hooks`. `pre-commit` runs
+  `make check` and refuses staged secrets; `commit-msg` grades the message against **Commits** above. Each rejection
+  prints the rule and the fix, so the hooks are the reference, not this file. Neither ships to a consumer
+  (`build_ignore`).
 - **Collection dependencies are pinned to majors in `galaxy.yml`**, which is what a consumer resolves, and mirrored in
   `requirements.yml` for local linting. **Change both or neither.** The `ansible-core` floor lives in
   `meta/runtime.yml`, enforced at install time and re-checked by `scripts/lint.sh`.
-- **Bash follows the [YSAP style guide](https://style.ysap.sh)**, which is the source of truth for the mechanics — don't
-  restate them here. `make fmt` applies this repo's flags (`shfmt -i 0 -ci`: tabs, indented `case` patterns) and
-  `make check` runs `shellcheck -x`. The guide's 80-column limit is house style but **no formatter enforces it** —
-  `shfmt` has no width flag. One point is worth pinning here, because it is the one that gets reverted:
-  - **No `set -e`.** Errexit hides the failure that matters. Check explicitly instead: `cd "$dir" || exit 1`,
-    `cmd || fail=$((fail + 1))`, and a hard guard before any step that is unsafe to reach after a partial failure.
-  - `set -uo pipefail` stays: the guide only rejects errexit, and an unset variable or a swallowed pipe failure is
-    exactly the silent bug we are trying to avoid.
+- **Bash follows the [YSAP style guide](https://style.ysap.sh)** — the source of truth for the mechanics, don't restate
+  them here. `make fmt` / `make check` apply `shfmt -i 0 -ci` and `shellcheck -x`. Two points no tool enforces:
+  - **80 columns.** `shfmt` has no width flag.
+  - **No `set -e`.** Errexit hides the failure that matters; check explicitly instead — `cd "$dir" || exit 1`,
+    `cmd || fail=$((fail + 1))`, and a hard guard before any step unsafe to reach after a partial failure.
+    `set -uo pipefail` stays: the guide rejects errexit only.
 - **Search with `rg`**, never `find` or `grep`.
 
 ## Agent skills
