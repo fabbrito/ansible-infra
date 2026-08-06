@@ -46,7 +46,12 @@ if ((${#js_runner[@]} > 0)); then
 	if ((check)); then
 		mode='--check'
 	fi
-	"${js_runner[@]}" prettier@latest "$mode" "${targets[@]}" ||
+	# PINNED, like CI's shfmt and galaxy.yml's collection majors. `@latest` made
+	# the definition of "formatted" whatever npm published most recently, resolved
+	# at commit time inside the pre-commit hook — so an upstream release could
+	# turn the tree red and block every commit with nothing here having changed.
+	# Bump it deliberately, in a commit that carries the reformat.
+	"${js_runner[@]}" prettier@3.9.6 "$mode" "${targets[@]}" ||
 		fail=$((fail + 1))
 else
 	red '  npx not found (install node) — skipping prettier'
