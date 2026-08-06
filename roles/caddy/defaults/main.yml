@@ -163,6 +163,15 @@ caddy_proxy_ranges:
       - 2a06:98c0::/29
       - 2c0f:f248::/32
 
+# ACME account email. REQUIRED once any route uses `tls: acme` — asserted, not
+# defaulted, because ADR-0006 makes this the var that admits ZeroSSL as a fallback
+# issuer: absent, Caddy's chain silently shrinks to Let's Encrypt alone, which is a
+# different converge rather than a smaller one. It is an address, not a credential
+# — it authenticates nothing, so it is plain group_vars, never a vault. Set it
+# fleet-wide. Let's Encrypt is ending expiry notifications, so treat it as a
+# courtesy address, not a monitor.
+caddy_acme_email: ""
+
 # ACME staging hatch — an ACME directory URL, e.g. Let's Encrypt staging during a
 # bring-up that would otherwise burn the 5-per-week duplicate-certificate limit.
 #
