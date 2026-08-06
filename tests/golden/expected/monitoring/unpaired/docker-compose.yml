@@ -1,10 +1,11 @@
-# Rendered by Ansible (roles/monitoring) — do not edit on host.
-# Source: roles/monitoring/templates/docker-compose.yml.j2
+# Rendered by Ansible — do not edit on host.
+# Source: fabbrito.infra collection — roles/monitoring/templates/docker-compose.yml.j2
 #
 # Observability stack: Beszel (hub + agent) for metrics, Dozzle for logs. One
-# compose project, loopback-bound, reached over `ssh -L` (docs/monitoring/access.md).
-# We author this file; the images are upstream. Secrets interpolate from the .env
-# beside it; everything else is baked from role vars and stays reviewable here.
+# compose project, loopback-bound, reached over `ssh -L`
+# (fabbrito.infra docs/monitoring/access.md). We author this file; the images
+# are upstream. Secrets interpolate from the .env beside it; everything else is
+# baked from role vars and stays reviewable here.
 name: monitoring
 
 services:
