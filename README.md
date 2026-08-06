@@ -17,9 +17,24 @@ collections:
     version: v1.0.0 # a tag, never a branch — see Versioning
 ```
 
-```bash
-ansible-galaxy collection install -r requirements.yml -p ansible/collections/
+Declare where collections live **before** installing, or Ansible will not find what you just installed and the FQCNs
+below fail to resolve:
+
+```ini
+# ansible.cfg, at the consuming repo's root
+[defaults]
+collections_path = ansible/collections
 ```
+
+```bash
+ansible-galaxy collection install -r requirements.yml
+```
+
+`collections_path` **replaces** the default search list rather than extending it, so `~/.ansible/collections` and
+`/usr/share/ansible/collections` drop out. For a controller that declares every collection in its own `requirements.yml`
+that is the point: what resolves is what you pinned, not whatever the operator happens to have at home. It also makes
+the install path implicit — pass `-p` instead and `ansible-galaxy` will warn that the target is outside the configured
+paths, which is the warning worth not ignoring.
 
 ## Use
 
@@ -45,6 +60,16 @@ load-bearing, not stylistic. Scope a run with `-l <host>`, never by narrowing th
 
 `bootstrap` and `update` ship too: `capybaralabs.infra.bootstrap` creates the unprivileged deploy user on a fresh box
 (run once, as root), `capybaralabs.infra.update` does a serial apt upgrade with a reboot when required.
+
+```bash
+ansible-playbook capybaralabs.infra.bootstrap -e target=<host>   # -e, NOT -l
+ansible-playbook capybaralabs.infra.update -l <host-or-group>
+```
+
+`bootstrap` is the one play addressed by `-e target=`. Omit it and the play matches a sentinel group that exists in no
+inventory: zero hosts, a host-pattern warning, and **exit 0** — a green run that created nothing. That is deliberate, so
+a forgotten flag cannot fan user-creation and sudoers writes across the whole fleet, but it only protects you if you
+know the flag is there.
 
 `caddy` and `monitoring` are deliberately **not** in the baseline. They are group-scoped: a host runs them iff it is in
 that group, which is one line of inventory rather than a conditional inside a role.
@@ -80,14 +105,14 @@ work or fails loudly, and which one is stated below.
 
 **Required once a host joins the group that needs it**
 
-| Var                                                    | Group            | Effect when absent                                                                                                                                                                                                               |
-| ------------------------------------------------------ | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `caddy_acme_email`                                     | caddy hosts      | Asserted, but only if a route uses `tls: acme`.                                                                                                                                                                                  |
-| `caddy_routes`                                         | caddy hosts      | Defaults to `[]` — a live proxy answering nothing. Join the group in the same change that gives it routes.                                                                                                                       |
-| `caddy_origin_cert` / `caddy_origin_key`               | caddy hosts      | No origin cert written; `tls: cert` routes have nothing to serve.                                                                                                                                                                |
-| `monitoring_admin_email` + `monitoring_admin_password` | monitoring hosts | Asserted. Without them the hub creates no first user and answers unauthenticated.                                                                                                                                                |
-| `monitoring_agent_key` + `monitoring_agent_token`      | monitoring hosts | Minted together by the hub (see docs/monitoring/access.md). No token → the agent is not rendered, and hub and Dozzle still come up, so a box can join before it is paired. Token without key → the agent starts and never pairs. |
-| `infra_install_dir`                                    | monitoring hosts | Where the role installs the stack tree. Undefined-variable failure when `monitoring` creates its directory. A contract var, so it carries no role prefix.                                                                        |
+| Var                                                    | Group            | Effect when absent                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `caddy_acme_email`                                     | caddy hosts      | Asserted, but only if a route uses `tls: acme`.                                                                                                                                                                                                                                                                             |
+| `caddy_routes`                                         | caddy hosts      | Defaults to `[]` — a live proxy answering nothing. Join the group in the same change that gives it routes.                                                                                                                                                                                                                  |
+| `caddy_origin_cert` / `caddy_origin_key`               | caddy hosts      | Not a per-route degrade: the cert is not written but every `tls: cert` route still names it, so `caddy validate` rejects the whole config and the render task fails. Set them in the change that adds the first `tls: cert` route.                                                                                          |
+| `monitoring_admin_email` + `monitoring_admin_password` | monitoring hosts | Asserted. Without them the hub creates no first user and answers unauthenticated.                                                                                                                                                                                                                                           |
+| `monitoring_agent_key` + `monitoring_agent_token`      | monitoring hosts | Minted together by the hub (see docs/monitoring/access.md). No token → the agent is not rendered, and hub and Dozzle still come up, so a box can join before it is paired. Token without key → asserted, since it would start an agent that can never authenticate. Key without token is fine: it is the documented revoke. |
+| `infra_install_dir`                                    | monitoring hosts | Where the role installs the stack tree. Undefined-variable failure when `monitoring` creates its directory. A contract var, so it carries no role prefix.                                                                                                                                                                   |
 
 Every role's own vars are documented in its `defaults/main.yml`, which is the role's public API — read it before
 overriding anything.
@@ -123,5 +148,11 @@ make fmt     # prettier + shfmt
 make check   # fmt-check + lint — must be green to commit
 ```
 
-Bash follows the [YSAP style guide](https://style.ysap.sh); `make fmt` applies the repo's flags (`shfmt -i 0 -ci`).
-There is no `set -e` anywhere by policy — errexit hides the failure that matters.
+`make check` needs `ansible-lint`, `shellcheck`, `shfmt` and `npx` on top of `ansible-core`; `make deps` installs the
+Ansible collections only. A missing tool is a failure, not a skip — a gate that prints green for a leg it never ran is
+worse than no gate.
+
+Bash follows the [YSAP style guide](https://style.ysap.sh); `make fmt` applies the repo's flags (`shfmt -i 0 -ci`). The
+scripts under `scripts/` use no `set -e` by policy — errexit hides the failure that matters, and each check records its
+own. That policy is about the scripts the gate lints. Scripts this repo _renders onto a host_ are a separate call:
+`roles/docker`'s cleanup unit does set errexit, because a systemd oneshot should fail its unit rather than press on.
