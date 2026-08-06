@@ -7,7 +7,7 @@
 # would say the contract may still move, and the README's var table is a
 # contract we intend to hold. Tag the repo to match on every release;
 # consumers pin that tag in their requirements.yml.
-namespace: capybaralabs
+namespace: fabbrito
 name: infra
 version: 1.0.0
 readme: README.md

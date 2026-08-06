@@ -40,7 +40,7 @@ jobs:
           shfmt --version
 
       # Into .collections/, which scripts/lint.sh also stages this collection
-      # into so capybaralabs.infra.* resolves during the syntax check.
+      # into so fabbrito.infra.* resolves during the syntax check.
       - name: Install Ansible collections
         run: make deps
 

@@ -156,7 +156,7 @@ make check    # fmt-check + lint — what CI runs; must be green to commit
 - **The gate that matters is the consumer's and you cannot run it.** A `--check --diff` dry-run against a real box, and
   a second converge reporting zero changed, both belong to the consuming repo. Behaviour changes therefore land as a
   release the consumer adopts deliberately — never as a quiet fix to a branch someone tracks.
-- **FQCN resolution is part of the gate.** `playbooks/baseline.yml` names its roles `capybaralabs.infra.*`;
+- **FQCN resolution is part of the gate.** `playbooks/baseline.yml` names its roles `fabbrito.infra.*`;
   `scripts/lint.sh` stages a symlink so a syntax-check resolves them against the working tree. A role renamed without
   updating the playbook fails there.
 

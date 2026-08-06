@@ -1,5 +1,5 @@
 ---
-# Present so `ansible-doc -t role -l capybaralabs.infra` finds this role at all:
+# Present so `ansible-doc -t role -l fabbrito.infra` finds this role at all:
 # ansible-core discovers a collection's roles by meta/main.yml (or
 # meta/argument_specs.yml), so a role without one is invisible to the only
 # built-in way to ask an installed collection what it ships.

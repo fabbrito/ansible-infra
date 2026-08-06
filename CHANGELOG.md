@@ -1,7 +1,7 @@
 # Changelog
 
-All notable changes to `capybaralabs.infra`. The version here, the version in `galaxy.yml`, and the git tag move
-together — consumers pin the tag, so a change that is not released is a change nobody gets.
+All notable changes to `fabbrito.infra`. The version here, the version in `galaxy.yml`, and the git tag move together —
+consumers pin the tag, so a change that is not released is a change nobody gets.
 
 ## 1.0.0
 
@@ -33,4 +33,4 @@ taking the fleet it was written for.
 ### Installing
 
 The consuming repo must declare `collections_path` in its `ansible.cfg` before installing. An install into a path
-Ansible does not search leaves every `capybaralabs.infra.*` FQCN unresolvable. See README, "Install".
+Ansible does not search leaves every `fabbrito.infra.*` FQCN unresolvable. See README, "Install".

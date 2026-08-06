@@ -12,7 +12,7 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 # Same tree scripts/lint.sh stages this collection into, so one collections path
-# resolves both capybaralabs.infra.* and the third-party deps.
+# resolves both fabbrito.infra.* and the third-party deps.
 COLLECTIONS_DIR := .collections
 
 ##@ Help

@@ -2,7 +2,7 @@
 # The baseline every host gets, whatever it later runs. A consuming repo imports
 # this and appends its own group-scoped service plays:
 #
-#   - import_playbook: capybaralabs.infra.baseline
+#   - import_playbook: fabbrito.infra.baseline
 #
 #   - name: My service
 #     hosts: my_service_hosts
@@ -21,10 +21,10 @@
   become: true
   gather_facts: true
   roles:
-    - { role: capybaralabs.infra.os, tags: [os] }
-    - { role: capybaralabs.infra.ufw, tags: [os, ufw] }
+    - { role: fabbrito.infra.os, tags: [os] }
+    - { role: fabbrito.infra.ufw, tags: [os, ufw] }
     # Baseline, not a service — every host wants SSH brute-force protection.
     # After ufw: its banaction is `ufw`.
-    - { role: capybaralabs.infra.fail2ban, tags: [os, fail2ban] }
-    - { role: capybaralabs.infra.docker, tags: [base, docker] }
-    - { role: capybaralabs.infra.rclone, tags: [base, rclone] }
+    - { role: fabbrito.infra.fail2ban, tags: [os, fail2ban] }
+    - { role: fabbrito.infra.docker, tags: [base, docker] }
+    - { role: fabbrito.infra.rclone, tags: [base, rclone] }

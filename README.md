@@ -1,4 +1,4 @@
-# capybaralabs.infra
+# fabbrito.infra
 
 Baseline convergence for long-lived Ubuntu VPS hosts, as an Ansible collection.
 
@@ -40,13 +40,13 @@ paths, which is the warning worth not ignoring.
 
 ```yaml
 # playbooks/site.yml, in the consuming repo
-- import_playbook: capybaralabs.infra.baseline
+- import_playbook: fabbrito.infra.baseline
 
 - name: Caddy reverse proxy
   hosts: caddy_hosts
   become: true
   roles:
-    - { role: capybaralabs.infra.caddy, tags: [caddy] }
+    - { role: fabbrito.infra.caddy, tags: [caddy] }
 
 - name: My own service
   hosts: my_service_hosts
@@ -58,12 +58,12 @@ paths, which is the warning worth not ignoring.
 `baseline` is `hosts: all` and runs `os`, `ufw`, `fail2ban`, `docker`, `rclone` in that order — the order is
 load-bearing, not stylistic. Scope a run with `-l <host>`, never by narrowing the play.
 
-`bootstrap` and `update` ship too: `capybaralabs.infra.bootstrap` creates the unprivileged deploy user on a fresh box
-(run once, as root), `capybaralabs.infra.update` does a serial apt upgrade with a reboot when required.
+`bootstrap` and `update` ship too: `fabbrito.infra.bootstrap` creates the unprivileged deploy user on a fresh box (run
+once, as root), `fabbrito.infra.update` does a serial apt upgrade with a reboot when required.
 
 ```bash
-ansible-playbook capybaralabs.infra.bootstrap -e target=<host>   # -e, NOT -l
-ansible-playbook capybaralabs.infra.update -l <host-or-group>
+ansible-playbook fabbrito.infra.bootstrap -e target=<host>   # -e, NOT -l
+ansible-playbook fabbrito.infra.update -l <host-or-group>
 ```
 
 `bootstrap` is the one play addressed by `-e target=`. Omit it and the play matches a sentinel group that exists in no

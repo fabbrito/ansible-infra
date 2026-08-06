@@ -1,7 +1,7 @@
 ---
 # OS-level updates (apt). Serial so the fleet never reboots all at once.
 #
-#   ansible-playbook capybaralabs.infra.update -l <host-or-group>
+#   ansible-playbook fabbrito.infra.update -l <host-or-group>
 - name: System updates
   hosts: "{{ target | default('all') }}"
   become: true

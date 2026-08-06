@@ -2,7 +2,7 @@
 # First-contact play — run ONCE per fresh host, as root, before the baseline.
 # Creates the unprivileged account every other playbook connects as.
 #
-#   ansible-playbook capybaralabs.infra.bootstrap -e target=<host>
+#   ansible-playbook fabbrito.infra.bootstrap -e target=<host>
 #
 # Connects as root over the cloud-provider-injected key. `ansible_user: root` is a
 # play var, not only the `remote_user` keyword: the consumer's inventory-wide

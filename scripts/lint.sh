@@ -39,11 +39,11 @@ fi
 # baseline.yml names its roles by FQCN, and ansible resolves those only through
 # a collections path — the repo root BEING the collection root is not enough.
 # Stage a symlink at <path>/ansible_collections/<ns>/<name> so a syntax-check
-# resolves capybaralabs.infra.* against the working tree, uncommitted edits
+# resolves fabbrito.infra.* against the working tree, uncommitted edits
 # included. Cheaper and more honest than rebuilding a tarball per run. `make
 # deps` installs the third-party collections into the same tree, so one path
 # serves both.
-staged='.collections/ansible_collections/capybaralabs'
+staged='.collections/ansible_collections/fabbrito'
 mkdir -p "$staged" || exit 1
 ln -sfn "$PWD" "$staged/infra" || exit 1
 export ANSIBLE_COLLECTIONS_PATH="$PWD/.collections"
