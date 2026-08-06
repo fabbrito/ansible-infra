@@ -12,6 +12,9 @@ name: infra
 version: 1.0.0
 readme: README.md
 
+# No mailbox: this manifest ships to every consumer and MANIFEST.json is world
+# readable once the repo is public. Contact goes through the repo — issues for
+# bugs, the Security tab for anything private (SECURITY.md).
 authors:
   - Fabrício Brito (@fabbrito)
 
