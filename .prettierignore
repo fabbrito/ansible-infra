@@ -3,6 +3,11 @@
 # Jinja templates with non-YAML syntax
 *.j2
 
+# Byte-exact template output. Formatting it would rewrite the expectation the
+# render is diffed against, so `make fmt` and `make test` would each be undoing
+# the other — and the rendered bytes are the template's to decide, not ours.
+tests/golden/expected/
+
 # Tooling
 .git/
 .collections/
