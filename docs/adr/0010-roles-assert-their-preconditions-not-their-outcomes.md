@@ -85,3 +85,41 @@ assert either; that is the outcome-testing [ADR-0003](0003-the-gate-is-make-chec
   `changed`.
 - **What you cannot assert, document in place** — a comment naming the invariant and why it resists a check, never a
   silent gap or a faked one.
+
+## Amendment — asserts check the input, goldens check the output (2026-08-06)
+
+The discipline above stands unchanged. What follows is the boundary it does not reach, and the reason a proposal to
+widen it was turned down.
+
+**The proposal.** Rather than add a test harness, assert harder: cover every branch a template can take with
+preconditions in the role, so a misconfigured host cannot converge. It is an attractive idea precisely because it reuses
+a mechanism already here.
+
+**Why it fails.** An assert reads the variables the consumer set. It cannot read the file the template produced. The
+case that settled it was real and recent: `rclone`'s all-or-nothing assert on the crypt password pair was **correct, and
+it passed** — it counted non-empty values — while the template beside it gated on `is defined`, which is true for the
+empty string this repo uses to mean absent. Both halves were individually right. The render was wrong. No assert
+reachable from the role's inputs could have seen it, because the disagreement was between the assert and the template,
+not in the data.
+
+That generalises. The failures worth catching in this layer are configs that are **valid and wrong** — a proxy-trust
+block on a host nothing fronts, a body cap silently clamped by a matcher-less default, a redaction filter naming a
+prefix that never occurs, an agent rendered with an empty token. Every one of them passes the tool's own validator.
+Every one of them is visible the instant you look at the bytes.
+
+**The line.**
+
+> **Asserts validate the consumer's input. Goldens validate our output.**
+
+Neither substitutes for the other, and reaching for one where the other belongs is the mistake this amendment exists to
+prevent:
+
+- **Do not add an assert to compensate for a missing fixture.** An assert that restates what a template does is a second
+  copy of the logic, and the copy drifts — which is the `rclone` bug again, by construction.
+- **Do not add a fixture to compensate for a missing assert.** A golden pins one input; a consumer supplies any input.
+  What the schema cannot make unrepresentable still asserts, exactly as above.
+
+The mechanism is `make test`, added under [ADR-0003](0003-the-gate-is-make-check-and-a-second-converge.md)'s amendment.
+Where a derivation is security-critical, the harness **includes the role's own task file** rather than restating it —
+`roles/caddy/tasks/routes.yml` and `roles/monitoring/tasks/pairing.yml` exist as separate files for that reason alone. A
+harness that restates the thing under test proves only that the copy agrees with itself.
