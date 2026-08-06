@@ -6,6 +6,12 @@ gate is a static `make check`, and what can go wrong is somebody else's host on 
 repo holds inventory, secrets, service roles, and the converge — `README.md` has the seam between the two, `CONTEXT.md`
 the vocabulary.
 
+## Platform
+
+**Ubuntu 24.04 LTS and newer, on both ends** — the hosts the roles converge and the machine you author on. So GNU
+userland and a current bash are a given: `${var,,}`, `sort -V`, `grep -P` and friends are fair game, and scripts here do
+**not** hedge for macOS, busybox, or bash 3.2. If a check would only fail somewhere we do not support, it is not a bug.
+
 ## Language
 
 All developer-facing text is **English** — comments, commit messages, variable names, docs. Nothing here renders copy an

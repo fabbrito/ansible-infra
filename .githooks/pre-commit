@@ -53,11 +53,11 @@ reject() {
 # somebody's fleet, and fleet data is barred from this repo by the same rule as
 # credentials.
 #
-# Names are matched case-folded (`${name,,}`) and by prefix as well as suffix,
-# because a name guard is only as good as the renames it survives: `.PEM`,
-# `.vault_pass.txt` and a bare `id_ed25519` all defeated the plain lowercase
-# suffix list this replaced. The content scan below is what makes the name list
-# a convenience rather than the whole defence.
+# Names are matched case-folded and by prefix as well as suffix, because a name
+# guard is only as good as the renames it survives: `.PEM`, `.vault_pass.txt`
+# and a bare `id_ed25519` all defeated the plain lowercase suffix list this
+# replaced. The content scan below is what makes the name list a convenience
+# rather than the whole defence.
 for file in "${staged[@]}"; do
 	name=${file##*/}
 	name=${name,,}
