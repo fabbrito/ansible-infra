@@ -15,10 +15,17 @@ os_apt_packages:
 # Name the box in a zone YOU own — never a client's, never the provider's. A
 # service's public origin often lives in DNS you neither control nor can trust
 # from the inside; box name and service origin are separate concerns. Set this
-# fleet-wide in group_vars/all. Empty leaves the box named by its inventory key
-# alone, which is a legal hostname.
+# fleet-wide in group_vars/all, and the box becomes <inventory key>.<domain>.
 os_hostname_domain: ""
-os_hostname: "{{ inventory_hostname }}{{ ('.' ~ os_hostname_domain) if os_hostname_domain | length > 0 else '' }}"
+
+# Overrides the derivation above when the inventory key is not the name you want
+# on the box. Set one or the other, not both.
+#
+# Both empty means the role does not name the box AT ALL — it leaves whatever the
+# provider set. That is the skip, and it is deliberate: deriving a name from the
+# inventory key alone would RENAME a host already carrying an FQDN, on an
+# otherwise green converge, for a consumer who never asked for a name.
+os_hostname: ""
 
 # Swap — minimum 1G, set higher per host_vars when needed.
 os_swap_enabled: true

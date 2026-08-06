@@ -6,6 +6,22 @@ consumers pin the tag, so a change that is not released is a change nobody gets.
 A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
 that, and the next correction is 1.0.1.
 
+## Unreleased
+
+Landed on master, not yet tagged — so no consumer has it. The heading takes its number in the release commit that bumps
+`galaxy.yml`, alongside the tag.
+
+### Changed
+
+- `os` no longer names the box unless asked to. `os_hostname` previously defaulted to a derivation over
+  `os_hostname_domain`, so a consumer who set neither still got the bare inventory key written to the host — renaming a
+  box already carrying an FQDN, and rewriting the `127.0.1.1` entry the cloud image ships, on a converge that reported
+  green. Both vars now default to empty and the hostname tasks skip together, which is what the README already claimed
+  the row did.
+- Minor rather than major: nothing became required, and the only behaviour that moved is the case that was wrong. A
+  fleet that wants the old bare-key naming asks for it explicitly with `os_hostname: "{{ inventory_hostname }}"`.
+- `os_hostname` is now the per-host override rather than a derived value — set it or `os_hostname_domain`, not both.
+
 ## 1.1.0
 
 ### Changed
