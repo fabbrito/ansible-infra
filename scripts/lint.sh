@@ -74,7 +74,11 @@ if command -v ansible-lint >/dev/null 2>&1; then
 	# the SHIPPED one — actually resolves, rather than requirements.yml's copy.
 	env -u ANSIBLE_COLLECTIONS_PATH ansible-lint . || fail=$((fail + 1))
 else
-	echo '  ansible-lint not installed; skipping'
+	# A missing tool is a FAILURE, not a skip. This is the leg README and
+	# ADR-0003 both call the gate; skipping it and still printing "All checks
+	# passed" is how unlinted work reaches a commit through the pre-commit hook.
+	red '  ansible-lint not installed (pip install ansible-lint)'
+	fail=$((fail + 1))
 fi
 
 bold ''
@@ -90,7 +94,8 @@ if command -v shellcheck >/dev/null 2>&1; then
 		fail=$((fail + 1))
 	fi
 else
-	echo '  shellcheck not installed; skipping'
+	red '  shellcheck not installed'
+	fail=$((fail + 1))
 fi
 
 # Proves galaxy.yml parses and that build_ignore does not drop something the
@@ -102,28 +107,43 @@ fi
 # repo — a 259MB tarball that built green. Inspect the contents, not the status.
 bold ''
 bold '==> collection build'
-build_out='.collections'
+# A dedicated, emptied directory rather than .collections/ itself: it makes the
+# tarball findable by glob, so nothing here re-parses galaxy.yml for the version.
+# Deriving the path by awk meant any change to how `version:` is written — quotes,
+# a trailing comment — silently pointed tar at a file that does not exist.
+build_out='.collections/build'
+rm -rf "$build_out" && mkdir -p "$build_out" || exit 1
 if ansible-galaxy collection build --force \
 	--output-path "$build_out" >/dev/null 2>&1; then
-	tarball=".collections/capybaralabs-infra-$(
-		awk '$1 == "version:" { print $2 }' galaxy.yml
-	).tar.gz"
-	entries=$(tar tzf "$tarball")
-	stowaways=$(printf '%s\n' "$entries" | while IFS= read -r path; do
-		case $path in
-			.collections/* | .ansible/*) printf '%s\n' "$path" ;;
-		esac
-	done)
-	if [[ -n $stowaways ]]; then
-		red '  FAIL tarball ships repo-local trees (add them to build_ignore):'
-		printf '%s\n' "$stowaways" | head -5
+	shopt -s nullglob
+	tarballs=("$build_out"/*.tar.gz)
+	shopt -u nullglob
+	# tar's status is checked: an unreadable tarball must not read as zero
+	# stowaways, which is how this guard used to print "ok (1 entries)" while
+	# inspecting nothing.
+	if ((${#tarballs[@]} != 1)); then
+		red "  FAIL build produced ${#tarballs[@]} tarballs, expected 1"
+		fail=$((fail + 1))
+	elif ! entries=$(tar tzf "${tarballs[0]}"); then
+		red "  FAIL cannot read ${tarballs[0]}"
 		fail=$((fail + 1))
 	else
-		green "  ok  galaxy.yml builds ($(printf '%s\n' "$entries" | wc -l) entries)"
+		stowaways=$(printf '%s\n' "$entries" | while IFS= read -r path; do
+			case $path in
+				.collections/* | .ansible/*) printf '%s\n' "$path" ;;
+			esac
+		done)
+		if [[ -n $stowaways ]]; then
+			red '  FAIL tarball ships repo-local trees (add them to build_ignore):'
+			printf '%s\n' "$stowaways" | head -5
+			fail=$((fail + 1))
+		else
+			green "  ok  galaxy.yml builds ($(printf '%s\n' "$entries" | wc -l) entries)"
+		fi
 	fi
 else
 	red '  FAIL collection build'
-	ansible-galaxy collection build --force --output-path .collections
+	ansible-galaxy collection build --force --output-path "$build_out"
 	fail=$((fail + 1))
 fi
 
