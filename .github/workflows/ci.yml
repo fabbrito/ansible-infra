@@ -11,6 +11,7 @@ on:
   pull_request:
   push:
     branches: [master]
+    tags: ["v*"]
 
 permissions:
   contents: read
@@ -58,3 +59,24 @@ jobs:
       # thing.
       - name: golden render tests
         run: make test
+
+  # Tags only — there is nothing to grade on a branch. This is the one release
+  # invariant a consumer cannot check for themselves: an installed tree records
+  # no git ref, so a tag disagreeing with galaxy.yml reaches them as a stale
+  # install they are told to fix by reinstalling, which never works.
+  release:
+    name: tag
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install ansible
+        run: pip install ansible-core
+
+      - name: Assert the tag matches galaxy.yml
+        run: make tag-check TAG="${GITHUB_REF_NAME}"
