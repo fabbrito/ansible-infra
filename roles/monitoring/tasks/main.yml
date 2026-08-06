@@ -24,8 +24,7 @@
     quiet: true
 
 - name: Record whether the agent is paired (its hub token exists)
-  ansible.builtin.set_fact:
-    monitoring_agent_paired: "{{ (monitoring_agent_token | default('')) | length > 0 }}"
+  ansible.builtin.include_tasks: pairing.yml
 
 # One-directional, NOT all-or-nothing like rclone's: key-without-token is the
 # documented revoke (pull the token, the compose stops rendering the agent), so

@@ -1,0 +1,13 @@
+---
+# ADR-0001's pairing gate, reduced to the one fact both templates branch on: the
+# agent service in the compose, and its token in the .env. The token is minted by
+# the hub's one-time "Add System" step, which is unreachable before the hub runs,
+# so an unpaired box converges green with hub + Dozzle up and no agent.
+#
+# Its own file so the golden harness can include THIS, rather than restate it.
+# A restated version of this expression drifts silently, and both directions of
+# the drift are bad: a false negative stops rendering a working agent, a false
+# positive renders `TOKEN=` into the .env and starts one that cannot authenticate.
+- name: Record whether the agent is paired (its hub token exists)
+  ansible.builtin.set_fact:
+    monitoring_agent_paired: "{{ (monitoring_agent_token | default('')) | length > 0 }}"

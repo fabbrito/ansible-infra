@@ -1,0 +1,25 @@
+---
+# What roles/monitoring/tasks/main.yml does before it renders, minus everything
+# that touches a host.
+
+# THE ROLE'S OWN FILE, not a copy of it — both templates branch on this one fact
+# and a restated copy could drift from the role in either direction.
+- name: Record whether the agent is paired
+  ansible.builtin.include_tasks: "{{ golden_repo }}/roles/monitoring/tasks/pairing.yml"
+
+- name: Render the compose file
+  ansible.builtin.template:
+    src: "{{ golden_repo }}/roles/monitoring/templates/docker-compose.yml.j2"
+    dest: "{{ golden_case_out }}/docker-compose.yml"
+    mode: "0644"
+
+# Deliberately NOT named `.env` here, though that is where the role writes it.
+# A checked-in `.env` full of `TOKEN=` lines reads as a leaked secret to every
+# scanner and every human who greps this tree, and the dest filename is a
+# property of the task rather than of the template — so it is not what a golden
+# is pinning anyway. The fixture values are visibly fake for the same reason.
+- name: Render the env file
+  ansible.builtin.template:
+    src: "{{ golden_repo }}/roles/monitoring/templates/env.j2"
+    dest: "{{ golden_case_out }}/env"
+    mode: "0644"
