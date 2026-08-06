@@ -1,0 +1,6 @@
+---
+# Present so role discovery sees this role — see roles/os/meta/main.yml.
+#
+# No deps: rclone installs a binary and renders config, and needs nothing the
+# earlier baseline roles install.
+dependencies: []

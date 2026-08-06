@@ -1,0 +1,8 @@
+---
+# Present so `ansible-doc -t role -l capybaralabs.infra` finds this role at all:
+# ansible-core discovers a collection's roles by meta/main.yml (or
+# meta/argument_specs.yml), so a role without one is invisible to the only
+# built-in way to ask an installed collection what it ships.
+#
+# No deps: os runs first in playbooks/baseline.yml and nothing precedes it.
+dependencies: []

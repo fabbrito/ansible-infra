@@ -1,0 +1,7 @@
+---
+# Present so role discovery sees this role — see roles/os/meta/main.yml.
+#
+# No deps: playbooks/baseline.yml runs os before ufw. A meta dep would re-walk os
+# on every converge that touches the firewall, for an ordering the playbook
+# already fixes.
+dependencies: []

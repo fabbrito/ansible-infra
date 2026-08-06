@@ -1,0 +1,7 @@
+---
+# Present so role discovery sees this role — see roles/os/meta/main.yml.
+#
+# No deps. This is the role service roles most want to declare a dep on; they
+# must not. Bootstrap and the baseline deliver docker by play order, and a meta
+# dep here is what would re-walk os + docker on every service deploy.
+dependencies: []
