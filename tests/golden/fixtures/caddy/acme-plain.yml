@@ -1,0 +1,18 @@
+---
+# The baseline, and the one fixture that exists for what it must NOT render.
+# A host nobody fronts and no secret-bearing path: no `servers` trust block, no
+# redaction filter on either logger, no `acme_ca`. ADR-0008's failure mode is a
+# trust block appearing where nothing fronts the host, and it is invisible unless
+# some fixture pins the empty case.
+#
+# Also the simplest shape of each per-route branch: ACME (so no `tls` line), one
+# catch-all upstream (so no `handle` blocks), no per-path caps (so the bare
+# `request_body`, not the negated matcher).
+caddy_acme_email: ops@example.org
+
+caddy_routes:
+  - host: app.example.org
+    tls: acme
+    default_upstream: 127.0.0.1:3000
+
+caddy_extra_routes: []

@@ -1,0 +1,28 @@
+---
+# The trust block and the two redaction filters — the branches `caddy validate`
+# accepts either way, so a golden is the only thing that can hold them.
+#
+# THE PROXIED ROUTE IS IN caddy_extra_routes ON PURPOSE. ADR-0008's union exists
+# because a derivation reading caddy_routes alone renders NO trust block for a
+# route declared here: valid config, clean validate, and {client_ip} becomes the
+# client-supplied value on every request. Move it into caddy_routes and this
+# fixture stops testing the thing it is for.
+caddy_acme_email: ops@example.org
+
+# Both filters (default logger and per-vhost access log) compile from this one
+# list — ADR-0009. A prefix that renders on one logger and not the other writes
+# the credential to the journal while the access log looks clean.
+caddy_redact_uri_prefixes:
+  - /webhooks/settlement/
+  - /documents/public/
+
+caddy_routes:
+  - host: direct.example.org
+    tls: acme
+    default_upstream: 127.0.0.1:3000
+
+caddy_extra_routes:
+  - host: fronted.example.org
+    tls: acme
+    proxied_by: cloudflare
+    default_upstream: 127.0.0.1:8080

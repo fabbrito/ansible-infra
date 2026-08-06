@@ -7,6 +7,7 @@
 #   make hooks      # point git at .githooks (once per clone)
 #   make check      # fmt-check + lint (the pre-commit gate)
 #   make sanity     # ansible-test sanity (CI; slow on a cold venv)
+#   make test       # golden render tests (CI)
 
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
@@ -62,6 +63,16 @@ lint: ## Syntax-check playbooks + ansible-lint + shellcheck + collection build
 .PHONY: sanity
 sanity: ## ansible-test sanity against a staged copy of the working tree
 	./scripts/sanity.sh
+
+.PHONY: test
+test: ## Render the golden fixtures and diff against tests/golden/expected
+	./scripts/golden.sh
+
+# Separate target rather than a flag on `test`, so accepting a new expectation is
+# always a deliberate command with a diff to read afterwards.
+.PHONY: golden-update
+golden-update: ## Accept the current render as the expectation (READ THE DIFF)
+	./scripts/golden.sh --update
 
 ##@ Release
 

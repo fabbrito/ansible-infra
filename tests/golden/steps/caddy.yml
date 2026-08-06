@@ -1,0 +1,19 @@
+---
+# What roles/caddy/tasks/main.yml does before it renders, minus everything that
+# touches a host.
+#
+# THE ROLE'S OWN FILE, not a copy of it. ADR-0008 makes caddy_all_routes the one
+# input every derivation reads, so fixtures set the two source lists and the
+# role resolves them — restating the union here would let the harness and the
+# role drift on precisely the derivation the ADR exists to protect.
+- name: Resolve the effective route list
+  ansible.builtin.include_tasks: "{{ golden_repo }}/roles/caddy/tasks/routes.yml"
+
+# No `validate:`. `caddy validate` is not the gate here — it accepts the trust
+# block that should not exist, the clamped body cap, and the redaction filter
+# that redacts nothing. Pinning the bytes is the only check that catches those.
+- name: Render the Caddyfile
+  ansible.builtin.template:
+    src: "{{ golden_repo }}/roles/caddy/templates/Caddyfile.j2"
+    dest: "{{ golden_case_out }}/Caddyfile"
+    mode: "0644"

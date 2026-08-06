@@ -1,0 +1,13 @@
+---
+# ADR-0008: resolve the two route lists once, before anything reads them. Every
+# task and the template read caddy_all_routes and only that — a security
+# boundary: a `caddy_routes | selectattr('proxied_by', 'defined')` that forgets
+# caddy_extra_routes renders NO trust block for a proxied route, with no error
+# and no diff.
+#
+# Its own file so the golden harness can include THIS, rather than restate it.
+# A restated union drifts silently, and the drift would land on the one
+# derivation the ADR exists to protect.
+- name: Resolve the effective route list
+  ansible.builtin.set_fact:
+    caddy_all_routes: "{{ caddy_routes + caddy_extra_routes }}"

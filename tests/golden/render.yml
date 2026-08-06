@@ -1,0 +1,52 @@
+---
+# Renders every fixture through the real templates, into golden_out. Comparing
+# the result against tests/golden/expected/ is scripts/golden.sh's job — this
+# play only produces bytes.
+#
+# ONE play looping every fixture, not one run per fixture: ansible-playbook's
+# floor is ~2.4s of interpreter and plugin-loader startup before any task runs,
+# which a per-fixture loop would pay again for each.
+#
+# It has to be Ansible rather than bare Jinja2: the templates use Ansible's own
+# filters (`flatten`), so rendering outside the templar would mean reimplementing
+# them — and a harness that reimplements the thing under test proves nothing.
+- name: Render golden fixtures
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    golden_root: "{{ playbook_dir }}"
+    golden_repo: "{{ playbook_dir }}/../.."
+    golden_out: "{{ playbook_dir }}/../../.collections/golden"
+  tasks:
+    - name: Discard the previous render
+      ansible.builtin.file:
+        path: "{{ golden_out }}"
+        state: absent
+      # Otherwise a fixture deleted from the tree leaves its output behind and
+      # the diff still matches — a test that passes because it compared a stale
+      # artefact against a stale expectation.
+
+    - name: Collect fixtures
+      ansible.builtin.find:
+        paths: "{{ golden_root }}/fixtures"
+        patterns: "*.yml"
+        recurse: true
+      register: golden_found
+
+    - name: Fail when no fixture was found
+      ansible.builtin.assert:
+        that: golden_found.files | length > 0
+        fail_msg: >-
+          No fixtures under {{ golden_root }}/fixtures. An empty run renders
+          nothing, diffs nothing, and reports success.
+        quiet: true
+
+    # sort so the play order does not depend on readdir order, which makes a
+    # failing run reproducible.
+    - name: Render each fixture
+      ansible.builtin.include_tasks: render-one.yml
+      loop: "{{ golden_found.files | map(attribute='path') | sort }}"
+      loop_control:
+        loop_var: golden_fixture
+        label: "{{ golden_fixture | basename }}"

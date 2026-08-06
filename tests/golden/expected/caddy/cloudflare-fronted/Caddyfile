@@ -1,0 +1,109 @@
+# Rendered by Ansible (roles/caddy) — do not edit on host.
+# Source: roles/caddy/templates/Caddyfile.j2
+{
+	# ADR-0006: the email admits ZeroSSL as a fallback issuer. Absent, Caddy's
+	# chain silently shrinks to Let's Encrypt alone. The role asserts it rather
+	# than render empty.
+	email ops@example.org
+	# ADR-0008: trust is DERIVED — this block renders only because a route
+	# declares `proxied_by: cloudflare`. It is
+	# server-level and every vhost shares :443, so trust is all-or-nothing per
+	# host and cannot be scoped to the proxied vhost. A host nobody fronts must
+	# render NOTHING here, or anyone pointing their own zone at this host's IP
+	# arrives as a trusted peer and forges the client address upstream keys on.
+	#
+	# `trusted_proxies_strict` because without it safety rests on LIST ORDER.
+	servers {
+		trusted_proxies static 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 104.16.0.0/13 104.24.0.0/14 108.162.192.0/18 131.0.72.0/22 141.101.64.0/18 162.158.0.0/15 172.64.0.0/13 173.245.48.0/20 188.114.96.0/20 190.93.240.0/20 197.234.240.0/22 198.41.128.0/17 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+		trusted_proxies_strict
+		client_ip_headers CF-Connecting-IP
+	}
+	# ADR-0009, filter 1 of 2 — the DEFAULT logger. Not redundant with the
+	# per-site `log` block below: Caddy's ERROR logger carries the same
+	# request>uri to stderr => journald, and neither that block nor `log_skip`
+	# touches it. Without this, any 5xx on a secret-bearing URL writes the raw
+	# path to the journal.
+	log {
+		format filter {
+			request>uri regexp "^(/webhooks/settlement/|/documents/public/)[^/?]+" "${1}REDACTED"
+			request>headers>Referer delete
+			resp_headers>Location delete
+		}
+	}
+}
+
+direct.example.org {
+	# No `tls` line: automatic HTTPS over HTTP-01 (ADR-0006). Emitting one
+	# unconditionally, at a default.pem no ACME host writes, stopped an ACME-only
+	# host converging at all.
+	# The debian package owns /var/log/caddy as caddy:caddy; tasks/main.yml
+	# pre-creates each file caddy-owned so a root-run `caddy validate` cannot
+	# claim it first.
+	log {
+		output file /var/log/caddy/direct.example.org.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+		# ADR-0009, filter 2 of 2 — the ACCESS log. Redact, never suppress:
+		# `log_skip` would drop status, latency and client_ip too, and a
+		# secret-bearing route is the one you most need those for in an incident.
+		format filter {
+			request>uri regexp "^(/webhooks/settlement/|/documents/public/)[^/?]+" "${1}REDACTED"
+			request>headers>Referer delete
+			resp_headers>Location delete
+		}
+	}
+	encode zstd gzip
+	request_body {
+		max_size 1MB
+	}
+	reverse_proxy 127.0.0.1:3000 {
+		header_up Host {host}
+		header_up X-Real-IP {client_ip}
+		header_up X-Forwarded-For {client_ip}
+		header_up CF-Connecting-IP {client_ip}
+		transport http {
+			dial_timeout 10s
+			read_timeout 60s
+			write_timeout 60s
+		}
+	}
+}
+
+fronted.example.org {
+	# No `tls` line: automatic HTTPS over HTTP-01 (ADR-0006). Emitting one
+	# unconditionally, at a default.pem no ACME host writes, stopped an ACME-only
+	# host converging at all.
+	# The debian package owns /var/log/caddy as caddy:caddy; tasks/main.yml
+	# pre-creates each file caddy-owned so a root-run `caddy validate` cannot
+	# claim it first.
+	log {
+		output file /var/log/caddy/fronted.example.org.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+		# ADR-0009, filter 2 of 2 — the ACCESS log. Redact, never suppress:
+		# `log_skip` would drop status, latency and client_ip too, and a
+		# secret-bearing route is the one you most need those for in an incident.
+		format filter {
+			request>uri regexp "^(/webhooks/settlement/|/documents/public/)[^/?]+" "${1}REDACTED"
+			request>headers>Referer delete
+			resp_headers>Location delete
+		}
+	}
+	encode zstd gzip
+	request_body {
+		max_size 1MB
+	}
+	reverse_proxy 127.0.0.1:8080 {
+		header_up Host {host}
+		header_up X-Real-IP {client_ip}
+		header_up X-Forwarded-For {client_ip}
+		header_up CF-Connecting-IP {client_ip}
+		transport http {
+			dial_timeout 10s
+			read_timeout 60s
+			write_timeout 60s
+		}
+	}
+}
