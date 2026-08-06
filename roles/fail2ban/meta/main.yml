@@ -1,0 +1,6 @@
+---
+# Present so role discovery sees this role — see roles/os/meta/main.yml.
+#
+# No deps, though fail2ban's bans land in the firewall ufw configures: the order
+# is playbooks/baseline.yml's, not a meta dep's.
+dependencies: []
