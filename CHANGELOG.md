@@ -12,6 +12,10 @@ that, and the next correction is 1.0.1.
   now read `fabbrito.infra …`; unqualified, they resolved against the consuming repo's own tree, where `ADR-0006` is
   somebody else's decision and `roles/caddy/…` is somebody else's role. Affects the bytes of every rendered file, so the
   goldens moved with it.
+- A `v*` tag now fails CI unless it matches `galaxy.yml`'s version. An installed tree records no git ref, so the version
+  a consumer compares their pin against is `MANIFEST.json`'s; a tag that disagrees reaches them as "pinned X, installed
+  Y", which no reinstall can fix. It also means a moved tag installs clean and matches — undetectable downstream, so
+  this side is the only one that can refuse it. `make tag-check TAG=v1.0.1` runs the same guard before you tag.
 - ADR-0011 records that distribution is a git tag and there is no Galaxy publish, along with the three things that would
   reopen it. The argument that publishing was needed for a downstream collection to depend on this one is false and the
   ADR says so: git dependencies resolve transitively, tested.

@@ -84,3 +84,10 @@ golden-update: ## Accept the current render as the expectation (READ THE DIFF)
 .PHONY: build
 build: ## Build the collection tarball into $(COLLECTIONS_DIR)/
 	ansible-galaxy collection build --force --output-path $(COLLECTIONS_DIR)
+
+# Out of `check` because it needs a tag to grade and there is none on a branch.
+# CI runs it on every v* tag; run it yourself before tagging to catch the bump
+# you forgot while the fix is still one amend away.
+.PHONY: tag-check
+tag-check: ## Assert TAG matches galaxy.yml's version (make tag-check TAG=v1.0.1)
+	./scripts/tag-check.sh $(TAG)
