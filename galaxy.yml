@@ -20,6 +20,13 @@ description: >-
   fail2ban, Docker, rclone/R2 backups, Caddy reverse proxy, and a loopback-bound
   monitoring stack. Service roles stay in the consuming repo.
 
+# Both, and they do coexist — each answers a different reader. `license` is the
+# SPDX id a tool matches on (Galaxy's search, a consumer's licence audit);
+# `license_file` is what actually ships the terms. Declaring only the id would
+# leave a tarball with no licence text in it.
+license:
+  - Apache-2.0
+
 license_file: LICENSE
 
 tags:
