@@ -1,0 +1,1 @@
+roles/docker/templates/docker-cleanup.sh.j2 shebang

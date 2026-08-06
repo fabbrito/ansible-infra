@@ -148,11 +148,20 @@ team whose hosts we never see.
 There is no unit-test suite — why static checks and not a suite is ADR-0003's. The gate here is:
 
 ```bash
-make check    # fmt-check + lint — what CI runs; must be green to commit
+make check    # fmt-check + lint — must be green to commit
+make sanity   # ansible-test sanity — CI runs it; slow on a cold venv
 ```
 
 - **`make check` is static** — formatting, playbook syntax, `ansible-lint` (must stay clean at the **production**
   profile), `shellcheck`, and a collection build. It touches no host.
+- **`make sanity` is out of `check` on cost, not on importance.** The pre-commit hook runs `check` on every commit and a
+  first `ansible-test sanity` builds a venv per supported Python; CI runs both. It stages a real copy of the tree under
+  `.collections/` — `ansible-test` demands its cwd physically sit inside `ansible_collections/<ns>/<name>` and resolves
+  symlinks, so the one `lint.sh` stages is no use. That copy **includes `.git`**: `ansible-test` enumerates files
+  through git, and without it every test reports "No tests applicable" and the run exits 0. `scripts/sanity.sh` fails on
+  that skip rather than reporting green.
+- **`tests/sanity/ignore-<core>.txt` takes no comments and no blank lines** — the `ignores` test rejects both. The
+  reasoning for each entry goes in `tests/README.md`.
 - **The gate that matters is the consumer's and you cannot run it.** A `--check --diff` dry-run against a real box, and
   a second converge reporting zero changed, both belong to the consuming repo. Behaviour changes therefore land as a
   release the consumer adopts deliberately — never as a quiet fix to a branch someone tracks.
@@ -167,6 +176,7 @@ make check    # fmt-check + lint — what CI runs; must be green to commit
   - `make deps` — install the collections the roles depend on
   - `make hooks` — point `core.hooksPath` at `.githooks` (once per clone)
   - `make fmt` / `make check` — autofix / verify
+  - `make sanity` — `ansible-test sanity` (CI; not part of `check`)
   - `make build` — build the collection tarball
 - **`.githooks/` enforces two rules the gate cannot.** `pre-commit` runs `make check` against the working tree, which is
   what makes "green between commits" a fact rather than an intention, and rejects a staged vault, key or certificate

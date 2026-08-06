@@ -123,8 +123,10 @@ overriding anything.
 
 ## Where the gate lives
 
-This repo can only prove the static half: formatting, playbook syntax, `ansible-lint` at the **production** profile,
-`shellcheck`, and that the collection builds. That is `make check`, and CI runs exactly it.
+This repo can only prove the static half, and it splits by cost. `make check` is the fast leg — formatting, playbook
+syntax, `ansible-lint` at the **production** profile, `shellcheck`, and that the collection builds — and the pre-commit
+hook runs it on every commit. `make sanity` is `ansible-test sanity`, the 34 checks ansible-core ships; it builds a venv
+per supported Python on first run, so it stays out of `check`. CI runs both.
 
 The half that matters most is not provable here, because this repo has no inventory and reaches no host:
 
@@ -150,11 +152,18 @@ make deps    # install the collections the roles depend on
 make hooks   # enable the repo's git hooks — once per clone
 make fmt     # prettier + shfmt
 make check   # fmt-check + lint — must be green to commit
+make sanity  # ansible-test sanity — CI runs it; slow on a cold venv
 ```
 
 `make check` needs `ansible-lint`, `shellcheck`, `shfmt` and `npx` on top of `ansible-core`; `make deps` installs the
 Ansible collections only. A missing tool is a failure, not a skip — a gate that prints green for a leg it never ran is
 worse than no gate.
+
+`make sanity` needs nothing extra: `ansible-test` ships with `ansible-core`. It stages a copy of the working tree under
+`.collections/`, because `ansible-test` requires its working directory to physically sit inside
+`ansible_collections/<ns>/<name>` and resolves symlinks, so the one `make check` stages will not do. `tests/sanity/`
+carries one ignore entry, for the shebang on the script `roles/docker` renders onto the host — systemd execs that file
+directly, so the shebang is load-bearing rather than a stray.
 
 Bash follows the [YSAP style guide](https://style.ysap.sh); `make fmt` applies the repo's flags (`shfmt -i 0 -ci`). The
 scripts under `scripts/` use no `set -e` by policy — errexit hides the failure that matters, and each check records its
