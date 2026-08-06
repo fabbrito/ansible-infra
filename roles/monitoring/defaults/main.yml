@@ -36,8 +36,10 @@ monitoring_admin_email: ""
 # The agent's hub credentials, minted together by the hub's one-time "Add System"
 # step (docs/monitoring/access.md). KEY is the hub's PUBLIC key — authenticates
 # nothing, so plaintext config (override in group_vars); TOKEN authenticates the
-# agent and is vaulted. Absent → the agent is not rendered or started (ADR-0001);
-# hub + Dozzle still come up, so a box can join before it is paired.
+# agent and is vaulted. No token → the agent is not rendered or started (ADR-0001);
+# hub + Dozzle still come up, so a box can join before it is paired. A token
+# WITHOUT this key fails the converge — it would start an agent that can never
+# authenticate. The reverse is fine: it is the documented revoke.
 monitoring_agent_key: ""
 # monitoring_agent_token and monitoring_admin_password are vaulted in the
 # consuming repo — group_vars/<monitoring group>/vault.yml, with the expected

@@ -27,6 +27,22 @@
   ansible.builtin.set_fact:
     monitoring_agent_paired: "{{ (monitoring_agent_token | default('')) | length > 0 }}"
 
+# One-directional, NOT all-or-nothing like rclone's: key-without-token is the
+# documented revoke (pull the token, the compose stops rendering the agent), so
+# only the reverse is wrong. The hub mints both at once, so a token without its
+# key means one of the pair was dropped in transit to the vault.
+- name: Assert a paired agent also has the hub's public key
+  ansible.builtin.assert:
+    that: monitoring_agent_key | default('') | length > 0
+    fail_msg: >-
+      monitoring_agent_token is set but monitoring_agent_key is empty. The hub's
+      one-time "Add System" step mints them together — the KEY authenticates
+      nothing and belongs in plain group_vars, the TOKEN belongs in the group
+      vault. Half the pair starts an agent that can never authenticate, on a
+      converge that reports success.
+    quiet: true
+  when: monitoring_agent_paired
+
 - name: Ensure the stack directory exists
   ansible.builtin.file:
     path: "{{ monitoring_dir }}"
