@@ -3,6 +3,9 @@
 All notable changes to `fabbrito.infra`. The version here, the version in `galaxy.yml`, and the git tag move together —
 consumers pin the tag, so a change that is not released is a change nobody gets.
 
+A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
+that, and the next correction is 1.0.1.
+
 ## 1.0.0
 
 Initial extraction from the consumer repo these roles grew in, so a second team can take the same baseline without
@@ -30,7 +33,29 @@ taking the fleet it was written for.
 - `bootstrap` — one-time creation of the deploy user on a fresh box. Addressed by `-e target=<host>`, not `-l`.
 - `update` — serial apt upgrade with a reboot when required.
 
+### Gates
+
+Static only — this repo owns no inventory and reaches no host, so the dry-run and second-converge legs stay the
+consumer's ([ADR-0003](docs/adr/0003-the-gate-is-make-check-and-a-second-converge.md)).
+
+- `make check` — formatting, playbook syntax, `ansible-lint` at the production profile, `shellcheck`, collection build.
+  The pre-commit hook runs it, so every commit leaves it green.
+- `make sanity` — `ansible-test sanity`. CI only; a cold run builds a venv per supported Python.
+- `make test` — golden renders. Fixtures go through the real templates and the bytes are diffed against checked-in
+  expectations. It catches what the other two structurally cannot: a config that is _valid_ and says the wrong thing —
+  proxy trust on a host nothing fronts, a body cap clamped by a matcher-less default, an agent rendered with an empty
+  token.
+
+### Licensing and identity
+
+- **Apache-2.0.** The pre-release tree said "All rights reserved".
+- **The namespace is `fabbrito`**, matching the GitHub account that owns the repo — Galaxy grants namespaces from that
+  identity, so a mismatch would have blocked any future publish. Every FQCN is `fabbrito.infra.*`.
+
 ### Installing
 
 The consuming repo must declare `collections_path` in its `ansible.cfg` before installing. An install into a path
 Ansible does not search leaves every `fabbrito.infra.*` FQCN unresolvable. See README, "Install".
+
+The repo is public and installs over `https`, so no deploy key is needed — which is what makes it fetchable from a CI
+runner. `git+ssh` still works.
