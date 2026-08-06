@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+#
+# Validate the commit message against AGENTS.md > Commits:
+#   type(scope): subject   — scope optional, subject lowercase, no trailing
+#                            period.
+# A body, when present, is bullet topics ("- ...") or trailers after a blank
+# line, never prose.
+#
+# Enable once per clone:  make hooks
+# Skip for one commit:    git commit --no-verify
+#
+# No errexit, per the house Bash style: every rejection is counted in `status`
+# so one bad line does not hide the rest of the message.
+set -uo pipefail
+
+# AGENTS.md's list exactly. `test` is absent from it deliberately and so is
+# absent here: there is no suite to commit against (ADR-0003), so a `test(...)`
+# subject means the change is misnamed, not that the list is short.
+types='feat|fix|refactor|chore|style|docs|ci|build|perf'
+
+# Read what the commit will actually record: stop at the --verbose scissors,
+# drop git's comment lines, and drop leading blanks so the subject is index 0
+# and the blank that must separate a body is index 1. A read loop rather than
+# `sed | grep` — two forks for something the shell already does.
+lines=()
+while IFS= read -r line; do
+	[[ $line == '#'*'>8'* ]] && break
+	[[ $line == '#'* ]] && continue
+	((${#lines[@]} == 0)) && [[ -z ${line//[[:space:]]/} ]] && continue
+	lines+=("$line")
+done <"$1"
+
+subject=${lines[0]-}
+
+# git writes these itself, or rewrites them later. Not ours to grade.
+case $subject in
+	'' | 'Merge '* | 'Revert '* | 'fixup!'* | 'squash!'*) exit 0 ;;
+esac
+
+status=0
+
+reject() {
+	printf 'commit-msg rejected: %s\n' "$1" >&2
+	status=1
+}
+
+if [[ $subject =~ ^($types)(\([a-z0-9-]+\))?:\ +(.+)$ ]]; then
+	summary=${BASH_REMATCH[3]}
+
+	[[ ${summary:0:1} =~ [[:upper:]] ]] &&
+		reject "subject must be lowercase: $summary"
+	[[ $summary == *. ]] &&
+		reject "subject must not end with a period: $summary"
+else
+	reject "header must be 'type(scope): subject' — type one of: $types"
+fi
+
+((${#lines[@]} > 1)) && [[ -n ${lines[1]//[[:space:]]/} ]] &&
+	reject 'a body must be separated from the subject by a blank line'
+
+# Body lines are bullets, wrapped-bullet continuations (indented), or trailers
+# (Co-Authored-By:, and nothing else worth naming). Anything else is prose.
+for ((i = 2; i < ${#lines[@]}; i++)); do
+	line=${lines[i]}
+
+	# Session URLs are leakage into permanent shared history — see AGENTS.md.
+	[[ $line == Claude-Session:* ]] &&
+		reject 'no Claude-Session trailer'
+
+	case $line in
+		'' | '- '* | [[:blank:]]*) continue ;;
+	esac
+	[[ $line =~ ^[A-Za-z-]+:\  ]] && continue
+
+	reject "body must be bullet topics ('- ...'), not prose: $line"
+done
+
+exit $status

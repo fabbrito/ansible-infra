@@ -46,11 +46,8 @@ sha256sum "rclone-$ver-linux-amd64.deb"
 ```
 
 Then, in `roles/rclone/defaults/main.yml`, set `rclone_version` to `$ver` and `rclone_deb_sha256` to the verified hash,
-and re-converge the baseline. The role's `get_url` re-checks the committed hash on every host, so a mismatched download
-fails there rather than installing.
-
-The role's `get_url` re-checks that committed hash on every host, so a tampered or truncated download fails the converge
-loudly rather than installing.
+and re-converge the baseline. The role re-checks the committed hash on every host, so a tampered or truncated download
+fails the converge rather than installing.
 
 ## Verifying it landed
 

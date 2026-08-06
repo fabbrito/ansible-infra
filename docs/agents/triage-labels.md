@@ -1,17 +1,18 @@
 # Triage Labels
 
-The skills speak in terms of five canonical triage roles. This file maps those roles to the actual label strings used in
-this repo's issue tracker.
+The five canonical triage roles, used **unrenamed** — each label string is its role name. That is the whole mapping;
+this file exists so a skill has somewhere to look it up rather than assume it.
 
-| Label in mattpocock/skills | Label in our tracker | Meaning                                  |
-| -------------------------- | -------------------- | ---------------------------------------- |
-| `needs-triage`             | `needs-triage`       | Maintainer needs to evaluate this issue  |
-| `needs-info`               | `needs-info`         | Waiting on reporter for more information |
-| `ready-for-agent`          | `ready-for-agent`    | Fully specified, ready for an AFK agent  |
-| `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
-| `wontfix`                  | `wontfix`            | Will not be actioned                     |
+| Label             | Meaning                                  |
+| ----------------- | ---------------------------------------- |
+| `needs-triage`    | Maintainer needs to evaluate this issue  |
+| `needs-info`      | Waiting on reporter for more information |
+| `ready-for-agent` | Fully specified, ready for an AFK agent  |
+| `ready-for-human` | Requires human implementation            |
+| `wontfix`         | Will not be actioned                     |
 
-When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this
-table.
+When a skill names a role ("apply the AFK-ready triage label"), use the string from this table.
 
-Edit the right-hand column to match whatever vocabulary you actually use.
+**These are not all present on the tracker.** Only `wontfix` exists there today, as a GitHub default. A skill that needs
+one of the others creates it first (`gh label create <name> --force`) rather than failing on an unknown label — the same
+applies to the `wayfinder:*` labels `issue-tracker.md` asks for.

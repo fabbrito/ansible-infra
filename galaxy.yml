@@ -1,12 +1,12 @@
 ---
 # Collection manifest. Consumed by `ansible-galaxy collection install`, which is
-# how downstream repos take this layer — never by vendoring or a submodule.
+# how consuming repos take this layer — never by vendoring or a submodule.
 #
 # Starts at 1.0.0 by choice, not by rule: ansible-lint's version floor
 # (galaxy[version-incorrect]) is opt-in and this repo does not enable it. 0.x
 # would say the contract may still move, and the README's var table is a
 # contract we intend to hold. Tag the repo to match on every release;
-# downstreams pin that tag in their requirements.yml.
+# consumers pin that tag in their requirements.yml.
 namespace: fabbrito
 name: infra
 version: 1.0.0
@@ -44,7 +44,7 @@ homepage: https://github.com/fabbrito/ansible-infra
 issues: https://github.com/fabbrito/ansible-infra/issues
 
 # Repo-local development tooling and authoring rules. They lint and govern this
-# repo; they are not part of what a downstream installs, and shipping them would
+# repo; they are not part of what a consumer installs, and shipping them would
 # put a second Makefile, a second scripts/, and our house style on their disk
 # under ansible/collections/. AGENTS.md especially: a consumer's own agents read
 # whatever lands in their tree.
@@ -64,6 +64,12 @@ build_ignore:
   - .prettierrc.json
   - AGENTS.md
   - CLAUDE.md
+  # The glossary points at AGENTS.md, which does not ship — sending it alone
+  # ships a dangling pointer. docs/agents/ is skill configuration for authoring
+  # THIS repo (it names this repo's issue tracker), so it is the same class as
+  # AGENTS.md, not documentation a consumer can act on.
+  - CONTEXT.md
+  - docs/agents
   - Makefile
   - scripts
   - tests

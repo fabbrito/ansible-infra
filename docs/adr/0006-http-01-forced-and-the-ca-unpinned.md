@@ -18,7 +18,7 @@ that is _why_ they need one. Using DNS-01 would mean the third party handing ove
 delegating the challenge name by CNAME. Neither exists, and neither is unilateral to arrange.
 
 **HTTP-01 works for exactly the reason DNS-01 does not.** The third party already pointed an A record at the box. Caddy
-answers the challenge on port 80, on the machine the name already resolves to. The one thing that was given is the one
+answers the challenge on port 80, on the host the name already resolves to. The one thing that was given is the one
 thing HTTP-01 needs.
 
 `ufw` already opens 80 and 443 on every host, so this costs no firewall change.

@@ -14,15 +14,17 @@ This repo is **single-context**: one `CONTEXT.md` at the root, one `docs/adr/` t
 
 If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront.
 The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily
-when terms or decisions actually get resolved. `CONTEXT.md` does not exist yet — that is expected, not a gap to fill on
-sight.
+when terms or decisions actually get resolved.
+
+Where a glossary entry and an ADR disagree, **the ADR wins** — an ADR that coins a term is the source, and the entry is
+the summary that points back at it.
 
 ## File structure
 
 ```
 /
 ├── AGENTS.md          ← conventions; CLAUDE.md is a symlink to it
-├── CONTEXT.md         ← glossary (created lazily by /domain-modeling)
+├── CONTEXT.md         ← glossary (maintained lazily by /domain-modeling)
 ├── docs/
 │   ├── adr/           ← decisions
 │   ├── agents/        ← this directory: skill configuration
@@ -60,4 +62,4 @@ are the consuming repo's calls, and an ADR here would hand its operators somebod
 ## Never name a consumer
 
 Everything the skills write — issues, ADRs, glossary entries, plans — is bound by the repo's rule that nothing here
-names a client, a client's vendor, a domain, a host, or a downstream repo. Keep the fact, drop the name.
+names a client, a client's vendor, a domain, a host, or a consuming repo. Keep the fact, drop the name.
