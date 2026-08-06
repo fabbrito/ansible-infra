@@ -27,6 +27,11 @@ help: ## Show this help
 
 ##@ Dependencies
 
+# The "not part of the configured collections paths" warning is expected — no
+# ansible.cfg here, and scripts/lint.sh exports the path where one is needed.
+# Leave it: it is the guard that catches the same mistake in a consumer's tree.
+# An ansible-core with bundled collections can satisfy every pin and skip,
+# leaving $(COLLECTIONS_DIR) empty; CI's bare core populates it.
 .PHONY: deps
 deps: ## Install/upgrade the Ansible collections the roles depend on
 	ansible-galaxy collection install -r requirements.yml --upgrade -p $(COLLECTIONS_DIR)/
