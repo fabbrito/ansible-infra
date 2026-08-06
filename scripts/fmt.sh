@@ -37,11 +37,11 @@ fail=0
 
 bold '==> prettier (YAML / Markdown / JSON)'
 if ((${#js_runner[@]} > 0)); then
-	targets=(
-		'**/*.yml' '**/*.yaml'
-		'**/*.md'
-		'**/*.json'
-	)
+	# One braced pattern, not four. Prettier errors on a pattern that matches
+	# nothing, and the tree has no `.yaml` — Ansible's layout is `.yml` — so a
+	# separate '**/*.yaml' failed the gate on every run while reporting every
+	# matched file clean. Braces keep `.yaml` covered if one ever lands.
+	targets=('**/*.{yml,yaml,md,json}')
 	mode='--write'
 	if ((check)); then
 		mode='--check'
