@@ -5,7 +5,8 @@
 #   make            # show this help
 #   make deps       # install the collections the roles depend on
 #   make hooks      # point git at .githooks (once per clone)
-#   make check      # fmt-check + lint (what CI runs)
+#   make check      # fmt-check + lint (the pre-commit gate)
+#   make sanity     # ansible-test sanity (CI; slow on a cold venv)
 
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
@@ -40,7 +41,7 @@ hooks: ## Enable the repo's git hooks (once per clone)
 	@printf 'hooks enabled — pre-commit runs "make check", commit-msg grades the subject\n'
 
 .PHONY: check
-check: fmt-check lint ## fmt-check + lint (what CI runs)
+check: fmt-check lint ## fmt-check + lint (the pre-commit gate)
 
 .PHONY: fmt
 fmt: ## Format YAML/MD/JSON (prettier) + Bash (shfmt)
@@ -53,6 +54,14 @@ fmt-check: ## Verify formatting without writing (no autofix)
 .PHONY: lint
 lint: ## Syntax-check playbooks + ansible-lint + shellcheck + collection build
 	./scripts/lint.sh
+
+##@ CI checks
+
+# Out of `check` on purpose: the pre-commit hook runs check on every commit, and
+# a first `sanity` run builds a sanity venv per supported Python. CI runs it.
+.PHONY: sanity
+sanity: ## ansible-test sanity against a staged copy of the working tree
+	./scripts/sanity.sh
 
 ##@ Release
 

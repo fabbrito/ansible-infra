@@ -1,10 +1,11 @@
 name: CI
 
-# `make check` is the whole gate this repo can run: fmt-check, playbook syntax,
-# ansible-lint at the production profile, shellcheck, collection build. There is
-# deliberately no vault step and no dry-run leg — this repo owns no inventory and
-# reaches no host, so the `--check --diff` half belongs to the consuming repo
-# (README.md, "Where the gate lives").
+# The static gate, in two halves. `make check` is the fast one the pre-commit
+# hook also runs: fmt-check, playbook syntax, ansible-lint at the production
+# profile, shellcheck, collection build. `make sanity` is the slow one only CI
+# runs. There is deliberately no vault step and no dry-run leg — this repo owns
+# no inventory and reaches no host, so the `--check --diff` half belongs to the
+# consuming repo (README.md, "Where the gate lives").
 
 on:
   pull_request:
@@ -46,3 +47,8 @@ jobs:
 
       - name: fmt-check + lint
         run: make check
+
+      # Not in `make check`, because the pre-commit hook runs that on every
+      # commit and a cold sanity venv is slow. CI is where it belongs.
+      - name: ansible-test sanity
+        run: make sanity
