@@ -93,7 +93,11 @@
       secret_access_key = {{ rclone_r2_secret_access_key }}
       endpoint = {{ rclone_r2_endpoint }}
       no_check_bucket = true
-      {% if rclone_crypt_password is defined %}
+      {# The counted fact, not `is defined`: empty-string is this repo's idiom for
+         absent, so `is defined` renders a keyless [r2crypt] for a pair the assert
+         above already passed as "neither set" — and a half-empty pair derefs the
+         undefined one inside a no_log task. #}
+      {% if rclone_crypt_set_count | int == 2 %}
 
       # Fleet-wide backup encryption wrapper over the whole `backups` bucket.
       # Services opt in by pointing their *_r2_dest at `r2crypt:` instead of `r2:`.
