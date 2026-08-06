@@ -14,7 +14,7 @@ service, which is also where inventory, secrets and the converge itself live.
 collections:
   - name: git+https://github.com/fabbrito/ansible-infra.git
     type: git
-    version: v1.1.0 # a tag, never a branch — see Versioning
+    version: v1.2.0 # a tag, never a branch — see Versioning
 ```
 
 The repo is public, so `https` needs no credential — which is what makes this installable from a CI runner without

@@ -6,10 +6,7 @@ consumers pin the tag, so a change that is not released is a change nobody gets.
 A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
 that, and the next correction is 1.0.1.
 
-## Unreleased
-
-Landed on master, not yet tagged — so no consumer has it. The heading takes its number in the release commit that bumps
-`galaxy.yml`, alongside the tag.
+## 1.2.0
 
 ### Changed
 
