@@ -60,7 +60,9 @@ reject() {
 # rather than the whole defence.
 for file in "${staged[@]}"; do
 	name=${file##*/}
-	name=${name,,}
+	# Lowercased with tr, not ${name,,}: macOS ships bash 3.2 by licence and
+	# never updates it, so the bash 4 form aborts the hook on every Mac.
+	name=$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]')
 
 	case $name in
 		.vault_pass* | vault.y*ml | *.vault.y*ml | *vault_pass*)
