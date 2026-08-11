@@ -17,12 +17,13 @@ make sense as the consequence of a decision recorded here.
 | [0009](0009-secret-bearing-urls-are-redacted-in-every-logger.md)            | Secret-bearing URIs are redacted — never suppressed — in every logger.    |
 | [0010](0010-roles-assert-their-preconditions-not-their-outcomes.md)         | A role asserts its own inputs, and asserts nothing else.                  |
 | [0011](0011-distribution-is-a-git-tag-not-a-galaxy-publish.md)              | Consumers pin a git tag; there is no Galaxy publish.                      |
+| [0012](0012-ci-is-hardened-at-the-fork-boundary.md)                         | What guards CI on a public repo, and which of them are not in the tree.   |
 
 0003 and 0010 each carry a dated **Amendment** at the foot, added together: 0003 for the two static gates that read the
 rendered bytes rather than the tasks, 0010 for the line between them — asserts validate the consumer's input, goldens
 validate our output. Read both before proposing either mechanism do the other's job.
 
 Each of these explains either a role or the collection itself — how it is gated (0003), how it validates (0010), how it
-reaches a consumer (0011). Decisions about running a fleet — how inventory expresses service composition, which repo
-owns a host, where a secret sits in a vault — belong to the consuming repo, which records them itself. An ADR added here
-meets the same bar.
+reaches a consumer (0011), and what keeps the tag they pin from being shaped by a stranger (0012). Decisions about
+running a fleet — how inventory expresses service composition, which repo owns a host, where a secret sits in a vault —
+belong to the consuming repo, which records them itself. An ADR added here meets the same bar.
