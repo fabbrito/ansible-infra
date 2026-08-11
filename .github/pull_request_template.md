@@ -39,3 +39,10 @@ The gate that matters is NOT on this list, because this repo cannot run it: a
 `--check --diff` against a real box with the diff read, and a second converge
 reporting zero changed. Both belong to the consuming repo, on the tag they adopt.
 -->
+
+---
+
+> **Opening this from a fork?** CI will not start on its own — it waits for a maintainer to approve the run, on every PR
+> rather than only your first. Silence is the policy, not a broken workflow. Reasoning is in
+> [ADR-0012](../docs/adr/0012-ci-is-hardened-at-the-fork-boundary.md); it also covers what to do if your change needs an
+> action outside `actions/*`.

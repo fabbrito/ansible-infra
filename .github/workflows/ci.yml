@@ -6,6 +6,13 @@ name: CI
 # runs. There is deliberately no vault step and no dry-run leg — this repo owns
 # no inventory and reaches no host, so the `--check --diff` half belongs to the
 # consuming repo (README.md, "Where the gate lives").
+#
+# The repo is public, so two of the three CI guards live in repo settings where
+# this file cannot show them and `make check` cannot verify them: fork PRs are
+# held for approval from every external contributor, and `actions/*` is the only
+# action allowlisted. `pull_request` (never `pull_request_target`) is the third
+# and the one in-tree — it keeps a fork's run secretless and its token
+# read-only. All three, and what reverses them, are ADR-0012's.
 
 on:
   pull_request:
@@ -32,6 +39,10 @@ jobs:
       - name: Install ansible + lint toolchain
         run: pip install ansible-core ansible-lint
 
+      # Version-pinned, not checksum-pinned. A tampered release would run
+      # arbitrary code on the runner — which holds nothing: no secrets, a
+      # read-only token, and no artifact leaves here. Add a `sha256sum -c`
+      # the day this workflow gains a publish step.
       - name: Install shfmt
         env:
           SHFMT_VERSION: v3.13.1
