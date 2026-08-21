@@ -62,8 +62,10 @@ bold ''
 bold '==> shfmt (Bash)'
 if command -v shfmt >/dev/null 2>&1; then
 	# nullglob: a role with no shell contributes nothing, not a literal path.
+	# .githooks/* is extension-less and matched by shebang; it is graded
+	# because a hook that dies takes the gate's own enforcement with it.
 	shopt -s nullglob
-	sh_files=(scripts/*.sh roles/*/files/*.sh)
+	sh_files=(scripts/*.sh roles/*/files/*.sh .githooks/*)
 	shopt -u nullglob
 	# -i 0 = tabs, -ci = indent case patterns. House style; see README.md.
 	if ((check)); then
