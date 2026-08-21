@@ -1,45 +1,30 @@
 #!/usr/bin/env bash
 #
-# Validate the commit message against AGENTS.md > Commits:
-#   type(scope): subject   — scope optional, subject lowercase, no trailing
-#                            period.
-# A body, when present, is bullet topics ("- ...") or trailers after a blank
-# line, never prose — at most 5 bullets, each at most 2 lines of 80 columns.
-#
-# Every cap here has a matching one on the other axis, because a cap on one
-# axis alone is not a cap: bullets are capped in count AND in width, or five
-# 400-column bullets satisfy it; trailers are an allowlist, or `Note:` is a
-# paragraph with a colon in it. Rejections say what to write instead, because
-# a message that only says "too long" is read as an obstacle to route around.
+# Grades the commit message against AGENTS.md > Commits. The shape it wants is
+# printed on rejection, at the bottom of this file.
 #
 # Enable once per clone:  make hooks
 # Skip for one commit:    git commit --no-verify
 #
-# No errexit, per the house Bash style: every rejection is counted in `status`
-# so one bad line does not hide the rest of the message.
+# No errexit: every rejection is counted, so one bad line does not hide the
+# rest of the message.
 set -uo pipefail
 
-# AGENTS.md's list exactly. `test` is absent from it deliberately and so is
-# absent here: there is no suite to commit against (ADR-0003), so a `test(...)`
-# subject means the change is misnamed, not that the list is short.
+# AGENTS.md's list. No `test`: there is no suite to commit against (ADR-0003),
+# so a `test(...)` subject means the change is misnamed.
 types='feat|fix|refactor|chore|style|docs|ci|build|perf'
 
-# The trailers git or a reviewer acts on. An allowlist and not a shape, because
-# `^Word: ` as a shape is an unlimited prose channel: `Note:`, `Rationale:`,
-# `Context:` all satisfy it and none of them are trailers.
+# An allowlist, not a shape: `^Word: ` would make `Note:` a prose channel.
 trailers='Co-Authored-By|Signed-off-by|Reviewed-by|Refs|Closes|Fixes'
 
-# 72 leaves room for git's 4-column indent in `git log` at 80. Body lines get
-# the full 80: a wrapped bullet is already 2 lines, so this caps a topic at
-# ~160 columns, which is a topic and not a paragraph.
+# 72 leaves room for git's 4-column indent in `git log` at 80. Capped on both
+# axes: count alone lets five 400-column bullets through.
 subject_max=72
 body_max=80
 bullet_max=5
 
-# Read what the commit will actually record: stop at the --verbose scissors,
-# drop git's comment lines, and drop leading blanks so the subject is index 0
-# and the blank that must separate a body is index 1. A read loop rather than
-# `sed | grep` — two forks for something the shell already does.
+# Stop at the --verbose scissors, drop git's comments and leading blanks, so
+# the subject is index 0 and the body's blank separator is index 1.
 lines=()
 while IFS= read -r line; do
 	[[ $line == '#'*'>8'* ]] && break
@@ -57,8 +42,8 @@ esac
 
 status=0
 
-# $1 is what is wrong, $2 is what to write instead. The second is not optional
-# in spirit: the rule an author cannot act on is the rule they work around.
+# $1 what is wrong, $2 what to write instead. The rule an author cannot act on
+# is the rule they work around.
 reject() {
 	printf '\n  %s\n' "$1" >&2
 	printf '  → %s\n' "$2" >&2
@@ -91,13 +76,8 @@ fi
 	reject 'the body does not start with a blank line' \
 		'put one blank line between the subject and the body'
 
-# Body lines are bullets, wrapped-bullet continuations (indented), or trailers
-# (Co-Authored-By:, and nothing else worth naming). Anything else is prose.
-#
-# The counters are the caps: a message needing more than 5 topics, or a topic
-# needing more than 2 lines, is describing how big the change was instead of
-# what it did. `open` is the bullet those continuations belong to, so the
-# rejection can name it.
+# Bullets, indented continuations, or trailers. Anything else is prose.
+# `open` is the bullet a continuation belongs to, so the rejection can name it.
 bullets=0
 wrapped=0
 open=''
@@ -111,8 +91,8 @@ for ((i = 2; i < ${#lines[@]}; i++)); do
 		continue
 	fi
 
-	# Width first, and on every kind of line: without it "at most 2 lines"
-	# is satisfied by two lines of any length, which is the whole loophole.
+	# Width first, on every line kind: "at most 2 lines" alone is satisfied
+	# by two lines of any length.
 	((${#line} > body_max)) &&
 		reject "body line is ${#line} columns, max is $body_max" \
 			'cut the line — do not wrap it, the wrap is also capped'
@@ -147,9 +127,8 @@ for ((i = 2; i < ${#lines[@]}; i++)); do
 		continue
 	fi
 
-	# Reached by prose, by an unindented continuation, and by a line shaped
-	# like a trailer that is not one. Name the last case: it is the one an
-	# author invents on purpose.
+	# Prose, an unindented continuation, or a fake trailer. Name the last:
+	# it is the one an author invents on purpose.
 	reject "body line is not a bullet or a trailer: $(snip "$line")" \
 		"write '- topic'; trailers are only: $trailers"
 done
@@ -158,10 +137,6 @@ done
 	reject "body has $bullets bullets, max is $bullet_max" \
 		'drop the bullets that narrate, or split the commit'
 
-# The shape, then the one instruction the caps cannot express: the caps are the
-# rule, not an obstacle in front of it. An author who lengthens lines, invents
-# trailers, or merges two topics into one bullet has satisfied the hook and
-# broken the convention, and only this paragraph says so.
 if ((status != 0)); then
 	cat >&2 <<-EOF
 
@@ -174,11 +149,10 @@ if ((status != 0)); then
 
 		    Co-Authored-By: ...    trailers last
 
-		  A body is optional and usually wrong; subject-only is the default. If
-		  it does not fit, the commit is too big or the body is narrating —
-		  split it or cut it. Do not widen lines, invent trailers, or pack two
-		  topics into one bullet to get under a cap; that passes the hook and
-		  breaks the convention it is enforcing.
+		  A body is optional and usually wrong; subject-only is the default.
+		  If it does not fit, the commit is too big or the body is narrating.
+		  Widening lines, inventing trailers or packing two topics into one
+		  bullet passes the hook and breaks the convention it enforces.
 
 		  Deliberate exception: git commit --no-verify
 

@@ -1,23 +1,15 @@
 #!/usr/bin/env bash
 #
-# The gate, before the commit lands. This repo's gate is `make check` — format,
-# playbook syntax, ansible-lint at the production profile, shellcheck, and a
-# collection build — and the whole of it runs in seconds, so there is nothing
-# slow worth deferring to push time. AGENTS.md asks that every commit leave
-# `make check` green, not just the tip of the branch; that is only enforceable
-# here.
+# Runs `make check` before the commit lands. AGENTS.md asks every commit be
+# green, not just the tip; only a hook can enforce that.
 #
 # Enable once per clone:  make hooks
 # Skip for one commit:    git commit --no-verify
 #
-# This grades the working tree, not the index — prettier and ansible-lint read
-# from disk, and ansible cannot parse half a playbook. Partially staged work is
-# checked as it exists on disk. The secret guard below is the exception, and
-# reads the index on purpose.
+# Grades the working tree, not the index: prettier and ansible-lint read from
+# disk. The secret guard below is the exception and reads the index on purpose.
 #
-# No errexit, per the house Bash style: failures are counted in `status` so the
-# secret guard and the gate each report, rather than the first one hiding the
-# rest.
+# No errexit: failures are counted, so the guard and the gate each report.
 set -uo pipefail
 
 cd "$(git rev-parse --show-toplevel)" || exit 1
@@ -30,34 +22,21 @@ done < <(git diff --cached --name-only --diff-filter=ACMR)
 
 status=0
 
-# $1 is the file, $2 is why it cannot be here. Say which rule refused it: a
-# guard that only says "rejected" gets renamed around rather than obeyed.
+# $1 the file, $2 the rule that refused it. A guard that only says "rejected"
+# gets renamed around rather than obeyed.
 reject() {
 	printf '\n  %s\n' "$1" >&2
 	printf '  → %s\n' "$2" >&2
 	status=1
 }
 
-# Secrets first, and this one hard-stops instead of falling through to the gate:
-# a credential is permanent once committed, even if the next commit removes it,
-# so nothing after this point is worth running.
-#
-# The list rejects OUTRIGHT rather than grading what it finds. A sibling repo
-# that owns an inventory checks a staged vault is still encrypted; here there is
-# no vault to encrypt. AGENTS.md makes that structural — no vault.yml, no
-# .vault_pass, no inventory to attach them to — so an encrypted vault is as
-# wrong in this tree as a decrypted one, and the guard says so rather than
-# waving through the tidy half of a file that cannot belong here at all.
-#
-# Certificates and keys go with them: an origin cert or a host key belongs to
-# somebody's fleet, and fleet data is barred from this repo by the same rule as
-# credentials.
-#
-# Names are matched case-folded and by prefix as well as suffix, because a name
-# guard is only as good as the renames it survives: `.PEM`, `.vault_pass.txt`
-# and a bare `id_ed25519` all defeated the plain lowercase suffix list this
-# replaced. The content scan below is what makes the name list a convenience
-# rather than the whole defence.
+# Secrets first, and this hard-stops: a credential is permanent once committed.
+# Rejects outright rather than grading. There is no vault here to encrypt
+# (AGENTS.md > Secrets), so an encrypted one is as wrong as a plain one, and
+# keys and certificates belong to a fleet. Names are case-folded and matched on
+# prefix as well as suffix: `.PEM`, `.vault_pass.txt` and a bare `id_ed25519`
+# all defeated the suffix-only list this replaced. The content scan is the real
+# defence.
 for file in "${staged[@]}"; do
 	name=${file##*/}
 	# tr, not ${name,,}: the bash 4 form is a fatal expansion error under
@@ -84,12 +63,10 @@ for file in "${staged[@]}"; do
 			;;
 	esac
 
-	# Content, not name. Graded against the index (`git show :file`) rather
-	# than the tree, because the index is what the commit records. `grep -I`
-	# treats a binary blob as a non-match, so a tarball costs one read.
-	#
-	# Each pattern is bracket-broken on one character ([E], [$]) so this file
-	# does not match itself and block its own commit. Do not "tidy" them.
+	# Content, not name. Read from the index, which is what the commit
+	# records. `grep -I` treats a binary blob as a non-match. Patterns are
+	# bracket-broken ([E], [$]) so this file does not match itself. Do not
+	# "tidy" them.
 	if git show ":$file" 2>/dev/null |
 		grep -Iq -E -e 'BEGIN [A-Z ]*PRIVATE KE[Y]' \
 			-e 'BEGIN CERTIFICAT[E]' \
@@ -104,11 +81,9 @@ done
 if ((status != 0)); then
 	cat >&2 <<-'EOF'
 
-		  Nothing was committed, and nothing above is fixable by renaming the
-		  file: the guard reads the staged bytes too. This repo has no vault
-		  and no inventory to attach one to, so there is nothing here to
-		  encrypt — an encrypted secret is as wrong in this tree as a plain
-		  one. The secret belongs in the consuming repo.
+		  Nothing was committed. Renaming will not help: the guard reads the
+		  staged bytes too. There is no vault here, so an encrypted secret is
+		  as wrong as a plain one. It belongs in the consuming repo.
 
 		  git restore --staged <file>
 
@@ -119,22 +94,20 @@ fi
 printf '==> %s\n' 'make check'
 make check || status=1
 
-# `--no-verify` is named last and once, as an escape from a broken hook rather
-# than a way past a red gate. It used to sit beside `make fmt` as a peer option,
-# which reads as a choice between fixing the tree and not fixing it.
+# `--no-verify` is named once, and last: an escape from a broken hook, not a
+# peer option to fixing the tree.
 if ((status != 0)); then
 	cat >&2 <<-'EOF'
 
 		  The gate is red, so this commit would break "green between commits"
-		  — AGENTS.md > Commits. Every commit is green, not just the tip:
-		  a red one mid-branch is a revert that does not build.
+		  (AGENTS.md > Commits). A red commit mid-branch is a revert that
+		  does not build.
 
 		    make fmt      formatting failures fix themselves
 		    make check    re-run the gate
 
-		  Scope the commit down if the failure is in work you have not
-		  finished; do not commit around it. --no-verify is for a hook that
-		  is itself broken, not for a gate that is telling you something.
+		  Scope the commit down if the failure is in unfinished work.
+		  --no-verify is for a broken hook, not a gate telling you something.
 
 	EOF
 fi
