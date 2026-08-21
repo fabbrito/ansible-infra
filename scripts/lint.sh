@@ -85,12 +85,29 @@ bold ''
 bold '==> shellcheck'
 if command -v shellcheck >/dev/null 2>&1; then
 	# nullglob: a role with no shell contributes nothing, not a literal path.
+	# .githooks/* is extension-less and matched by shebang; it is graded
+	# because a hook that dies takes the gate's own enforcement with it.
 	shopt -s nullglob
-	sh_files=(scripts/*.sh roles/*/files/*.sh)
+	sh_files=(scripts/*.sh roles/*/files/*.sh .githooks/*)
 	shopt -u nullglob
 	if shellcheck -x "${sh_files[@]}"; then
 		green "  ok  ${#sh_files[@]} shell script(s)"
 	else
+		fail=$((fail + 1))
+	fi
+
+	# These run on a contributor's own bash, and a Mac's /bin/bash is 3.2.
+	# There is no bash-version target, so pick the POSIX codes that are
+	# bash 4 features colliding with nothing 3.2 has. A net, not a proof —
+	# `bash -n` does not catch a bad substitution.
+	shopt -s nullglob
+	authoring=(.githooks/* scripts/*.sh)
+	shopt -u nullglob
+	if shellcheck --shell=sh --include=SC3059,SC3032,SC3029 \
+		"${authoring[@]}"; then
+		green "  ok  ${#authoring[@]} file(s) free of bash 4 constructs"
+	else
+		red '  bash 4 construct — .githooks/ and scripts/ meet bash 3.2'
 		fail=$((fail + 1))
 	fi
 else

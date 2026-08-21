@@ -8,14 +8,12 @@ the vocabulary.
 
 ## Platform
 
-**Ubuntu 24.04 LTS and newer, on both ends** — the hosts the roles converge and the machine you author on. So GNU
-userland and a current bash are a given: `${var,,}`, `sort -V`, `grep -P` and friends are fair game, and scripts here do
-**not** hedge for macOS, busybox, or bash 3.2. If a check would only fail somewhere we do not support, it is not a bug.
+**Ubuntu 24.04 LTS and newer.** That is what the roles converge. GNU userland and bash 5 are a given: `${var,,}`,
+`sort -V`, `grep -P` and friends are fair game.
 
 ## Language
 
-All developer-facing text is **English** — comments, commit messages, variable names, docs. Nothing here renders copy an
-end user reads; if that changes, that copy follows the consumer's locale and the code around it stays English.
+All developer-facing text is **English** — comments, commit messages, variable names, docs.
 
 ## Naming
 
@@ -79,11 +77,9 @@ Commits follow `type(scope): subject`.
 
 - **Scope is the role or layer** — `caddy`, `os`, `docker`, `ci`, `galaxy`. Reuse a scope the history already reaches
   for (`git log --format='%s'`) before coining one; omit it when the change is genuinely repo-wide.
-- **Type** — `feat`, `fix`, `refactor`, `chore`, `style`, `docs`, `ci`, `build`, `perf`. Name what the commit did, not
-  how big it was.
-- **Subject** — concise, imperative, lowercase, no trailing period.
-- **Bias hard to terse.** Subject-only by default; a body is short bullet topics, never prose. `commit-msg` caps both
-  and prints the shape on rejection — don't work around a cap, the commit that doesn't fit should have been two.
+- **Subject** — concise and imperative; name what the commit did, not how big it was.
+- **Bias hard to terse.** Subject-only by default; a body is short bullet topics, never prose. `commit-msg` grades the
+  shape and prints it on rejection — don't work around a cap, the commit that doesn't fit should have been two.
 - **One commit per change.** Each fix or refactor is atomic and independently revertable.
 - **Green between commits.** Every commit leaves `make check` passing; `pre-commit` enforces it.
 - If an AI co-authored, end with a `Co-Authored-By:` trailer naming the model, after a blank line. Never a session URL
@@ -127,7 +123,7 @@ how roles _behave_ around a consumer's secrets.
 ## Idempotence and safety
 
 The invariants that make a converge re-runnable. **No tool here checks any of them** — they hold because you follow
-them, and they are a promise to a team whose hosts we never see.
+them.
 
 - **Every role is safe to re-run.** A second converge on an already-converged host changes nothing. A task that can't
   express this natively gets `creates:`, a `stat` guard, or an explicit `changed_when:` — never a blind `command:` that
@@ -159,31 +155,21 @@ make test     # golden render tests — CI runs it
   without updating `playbooks/baseline.yml` fails there.
 - **`make sanity` is out of `check` on cost, not on importance** — a cold run builds a venv per supported Python. CI
   runs it. Its staging is delicate and `scripts/sanity.sh` says why, including the guard that fails a silent all-skip.
-- **`tests/sanity/ignore-<core>.txt` takes no comments and no blank lines**; per-entry reasoning goes in
-  `tests/README.md`.
 - **`make test` pins the rendered BYTES of the templates.** Asserts validate the consumer's input; goldens validate our
   output, and the gap between them is where this repo's worst bugs live — a config that is valid and says the wrong
   thing passes both `ansible-lint` and the tool's own validator. **A template change with no golden diff means you
   changed nothing or you have no fixture for the branch you touched**; adding a branch means adding a fixture, in the
   same commit. Layout is in `tests/README.md`.
 - **The gate that matters is the consumer's and you cannot run it.** A `--check --diff` dry-run against a real box, and
-  a second converge reporting zero changed, both belong to the consuming repo. Behaviour changes therefore land as a
-  release the consumer adopts deliberately — never as a quiet fix to a branch someone tracks.
+  a second converge reporting zero changed, both belong to the consuming repo.
 
 # Tooling
 
 - **Make is the entrypoint**, and it is thin on purpose: it delegates to `scripts/` and `ansible-galaxy`. Real logic
   lives in roles and scripts, never in a recipe. There are no converge targets, because there is nothing to converge.
-  - `make deps` — install the collections the roles depend on
-  - `make hooks` — point `core.hooksPath` at `.githooks` (once per clone)
-  - `make fmt` / `make check` — autofix / verify
-  - `make sanity` — `ansible-test sanity` (CI; not part of `check`)
-  - `make test` / `make golden-update` — golden renders: verify / accept
-  - `make build` — build the collection tarball
-- **`.githooks/` enforces the two rules the gate cannot**, opt-in per clone via `make hooks`. `pre-commit` runs
-  `make check` and refuses staged secrets; `commit-msg` grades the message against **Commits** above. Each rejection
-  prints the rule and the fix, so the hooks are the reference, not this file. Neither ships to a consumer
-  (`build_ignore`).
+  Run `make help` for the targets; a list here would go stale.
+- **`.githooks/` enforces the two rules the gate cannot** — green between commits, and no staged secrets. Opt in per
+  clone with `make hooks`; each rejection prints the rule and the fix, so the hooks are the reference, not this file.
 - **Collection dependencies are pinned to majors in `galaxy.yml`**, which is what a consumer resolves, and mirrored in
   `requirements.yml` for local linting. **Change both or neither.** The `ansible-core` floor lives in
   `meta/runtime.yml`, enforced at install time and re-checked by `scripts/lint.sh`.
