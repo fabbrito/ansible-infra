@@ -13,6 +13,7 @@ set -uo pipefail
 types='feat|fix|refactor|chore|style|docs|test|ci|build|perf'
 
 # An allowlist, not a shape: `^Word: ` would make `Note:` a prose channel.
+# Shown in rejections; the match is the case below.
 trailers='Co-Authored-By|Signed-off-by|Reviewed-by|Refs|Closes|Fixes'
 
 # 72 leaves room for git's 4-column indent in `git log` at 80. Capped on both
@@ -85,6 +86,9 @@ fi
 bullets=0
 wrapped=0
 open=''
+seen_trailer=false
+# In a variable: `<` inside [[ ]] parses as an operator.
+person='^[^<>]+ <[^<> ]+>$'
 
 for ((i = 2; i < ${#lines[@]}; i++)); do
 	line=${lines[i]}
@@ -95,16 +99,41 @@ for ((i = 2; i < ${#lines[@]}; i++)); do
 		reject "body line is ${#line} columns, max is $body_max" \
 			'cut the line — do not wrap it, the wrap is also capped'
 
-	# A bullet ends at a blank line; a trailer block never opens one.
+	# A bullet ends at a blank line.
 	if [[ -z ${line//[[:blank:]]/} ]]; then
 		open=''
 		wrapped=0
 		continue
 	fi
 
-	if [[ $line =~ ^($trailers):\  ]]; then
-		open=''
-		wrapped=0
+	# Keys case-folded, as git reads them. Values have a shape, or a trailer
+	# carries prose.
+	if [[ $line =~ ^([A-Za-z-]+):\ (.*)$ ]]; then
+		value=${BASH_REMATCH[2]}
+		key=$(printf '%s' "${BASH_REMATCH[1]}" | tr '[:upper:]' '[:lower:]')
+		seen_trailer=true
+		case $key in
+			co-authored-by | signed-off-by | reviewed-by)
+				[[ $value =~ $person ]] ||
+					reject "trailer is not 'Name <email>': $(snip "$line")" \
+						'one person per trailer'
+				;;
+			refs | closes | fixes)
+				[[ $value =~ ^[^[:space:]]+$ ]] ||
+					reject "trailer is not one reference: $(snip "$line")" \
+						'one #issue or URL per trailer'
+				;;
+			*)
+				reject "unknown trailer: $(snip "$line")" \
+					"trailers are only: $trailers"
+				;;
+		esac
+		continue
+	fi
+
+	if $seen_trailer; then
+		reject "trailers are not last: $(snip "$line")" \
+			'move the trailers below the body'
 		continue
 	fi
 
@@ -125,8 +154,6 @@ for ((i = 2; i < ${#lines[@]}; i++)); do
 		continue
 	fi
 
-	# Prose, an unindented continuation, or a fake trailer. Name the last:
-	# it is the one an author invents on purpose.
 	reject "body line is not a bullet or a trailer: $(snip "$line")" \
 		"write '- topic'; trailers are only: $trailers"
 done
