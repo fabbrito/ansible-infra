@@ -10,9 +10,7 @@
 # rest of the message.
 set -uo pipefail
 
-# AGENTS.md's list. No `test`: there is no suite to commit against (ADR-0003),
-# so a `test(...)` subject means the change is misnamed.
-types='feat|fix|refactor|chore|style|docs|ci|build|perf'
+types='feat|fix|refactor|chore|style|docs|test|ci|build|perf'
 
 # An allowlist, not a shape: `^Word: ` would make `Note:` a prose channel.
 trailers='Co-Authored-By|Signed-off-by|Reviewed-by|Refs|Closes|Fixes'
