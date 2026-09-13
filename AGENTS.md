@@ -88,7 +88,7 @@ Commits follow `type(scope): subject`.
 > [!IMPORTANT] **No internal codes.** Ids coined while working — review-finding ids, plan-step ids, severity labels
 > (`P0`), phase labels — never reach a commit message, doc, comment, or issue: a reader without your scratch notes
 > cannot resolve them. **Strip** the label (describe the thing) or **promote** it (define it in `docs/`, after which it
-> resolves). Real-world ids (CVE, RFC) are fine.
+> resolves). Real-world ids (CVE, RFC) are fine. `make check-codes` sweeps for them.
 
 > [!IMPORTANT] **No secrets, no host data, no consumer data.** This repo has no vault and must never acquire one. A
 > credential, a certificate, a private key, a hostname, or a public IP belonging to any fleet does not belong here — not
