@@ -41,7 +41,7 @@ subject=${lines[0]-}
 
 # git writes these itself, or rewrites them later. Not ours to grade.
 case $subject in
-	'' | 'Merge '* | 'Revert '* | 'fixup!'* | 'squash!'*) exit 0 ;;
+	'' | 'Merge '* | 'Revert '* | 'fixup!'* | 'squash!'* | 'amend!'*) exit 0 ;;
 esac
 
 status=0
