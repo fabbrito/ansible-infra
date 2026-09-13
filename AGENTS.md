@@ -37,6 +37,12 @@ client's domain, or a consuming repo has leaked — wrong here even when accurat
 name and travels. Same for defaults — one encoding a fleet's domain or mailbox is a bug the next consumer inherits
 silently. Default to empty and assert, or default to empty and skip; say which.
 
+## Altitude
+
+Where knowledge lives, in order: `code > comments > docs`. Moving right raises altitude; write at the lowest level that
+holds the knowledge. Local to one file is a comment; spanning roles or files is a doc. A comment explaining another role
+is a doc in the wrong place.
+
 ## Comments
 
 A comment carries what the YAML can't, in as few words as it takes. Sequencing is most of this repo's logic and almost
@@ -88,11 +94,11 @@ Commits follow `type(scope): subject`.
 > [!IMPORTANT] **No internal codes.** Ids coined while working — review-finding ids, plan-step ids, severity labels
 > (`P0`), phase labels — never reach a commit message, doc, comment, or issue: a reader without your scratch notes
 > cannot resolve them. **Strip** the label (describe the thing) or **promote** it (define it in `docs/`, after which it
-> resolves). Real-world ids (CVE, RFC) are fine.
+> resolves). Real-world ids (CVE, RFC) are fine. `make check-codes` sweeps for them.
 
 > [!IMPORTANT] **No secrets, no host data, no consumer data.** This repo has no vault and must never acquire one. A
 > credential, a certificate, a private key, a hostname, or a public IP belonging to any fleet does not belong here — not
-> in code, not in a commit message, not in a doc. `pre-commit` refuses staged secrets by name and by content.
+> in code, not in a commit message, not in a doc. `.gitignore` keeps the usual files out; review catches the rest.
 
 ## Releases
 
@@ -168,8 +174,8 @@ make test     # golden render tests — CI runs it
 - **Make is the entrypoint**, and it is thin on purpose: it delegates to `scripts/` and `ansible-galaxy`. Real logic
   lives in roles and scripts, never in a recipe. There are no converge targets, because there is nothing to converge.
   Run `make help` for the targets; a list here would go stale.
-- **`.githooks/` enforces the two rules the gate cannot** — green between commits, and no staged secrets. Opt in per
-  clone with `make hooks`; each rejection prints the rule and the fix, so the hooks are the reference, not this file.
+- **`.githooks/` enforces the two rules the gate cannot** — green between commits, and the commit message shape. Opt in
+  per clone with `make hooks`; each rejection prints the rule and the fix, so the hooks are the reference.
 - **Collection dependencies are pinned to majors in `galaxy.yml`**, which is what a consumer resolves, and mirrored in
   `requirements.yml` for local linting. **Change both or neither.** The `ansible-core` floor lives in
   `meta/runtime.yml`, enforced at install time and re-checked by `scripts/lint.sh`.

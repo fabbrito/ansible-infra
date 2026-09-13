@@ -2,12 +2,13 @@
 # There are no converge targets here on purpose: this repo ships roles, it does
 # not own an inventory and cannot reach a host. Converging is the consumer's job.
 #
-#   make            # show this help
-#   make deps       # install the collections the roles depend on
-#   make hooks      # point git at .githooks (once per clone)
-#   make check      # fmt-check + lint (the pre-commit gate)
-#   make sanity     # ansible-test sanity (CI; slow on a cold venv)
-#   make test       # golden render tests (CI)
+#   make             # show this help
+#   make deps        # install the collections the roles depend on
+#   make hooks       # point git at .githooks (once per clone)
+#   make check       # fmt-check + lint (the pre-commit gate)
+#   make sanity      # ansible-test sanity (CI; slow on a cold venv)
+#   make test        # golden render tests (CI)
+#   make check-codes # sweep for plan labels (manual)
 
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
@@ -48,6 +49,10 @@ hooks: ## Enable the repo's git hooks (once per clone)
 
 .PHONY: check
 check: fmt-check lint ## fmt-check + lint (the pre-commit gate)
+
+.PHONY: check-codes
+check-codes: ## Sweep for plan labels (manual, not in check)
+	./scripts/check-codes.sh
 
 .PHONY: fmt
 fmt: ## Format YAML/MD/JSON (prettier) + Bash (shfmt)

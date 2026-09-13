@@ -17,6 +17,21 @@ venv/
 node_modules/
 .bun/
 
+# Secrets. This repo holds none — AGENTS.md > Secrets — so nothing here
+# needs one of these; `git add .` sweeping one in is the mistake to stop.
+.vault_pass*
+vault.y*ml
+*.vault.y*ml
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+.env
+.env.*
+!.env.example
+
 # Editors / OS
 .DS_Store
 *.swp
