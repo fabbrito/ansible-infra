@@ -85,12 +85,6 @@ open=''
 for ((i = 2; i < ${#lines[@]}; i++)); do
 	line=${lines[i]}
 
-	# Session URLs are leakage into permanent shared history — see AGENTS.md.
-	if [[ $line == Claude-Session:* ]]; then
-		reject 'Claude-Session trailer' 'delete the line'
-		continue
-	fi
-
 	# Width first, on every line kind: "at most 2 lines" alone is satisfied
 	# by two lines of any length.
 	((${#line} > body_max)) &&
