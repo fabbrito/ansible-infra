@@ -37,6 +37,12 @@ client's domain, or a consuming repo has leaked — wrong here even when accurat
 name and travels. Same for defaults — one encoding a fleet's domain or mailbox is a bug the next consumer inherits
 silently. Default to empty and assert, or default to empty and skip; say which.
 
+## Altitude
+
+Where knowledge lives, in order: `code > comments > docs`. Moving right raises altitude; write at the lowest level that
+holds the knowledge. Local to one file is a comment; spanning roles or files is a doc. A comment explaining another role
+is a doc in the wrong place.
+
 ## Comments
 
 A comment carries what the YAML can't, in as few words as it takes. Sequencing is most of this repo's logic and almost
