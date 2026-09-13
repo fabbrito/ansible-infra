@@ -23,8 +23,13 @@ bullet_max=5
 
 # Stop at the --verbose scissors, drop git's comments and leading blanks, so
 # the subject is index 0 and the body's blank separator is index 1.
+#
+# An editor's message arrives raw, unlike -m/-F: grade what git will record.
+# A CR or trailing space hid a period, and an unterminated last line was
+# never read.
 lines=()
-while IFS= read -r line; do
+while IFS= read -r line || [[ -n $line ]]; do
+	line=${line%"${line##*[![:space:]]}"}
 	[[ $line == '#'*'>8'* ]] && break
 	[[ $line == '#'* ]] && continue
 	((${#lines[@]} == 0)) && [[ -z ${line//[[:space:]]/} ]] && continue
@@ -53,7 +58,8 @@ snip() {
 	((${#1} > 56)) && printf '%s…' "${1:0:56}" || printf '%s' "$1"
 }
 
-if [[ $subject =~ ^($types)(\([a-z0-9-]+\))?:\ +(.+)$ ]]; then
+# One space, then a word: `fix:   ` is otherwise a subject.
+if [[ $subject =~ ^($types)(\([a-z0-9-]+\))?:\ ([^[:space:]].*)$ ]]; then
 	summary=${BASH_REMATCH[3]}
 
 	[[ ${summary:0:1} =~ [[:upper:]] ]] &&
