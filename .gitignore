@@ -1,7 +1,6 @@
 # Ansible
 *.retry
-# `make deps` installs here, scripts/lint.sh symlinks this collection in
-# alongside them, and `make build-check` drops the tarball here too.
+# make deps, lint.sh's symlink, build tarballs.
 .collections/
 # per-project runtime cache created by ansible-lint / ansible-compat
 .ansible/
@@ -17,8 +16,7 @@ venv/
 node_modules/
 .bun/
 
-# Secrets. This repo holds none — AGENTS.md > Secrets — so nothing here
-# needs one of these; `git add .` sweeping one in is the mistake to stop.
+# Secrets: this repo holds none (AGENTS.md > Guardrails); stops `git add .`.
 .vault_pass*
 vault.y*ml
 *.vault.y*ml
@@ -44,5 +42,3 @@ Thumbs.db
 /.tmp/
 /scratch/
 *.log
-
-docs/plan_*.md
