@@ -1,40 +1,42 @@
-# Thin Makefile — a discoverable entry point that delegates to scripts/.
-# There are no converge targets here on purpose: this repo ships roles, it does not
-# own an inventory and cannot reach a host. Converging is the consumer's job.
-# `make` lists the targets; each one's comment is its help string.
+# Delegates to scripts/ and the hook engine. No converge targets: this repo
+# reaches no host. A target's `##` comment is its help line.
 
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-# Same tree scripts/lint.sh stages this collection into, so one collections path
-# resolves both fabbrito.infra.* and the third-party deps.
+# lint.sh stages this collection here too: one path resolves ours and the deps.
 COLLECTIONS_DIR := .collections
+
+define HELP_AWK
+BEGIN {
+	FS = ":.*##"
+	printf "\nUsage: make \033[1m<target>\033[0m\n"
+	printf "       make -n \033[1m<target>\033[0m prints its recipe, runs nothing\n"
+}
+/^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }
+/^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2 }
+endef
+export HELP_AWK
 
 ##@ Help
 
 .PHONY: help
 help: ## Show this help
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage: make \033[1m<target>\033[0m\n"} \
-		/^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2 } \
-		/^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
+	@awk "$$HELP_AWK" $(firstword $(MAKEFILE_LIST))
 
 ##@ Dependencies
 
-# The "not part of the configured collections paths" warning is expected — no
-# ansible.cfg here, and scripts/lint.sh exports the path where one is needed.
-# Leave it: it is the guard that catches the same mistake in a consumer's tree.
-# An ansible-core with bundled collections can satisfy every pin and skip,
-# leaving $(COLLECTIONS_DIR) empty. Expected, not a failed install.
+# Expected: the "not part of the configured collections paths" warning (no
+# ansible.cfg here), and an empty dir when bundled collections satisfy the pins.
 .PHONY: deps
 deps: ## Install/upgrade the Ansible collections the roles depend on
 	ansible-galaxy collection install -r requirements.yml --upgrade -p $(COLLECTIONS_DIR)/
 
 ##@ Local checks
 
-# A hook nobody enabled is worth nothing, and core.hooksPath is per-clone, so this
-# is the one setup step besides `deps`. chmod too: git runs the shims directly, and
-# a mode bit lost to a checkout or a zip download disables the gate silently.
+# core.hooksPath is per clone. chmod: a mode bit lost to a zip download
+# disables the gate silently.
 .PHONY: hooks
 hooks: ## Enable the repo's git hooks (once per clone)
 	git config core.hooksPath .githooks
@@ -42,9 +44,7 @@ hooks: ## Enable the repo's git hooks (once per clone)
 	@.githooks/githooks version >/dev/null
 	@printf 'hooks enabled — skip one commit with --no-verify\n'
 
-# The gate is .githooks/hooks.conf: the lanes live there, this is a caller.
-# Adding a check means adding a lane, not a target — a file no lane matches is
-# never checked.
+# Lanes live in .githooks/hooks.conf: a new check is a lane, not a target.
 .PHONY: check
 check: ## Run every hook lane over the working changes (the gate)
 	.githooks/githooks check
@@ -59,8 +59,7 @@ fmt: ## Run the same lanes, writing (prettier --write, shfmt -w); never stages
 
 ##@ Release legs
 
-# Out of `check` on purpose: the pre-commit hook runs check on every commit, and
-# a first `sanity` run builds a sanity venv per supported Python.
+# Out of check: a cold sanity run builds a venv per Python.
 .PHONY: sanity
 sanity: ## ansible-test sanity against a staged copy of the working tree
 	./scripts/sanity.sh
@@ -69,8 +68,7 @@ sanity: ## ansible-test sanity against a staged copy of the working tree
 test: ## Render the golden fixtures and diff against tests/golden/expected
 	./scripts/golden.sh
 
-# Separate target rather than a flag on `test`, so accepting a new expectation is
-# always a deliberate command with a diff to read afterwards.
+# A target, not a flag on test: accepting goldens is a deliberate command.
 .PHONY: golden-update
 golden-update: ## Accept the current render as the expectation (READ THE DIFF)
 	./scripts/golden.sh --update
@@ -81,9 +79,7 @@ golden-update: ## Accept the current render as the expectation (READ THE DIFF)
 build-check: ## Build the collection and inspect what the tarball ships
 	./scripts/build-check.sh
 
-# The whole release gate, because there is no CI: lanes, goldens, sanity, the
-# tarball, then the tag against the built MANIFEST. Stamps galaxy.yml, refuses
-# without the CHANGELOG section, and leaves the commit and tag on this machine.
+# The whole release gate, there being no CI. Commit and tag stay local.
 .PHONY: release
 release: ## Stamp, gate, commit and tag — VERSION=x.y.z [DRY_RUN=1]
 	./scripts/release.sh $(if $(DRY_RUN),--dry-run) $(VERSION)
