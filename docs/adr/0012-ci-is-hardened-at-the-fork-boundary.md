@@ -1,6 +1,6 @@
 # 12. CI is hardened at the fork boundary, and two of the three guards are not in the workflow
 
-- **Status:** accepted
+- **Status:** superseded by [ADR-0013](0013-there-is-no-ci.md)
 - **Date:** 2026-08-11
 
 ## Context
