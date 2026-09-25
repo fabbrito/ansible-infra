@@ -1,6 +1,6 @@
 # 1. Secrets live in the vault, and an absent secret skips rather than fails
 
-- **Status:** accepted
+- **Status:** superseded by [ADR-0015](0015-a-declared-role-asserts-its-secrets.md)
 - **Date:** 2026-07-13
 
 ## Context

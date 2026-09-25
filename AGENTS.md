@@ -44,7 +44,8 @@ contract, `CONTEXT.md` the vocabulary, `docs/adr/` what is settled.
 > code, docs or commits. This repo has no vault and never acquires one.
 
 - Task rendering a secret: `no_log: true`.
-- Absent secret: skip (ADR-0001). Assert only where absence is unsafe, and comment why.
+- A role's own secret is a precondition: absent, the role asserts and names the key (ADR-0015). An optional in-role
+  feature is keyed on its secret; say so beside the key in `defaults/main.yml`.
 - Keys documented in the role's `defaults/main.yml`, cross-cutting ones in the README table. Values never shipped.
 
 ## Nothing names a consumer
