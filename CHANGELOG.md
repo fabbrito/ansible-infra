@@ -13,10 +13,15 @@ that, and the next correction is 1.0.1.
 - `preflight`: read-only checks before any role changes the host — platform floor per distribution, ARMv6 refused, no
   root login, OpenSSH present, cloud-init finished, minimized image reported. Board-only: device tree present, hostname
   matches the inventory, break-glass warning.
+- `sshd`: the hardening drop-in, moved out of `os`. The merged config is validated before the reload, and the effective
+  config is asserted, so an earlier drop-in that overrides ours fails the converge.
 
 ### Changed
 
 - `host_kind` (`board` | `vm`) is a new required contract var, asserted by `preflight`.
+- `os` no longer touches sshd; add `sshd` to keep the hardening. `baseline` runs it right after `os`.
+- `sshd` on a board refuses root login (`PermitRootLogin no`); a VM keeps key-only root as break-glass. Set
+  `sshd_permit_root_login` to override.
 
 ## 1.2.0
 

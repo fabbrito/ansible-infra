@@ -1,0 +1,11 @@
+---
+# Root SSH. On a VM, key-only root is the break-glass path through the key the
+# provider injects; on a board, the seed on the card is, so root is refused.
+# `no` also requires that this converge not log in as root (asserted).
+sshd_permit_root_login: "{{ 'no' if host_kind | default('') == 'board' else 'prohibit-password' }}"
+
+sshd_max_auth_tries: 3
+
+# Drop a silent client after interval × count seconds.
+sshd_client_alive_interval: 300
+sshd_client_alive_count_max: 2

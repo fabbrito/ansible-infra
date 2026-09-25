@@ -1,0 +1,14 @@
+# Rendered by Ansible — do not edit on host.
+# Source: fabbrito.infra collection — roles/sshd/templates/10-infra-hardening.conf.j2
+#
+# 10-, not 99-: sshd keeps the first value per keyword, so this must sort before
+# the image's 50-cloud-init.conf.
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+PermitRootLogin {{ sshd_permit_root_login }}
+UsePAM yes
+X11Forwarding no
+MaxAuthTries {{ sshd_max_auth_tries }}
+ClientAliveInterval {{ sshd_client_alive_interval }}
+ClientAliveCountMax {{ sshd_client_alive_count_max }}
