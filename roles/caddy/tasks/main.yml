@@ -3,13 +3,17 @@
   ansible.builtin.include_tasks: routes.yml
 
 # The schema cannot make these unrepresentable, so they fail the converge instead.
-- name: Assert every route declares a TLS mode
+- name: Assert every route is complete
   ansible.builtin.assert:
     that:
       - item.tls is defined
       - item.tls in ['acme', 'cert']
+      - item.default_upstream is defined or item.redirect_to is defined
+      - item.proxied_by is not defined or item.proxied_by in caddy_proxy_ranges
     fail_msg: >-
-      Route {{ item.host }} needs `tls: acme` or `tls: cert`.
+      Route {{ item.host }} needs `tls: acme` or `tls: cert`, a
+      default_upstream or redirect_to, and a proxied_by (if any) naming a key of
+      caddy_proxy_ranges.
     quiet: true
   loop: "{{ caddy_all_routes }}"
   loop_control:
@@ -30,6 +34,32 @@
   when: caddy_all_routes | selectattr('tls', 'equalto', 'acme') | list | length > 0
   # ADR-0006: the email is what admits ZeroSSL as a fallback issuer. Absent,
   # Caddy's chain silently shrinks to Let's Encrypt alone.
+
+# A missing cert renders `tls` at a file nothing wrote; `caddy validate` then
+# fails mid-role, naming a path rather than the var.
+- name: Name the origin certs this host has both halves of
+  ansible.builtin.set_fact:
+    caddy_available_certs: >-
+      {{ (['default'] if (caddy_origin_cert | default('') | length > 0
+                          and caddy_origin_key | default('') | length > 0)
+          else [])
+         + (caddy_extra_certs
+            | selectattr('cert', 'defined') | selectattr('cert')
+            | selectattr('key', 'defined') | selectattr('key')
+            | map(attribute='name') | list) }}
+
+- name: Assert every cert-mode route has its origin cert and key
+  ansible.builtin.assert:
+    that: item.cert | default('default') in caddy_available_certs
+    fail_msg: >-
+      Route {{ item.host }} uses `tls: cert` with cert
+      "{{ item.cert | default('default') }}", but that cert or its key is unset.
+      Set caddy_origin_cert + caddy_origin_key for "default", or a
+      caddy_extra_certs entry with both cert and key.
+    quiet: true
+  loop: "{{ caddy_all_routes | selectattr('tls', 'equalto', 'cert') | list }}"
+  loop_control:
+    label: "{{ item.host }}"
 
 - name: Assert at most one proxy provider fronts this host
   ansible.builtin.assert:
@@ -184,3 +214,26 @@
     state: started
     enabled: true
   when: not ansible_check_mode
+
+# Postcondition: a reload that loads but cannot bind leaves caddy active and
+# serving nothing. Handlers first, so the probe sees this run's config.
+- name: Apply the pending caddy reload
+  ansible.builtin.meta: flush_handlers
+
+- name: Probe the HTTPS listener
+  ansible.builtin.command: ss -Hltn 'sport = :443'
+  register: caddy_https_listener
+  changed_when: false
+  check_mode: false
+  when: caddy_all_routes | rejectattr('host', 'match', 'http://') | list | length > 0
+
+- name: Assert caddy listens on :443
+  ansible.builtin.assert:
+    that: caddy_https_listener.stdout | length > 0
+    fail_msg: >-
+      Routes need HTTPS but nothing listens on :443. Check
+      `journalctl -u caddy` for a bind or certificate error.
+    quiet: true
+  when:
+    - not ansible_check_mode
+    - caddy_https_listener is not skipped
