@@ -1,6 +1,6 @@
 # 10. Roles assert their preconditions, not their outcomes
 
-- **Status:** accepted
+- **Status:** superseded by [ADR-0014](0014-roles-assert-pre-and-postconditions.md)
 - **Date:** 2026-07-17
 
 ## Context
