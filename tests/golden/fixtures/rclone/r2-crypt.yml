@@ -1,0 +1,11 @@
+---
+# R2 credentials and both crypt passwords: [r2] plus [r2crypt] over a moved target.
+#
+# EVERY VALUE BELOW IS FAKE. Vault keys are not in the role defaults, so each
+# fixture sets all five.
+rclone_r2_access_key_id: golden-fixture-not-a-key-id
+rclone_r2_secret_access_key: golden-fixture-not-a-secret
+rclone_r2_endpoint: https://golden-fixture.r2.example
+rclone_crypt_password: golden-fixture-not-a-password
+rclone_crypt_password2: golden-fixture-not-a-salt
+rclone_crypt_target: r2:golden-bucket

@@ -21,6 +21,9 @@ that, and the next correction is 1.0.1.
   not a fixed 22. Reads back ufw active, deny-default and the limits.
 - `fail2ban`: refuses to run with ufw inactive, since it bans through ufw. Reads back the `sshd` and `recidive` jails as
   loaded, which a service reporting active does not prove.
+- `rclone`: amd64, arm64 and armhf from a per-arch pinned `.deb` table (`rclone_debs`), bumped to v1.75.1.
+  `rclone_crypt_target` moves the `r2crypt` wrapper off `r2:backups`. Reads back the installed version and `rclone.conf`
+  mode 0600.
 
 ### Changed
 
@@ -34,6 +37,9 @@ that, and the next correction is 1.0.1.
 - `sshd` on a board refuses root login (`PermitRootLogin no`); a VM keeps key-only root as break-glass. Set
   `sshd_permit_root_login` to override.
 - `ufw` role renamed `firewall`; vars `ufw_*` → `firewall_*`. `os` no longer installs `ufw`, `firewall` does.
+- `rclone` requires its three R2 credentials and fails naming the missing ones, instead of installing without a remote.
+  `baseline` no longer runs it; add it to the plays of hosts that back up. `rclone_deb_sha256` is replaced by
+  `rclone_debs`.
 
 ### Upgrading from 1.x
 

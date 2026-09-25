@@ -26,4 +26,3 @@
     # After firewall: its banaction is `ufw`.
     - { role: fabbrito.infra.fail2ban, tags: [os, fail2ban] }
     - { role: fabbrito.infra.docker, tags: [base, docker] }
-    - { role: fabbrito.infra.rclone, tags: [base, rclone] }

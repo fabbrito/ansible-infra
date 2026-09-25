@@ -1,116 +1,87 @@
 ---
-# ADR-0010. Rendering is gated on the secret group (ADR-0001 absent-secret skip),
-# so a half-set group fails silently rather than erroring. Assert all-or-nothing
-# FIRST, before the install touches the host.
-- name: Count the members set in each rclone secret group
+# Before the install touches the host.
+- name: Check the rclone secrets
+  ansible.builtin.include_tasks: secrets.yml
+
+# The userland arch, not the kernel's: apt installs for the userland.
+- name: Read the userland architecture
+  ansible.builtin.command: dpkg --print-architecture
+  register: rclone_dpkg_arch
+  changed_when: false
+  check_mode: false
+
+- name: Assert a pinned .deb exists for the architecture
+  ansible.builtin.assert:
+    that: rclone_dpkg_arch.stdout in rclone_debs
+    fail_msg: >-
+      No pinned rclone .deb for {{ rclone_dpkg_arch.stdout }}; rclone_debs covers
+      {{ rclone_debs.keys() | list | join(', ') }}.
+    quiet: true
+
+- name: Name the pinned .deb
   ansible.builtin.set_fact:
-    rclone_r2_set_count: >-
-      {{ [rclone_r2_access_key_id | default(''),
-          rclone_r2_secret_access_key | default(''),
-          rclone_r2_endpoint | default('')]
-         | reject('equalto', '') | list | length }}
-    rclone_crypt_set_count: >-
-      {{ [rclone_crypt_password | default(''),
-          rclone_crypt_password2 | default('')]
-         | reject('equalto', '') | list | length }}
+    rclone_deb: "{{ rclone_debs[rclone_dpkg_arch.stdout] }}"
+    rclone_deb_path: "/var/cache/rclone-{{ rclone_version }}-{{ rclone_debs[rclone_dpkg_arch.stdout].asset }}.deb"
 
-- name: Assert the R2 credentials are all-or-nothing
-  ansible.builtin.assert:
-    that: rclone_r2_set_count | int in [0, 3]
-    fail_msg: >-
-      rclone R2 creds are half-set ({{ rclone_r2_set_count }}/3 present) — the
-      remote needs rclone_r2_access_key_id, rclone_r2_secret_access_key and
-      rclone_r2_endpoint together, or none. A partial set renders a broken [r2].
-      Fix in the host/group vault (keys documented in roles/rclone/defaults/main.yml).
-    quiet: true
-
-- name: Assert the crypt-wrapper passwords are all-or-nothing
-  ansible.builtin.assert:
-    that: rclone_crypt_set_count | int in [0, 2]
-    fail_msg: >-
-      rclone crypt passwords are half-set ({{ rclone_crypt_set_count }}/2 present)
-      — the [r2crypt] wrapper needs both rclone_crypt_password and
-      rclone_crypt_password2, or neither. An empty password2 keys the remote
-      differently and makes the backups unrecoverable. Fix both in the vault they
-      are set in.
-    quiet: true
-
-# PINNED upstream .deb, not the distro `rclone`: Ubuntu 24.04 ships v1.60 (2022), old
-# enough that pushes to R2 hit spurious `501 NotImplemented`. Through dpkg so the true
-# version is recorded and a later apt run never downgrades it — rclone.org's install.sh
-# instead overwrites /usr/bin/rclone behind dpkg's back, silently reverted by any apt
-# touch of the package (the `caddy upgrade` landmine).
-#
-# The checksum is the trust anchor: GPG-verified against rclone's signed SHA256SUMS at
-# bump time (docs/rclone/upgrading.md), enforced here every converge, so the host needs
-# no gpg key. amd64 is hardcoded; a non-amd64 host would need this generalised.
+# The committed hash is the trust anchor; the host needs no gpg key. /var/cache
+# survives a reboot, so a later converge downloads nothing.
 - name: Download the pinned rclone .deb
   ansible.builtin.get_url:
-    url: "https://downloads.rclone.org/{{ rclone_version }}/rclone-{{ rclone_version }}-linux-amd64.deb"
-    checksum: "sha256:{{ rclone_deb_sha256 }}"
-    # /var/cache, not /tmp: survives a reboot, so a converge after one re-downloads
-    # nothing and reports no change.
-    dest: "/var/cache/rclone-{{ rclone_version }}-linux-amd64.deb"
+    url: "https://downloads.rclone.org/{{ rclone_version }}/rclone-{{ rclone_version }}-{{ rclone_deb.asset }}.deb"
+    checksum: "sha256:{{ rclone_deb.sha256 }}"
+    dest: "{{ rclone_deb_path }}"
     owner: root
     group: root
     mode: "0644"
 
+# Through dpkg so apt records the version and never swaps in the distro's 1.60.
+# Skipped in check mode, where the download above did not happen.
 - name: Install rclone from the pinned .deb
   ansible.builtin.apt:
-    deb: "/var/cache/rclone-{{ rclone_version }}-linux-amd64.deb"
-  # In --check the download above is skipped, so the .deb is absent and apt cannot
-  # inspect it. (apt with `deb:` no-ops when the version already matches, so a real
-  # re-converge stays clean.)
+    deb: "{{ rclone_deb_path }}"
+    lock_timeout: 600
   when: not ansible_check_mode
 
-# Backup tasks run as root (`become: true`), so config lives in /root. Rendered
-# only when the full R2 triple is present (asserted above).
-- name: Ensure /root/.config/rclone exists
+# Backups run as root, so the config lives in /root.
+- name: Ensure the rclone config directory
   ansible.builtin.file:
     path: /root/.config/rclone
     state: directory
     owner: root
     group: root
     mode: "0700"
-  when: rclone_r2_set_count | int == 3
 
-- name: Render rclone.conf (R2 + optional crypt wrapper)
-  ansible.builtin.copy:
+- name: Render rclone.conf
+  ansible.builtin.template:
+    src: rclone.conf.j2
     dest: /root/.config/rclone/rclone.conf
     owner: root
     group: root
     mode: "0600"
-    content: |
-      # R2 + bucket-scoped tokens:
-      #   * NO `acl = private` — R2 "Object Read & Write" tokens deny PutObjectAcl,
-      #     so rclone's per-PUT `x-amz-acl: private` header → 403 AccessDenied.
-      #   * `no_check_bucket = true` — bucket-scoped tokens lack list-buckets perm,
-      #     so rclone's pre-flight HEAD on the bucket would 403 too.
-      [r2]
-      type = s3
-      provider = Cloudflare
-      access_key_id = {{ rclone_r2_access_key_id }}
-      secret_access_key = {{ rclone_r2_secret_access_key }}
-      endpoint = {{ rclone_r2_endpoint }}
-      no_check_bucket = true
-      {# The counted fact, not `is defined`: empty-string is this repo's idiom for
-         absent, so `is defined` renders a keyless [r2crypt] for a pair the assert
-         above already passed as "neither set" — and a half-empty pair derefs the
-         undefined one inside a no_log task. #}
-      {% if rclone_crypt_set_count | int == 2 %}
-
-      # Fleet-wide backup encryption wrapper over the whole `backups` bucket.
-      # Services opt in by pointing their *_r2_dest at `r2crypt:` instead of `r2:`.
-      # directory_name_encryption = false keeps the dir tree readable to R2 so
-      # bucket lifecycle prefix rules still match; filenames + contents are still
-      # encrypted. Lose these passwords → data is unrecoverable.
-      [r2crypt]
-      type = crypt
-      remote = r2:backups
-      password = {{ rclone_crypt_password }}
-      password2 = {{ rclone_crypt_password2 }}
-      filename_encryption = standard
-      directory_name_encryption = false
-      {% endif %}
   no_log: true
-  when: rclone_r2_set_count | int == 3
+
+# Postconditions. Skipped in --check, where nothing landed.
+- name: Read the installed rclone version
+  ansible.builtin.command: rclone version
+  register: rclone_version_out
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Stat rclone.conf
+  ansible.builtin.stat:
+    path: /root/.config/rclone/rclone.conf
+  register: rclone_conf_stat
+  when: not ansible_check_mode
+
+- name: Assert the pinned rclone and a private rclone.conf
+  ansible.builtin.assert:
+    that:
+      - rclone_version_out.stdout_lines[0] == 'rclone ' ~ rclone_version
+      - rclone_conf_stat.stat.mode == '0600'
+    fail_msg: >-
+      Wanted rclone {{ rclone_version }} and rclone.conf mode 0600; read
+      "{{ rclone_version_out.stdout_lines[0] }}" and mode
+      {{ rclone_conf_stat.stat.mode | default('absent') }}.
+    quiet: true
+  when: not ansible_check_mode

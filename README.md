@@ -59,8 +59,8 @@ paths, which is the warning worth not ignoring.
     - { role: my_service, tags: [my_service] }
 ```
 
-`baseline` is `hosts: all` and runs `os`, `sshd`, `firewall`, `fail2ban`, `docker`, `rclone` in that order — the order
-is load-bearing, not stylistic. Scope a run with `-l <host>`, never by narrowing the play.
+`baseline` is `hosts: all` and runs `os`, `sshd`, `firewall`, `fail2ban`, `docker` in that order — the order is
+load-bearing, not stylistic. Scope a run with `-l <host>`, never by narrowing the play.
 
 `bootstrap` and `update` ship too: `fabbrito.infra.bootstrap` creates the unprivileged deploy user on a fresh box (run
 once, as root), `fabbrito.infra.update` does a serial apt upgrade with a reboot when required.
@@ -104,7 +104,7 @@ work or fails loudly, and which one is stated below.
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ghcr_pull_token`                                            | `docker` is plain Docker, with no registry login.                                                                                                                                                             |
 | `ghcr_login_username`                                        | Required whenever the token is set — asserted.                                                                                                                                                                |
-| `rclone_r2_access_key_id`, `_secret_access_key`, `_endpoint` | `rclone` installs the binary, renders no remote named `r2`. All three or none — asserted.                                                                                                                     |
+| `rclone_r2_access_key_id`, `_secret_access_key`, `_endpoint` | Required by `rclone`, asserted. Leave `rclone` out of hosts without backups.                                                                                                                                  |
 | `rclone_crypt_password` + `rclone_crypt_password2`           | No `r2crypt` wrapper is rendered and backups write to the plain remote. Both or neither — asserted. See docs/rclone/encryption.md.                                                                            |
 | `os_hostname_domain`                                         | `os` does not name the box at all — the provider's name stands. Set it, and the box becomes `<inventory key>.<domain>`. Override the derivation per host with `os_hostname`; naming happens if either is set. |
 

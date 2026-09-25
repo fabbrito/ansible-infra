@@ -1,29 +1,33 @@
 ---
-# Pinned upstream .deb, not the distro package (why, in tasks/main.yml). Bump BOTH
-# lines together, and only after GPG-verifying the new .deb against rclone's signed
-# SHA256SUMS — procedure and signing-key fingerprint in docs/rclone/upgrading.md.
-rclone_version: v1.74.4
-rclone_deb_sha256: a9da2eaa70428c6dcc5acbb0b7eac0faec4c61643e0b468d9fe09ddf79b7e929
+# Pinned upstream .deb per userland arch (`dpkg --print-architecture`): the
+# distros ship 1.60, too old for R2. Bump the version and every hash together,
+# after verifying rclone's signed SHA256SUMS: docs/rclone/upgrading.md.
+rclone_version: v1.75.1
+rclone_debs:
+  amd64:
+    asset: linux-amd64
+    sha256: 09c9f7606ed9e31eecc1eec26a89992cf2931a8d2d1a5f0ae2bb1c11630ffb15
+  armhf:
+    asset: linux-arm-v7
+    sha256: fd55fef473a0645c98f0314e72936b3cc08283a511e3a89d74996a17ce6f51d7
+  arm64:
+    asset: linux-arm64
+    sha256: 773f3a76615f91f7d4654183a537afddce3343c8d99ac1d74984f060f2ade2d9
 
-# Vault keys, set elsewhere. Absent, the role installs rclone and renders no
-# rclone.conf, so a host that runs no backups needs none of them.
+# What the [r2crypt] wrapper encrypts into. Services write to `r2crypt:<path>`.
+rclone_crypt_target: r2:backups
+
+# Vault keys, set in the consumer, never declared here.
 #
-# R2 remote: all three or none, asserted (ADR-0010). R2 is a per-PROJECT bucket, so it
-# belongs in the vault of the group that shares it (group_vars/<service>_hosts/vault.yml)
-# — not fleet-wide, where an unrelated future service would inherit it, and not per-host,
-# where a second box for the same service needs its own copy:
+# [r2] remote, named `r2` because backup roles address it so. Required: the role
+# asserts all three (ADR-0015). A per-project bucket, so vault it in the group
+# that shares it, not fleet-wide:
 #   rclone_r2_access_key_id
 #   rclone_r2_secret_access_key
 #   rclone_r2_endpoint
 #
-# The remote name is hardcoded to `r2` — service backup roles reference it as
-# `r2:bucket/...`. Change in lockstep if renamed.
-#
-# Optional crypt wrapper — OFF unless both are set. Both or neither, asserted
-# (ADR-0010). Set, they add an `[r2crypt]` stanza wrapping `r2:backups` with
-# client-side encryption, which a service opts into by pointing its backup
-# destination at `r2crypt:` instead of `r2:` (docs/rclone/encryption.md). Unset,
-# backups write to plain `r2:`. Scope (fleet vs per-project) is decided when it is
-# turned on.
-#   rclone_crypt_password   (vaulted, obscured form)
-#   rclone_crypt_password2  (vaulted, obscured form — used as salt)
+# [r2crypt] wrapper, optional and keyed on its pair. Both or neither, asserted:
+# a missing password2 keys the remote differently and the backups cannot be
+# read back. Obscured form (`rclone obscure`): docs/rclone/encryption.md.
+#   rclone_crypt_password
+#   rclone_crypt_password2
