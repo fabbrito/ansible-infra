@@ -10,7 +10,6 @@ os_apt_packages:
   - python3-pip
   - python3-debian # ansible.builtin.deb822_repository (docker, caddy)
   - sqlite3
-  - ufw
 
 # Boards only: reach the board as <hostname>.local.
 os_board_packages:

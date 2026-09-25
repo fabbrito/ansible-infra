@@ -21,7 +21,7 @@ delegating the challenge name by CNAME. Neither exists, and neither is unilatera
 answers the challenge on port 80, on the host the name already resolves to. The one thing that was given is the one
 thing HTTP-01 needs.
 
-`ufw` already opens 80 and 443 on every host, so this costs no firewall change.
+The `firewall` role already opens 80 and 443 by default, so this costs no firewall change.
 
 ### Choosing a CA
 

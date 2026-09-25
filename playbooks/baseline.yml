@@ -13,8 +13,8 @@
 # `hosts: all` is deliberate — the baseline is not opt-in. Scope a run with
 # `-l <host>`, not by narrowing this play.
 #
-# Role order is load-bearing: ufw opens declared ingress before it flips to
-# deny-default, and reordered, a converge can lock us out (ADR-0002).
+# Role order is load-bearing: firewall reads the ports from the effective sshd
+# config, so sshd runs first (ADR-0002).
 - name: Baseline (every host)
   hosts: all
   become: true
@@ -22,9 +22,8 @@
   roles:
     - { role: fabbrito.infra.os, tags: [os] }
     - { role: fabbrito.infra.sshd, tags: [os, ssh] }
-    - { role: fabbrito.infra.ufw, tags: [os, ufw] }
-    # Baseline, not a service — every host wants SSH brute-force protection.
-    # After ufw: its banaction is `ufw`.
+    - { role: fabbrito.infra.firewall, tags: [os, firewall] }
+    # After firewall: its banaction is `ufw`.
     - { role: fabbrito.infra.fail2ban, tags: [os, fail2ban] }
     - { role: fabbrito.infra.docker, tags: [base, docker] }
     - { role: fabbrito.infra.rclone, tags: [base, rclone] }

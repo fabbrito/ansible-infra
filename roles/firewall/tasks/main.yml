@@ -1,0 +1,114 @@
+---
+# netfilter-persistent restores its own ruleset at boot, under ufw's; ufw's
+# package Breaks it on noble.
+- name: Read whether netfilter-persistent is installed
+  ansible.builtin.command:
+    argv: [dpkg-query, -W, -f, "${db:Status-Status}", netfilter-persistent]
+  register: firewall_netfilter_persistent
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Assert netfilter-persistent is absent
+  ansible.builtin.assert:
+    that: firewall_netfilter_persistent.stdout != 'installed'
+    fail_msg: >-
+      netfilter-persistent is installed and owns the ruleset at boot. Leave
+      firewall out of this host's role list, or purge netfilter-persistent.
+    quiet: true
+
+# `-G` where it exists (OpenSSH >= 9.3): `-T` fails while socket-activated
+# ssh.service is inactive. A `-G` config error must fail, not fall back.
+- name: Probe for sshd -G
+  ansible.builtin.command: /usr/sbin/sshd -G -f /dev/null
+  register: firewall_sshd_g_probe
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# Merged config, not sshd_config: a drop-in may move the port.
+- name: Read the effective sshd config
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/sshd
+      - "{{ '-G' if firewall_sshd_g_probe.rc == 0 else '-T' }}"
+  register: firewall_sshd_effective
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Name the sshd ports
+  ansible.builtin.set_fact:
+    firewall_ssh_ports: >-
+      {{ firewall_sshd_effective.stdout_lines | select('match', '^port ')
+         | map('split', ' ') | map('last') | list }}
+
+# Deny-default with no ssh port found would cut this converge (ADR-0002).
+- name: Assert the sshd ports are known and not in firewall_allowed_ports
+  ansible.builtin.assert:
+    that:
+      - firewall_sshd_effective.rc == 0
+      - firewall_ssh_ports | length > 0
+      - firewall_ssh_ports | map('int') | intersect(firewall_allowed_ports | map('int')) | length == 0
+    fail_msg: >-
+      sshd reports ports {{ firewall_ssh_ports }} (rc
+      {{ firewall_sshd_effective.rc }}). The firewall needs a working sshd to
+      know what to rate-limit, and firewall_allowed_ports must not name those
+      ports: a plain allow ahead of the limit voids it.
+    quiet: true
+
+- name: Install ufw
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+    update_cache: true
+
+# Order is the lock-out guard: every rule lands before the deny-default flip
+# (ADR-0002).
+- name: Allow declared ingress
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+    comment: "declared ingress ({{ firewall_rule_tag }})"
+  loop: "{{ firewall_allowed_ports }}"
+
+# ufw's limit: 6 connections per 30 s per source.
+- name: Rate-limit sshd
+  community.general.ufw:
+    rule: limit
+    port: "{{ item }}"
+    proto: tcp
+    comment: "ssh rate-limit ({{ firewall_rule_tag }})"
+  loop: "{{ firewall_ssh_ports }}"
+
+- name: Enable ufw, deny by default
+  community.general.ufw:
+    state: enabled
+    policy: deny
+
+# Postconditions. Skipped in --check, where nothing landed.
+- name: Read the effective firewall state
+  ansible.builtin.command: ufw status verbose
+  register: firewall_effective
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Assert the effective firewall state
+  ansible.builtin.assert:
+    that:
+      - "'Status: active' in firewall_effective.stdout_lines"
+      - firewall_effective.stdout is search('^Default: deny \\(incoming\\)', multiline=True)
+      - >-
+        firewall_ssh_ports | reject('in', firewall_limited) | list | length == 0
+    fail_msg: >-
+      Wanted ufw active and denying incoming, sshd ports
+      {{ firewall_ssh_ports }} rate-limited. Read back:
+      {{ firewall_effective.stdout_lines }}
+    quiet: true
+  vars:
+    firewall_limited: >-
+      {{ firewall_effective.stdout_lines | select('search', ' LIMIT IN ')
+         | map('split', '/') | map('first') | list }}
+  when: not ansible_check_mode

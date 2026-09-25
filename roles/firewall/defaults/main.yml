@@ -1,0 +1,8 @@
+---
+# Opened to the world (tcp). Never the sshd port: the role rate-limits that one
+# itself, and an allow rule ahead of the limit would void it (asserted).
+firewall_allowed_ports: [80, 443]
+
+# Stamped into every rule comment, so a hand-added rule stands out in
+# `ufw status`. Changing it rewrites every rule comment once, harmlessly.
+firewall_rule_tag: ansible

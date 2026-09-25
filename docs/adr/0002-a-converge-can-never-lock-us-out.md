@@ -17,8 +17,8 @@ This is not a hypothetical class of bug. Two tasks in this repo could each do it
 
 The three live instances:
 
-- `ufw` opens the declared ingress ports and rate-limits SSH **before** flipping the policy to deny-by-default.
-  Reversed, the enable would drop the connection that was about to open port 22.
+- The `firewall` role opens the declared ingress ports and rate-limits the ports effective `sshd` listens on **before**
+  flipping the policy to deny-by-default. Reversed, the enable would drop the connection that was about to open port 22.
 - The `sshd` role validates the full merged `sshd` config with `sshd -G` **before** the handler reloads. `sshd` reads
   every drop-in, so only the merged config is meaningful. A syntax error aborts the play rather than asking `sshd` to
   reload something broken. **`-G` wherever it exists** — `-t` stats the privsep directory `/run/sshd` and dies before it
@@ -30,8 +30,8 @@ The three live instances:
 
 ## Consequences
 
-- **Task order inside `ufw` and `os` is not stylistic.** Reordering those tasks is not a refactor; it is a bug that
-  manifests only on a host you can no longer reach to fix it. The roles say so in comments, at the point where it
+- **Task order inside `firewall` and `sshd` is not stylistic.** Reordering those tasks is not a refactor; it is a bug
+  that manifests only on a host you can no longer reach to fix it. The roles say so in comments, at the point where it
   matters.
 - **Break-glass root depends on a key held in the provider account.** Lose that key and the last way back into a
   misconfigured host is gone with it.

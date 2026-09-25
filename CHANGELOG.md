@@ -17,6 +17,8 @@ that, and the next correction is 1.0.1.
   via `os_unattended_origins`. Asserts its inputs and reads back swap, timezone, reboot time and NTP servers.
 - `sshd`: the hardening drop-in, moved out of `os`. The merged config is validated before the reload, and the effective
   config is asserted, so an earlier drop-in that overrides ours fails the converge.
+- `firewall`: refuses a host with `netfilter-persistent`. Rate-limits the ports the effective sshd config listens on,
+  not a fixed 22. Reads back ufw active, deny-default and the limits.
 
 ### Changed
 
@@ -29,6 +31,7 @@ that, and the next correction is 1.0.1.
   `20auto-upgrades` and `50unattended-upgrades`. Timers run daily on a VM and weekly on a board.
 - `sshd` on a board refuses root login (`PermitRootLogin no`); a VM keeps key-only root as break-glass. Set
   `sshd_permit_root_login` to override.
+- `ufw` role renamed `firewall`; vars `ufw_*` → `firewall_*`. `os` no longer installs `ufw`, `firewall` does.
 
 ### Upgrading from 1.x
 

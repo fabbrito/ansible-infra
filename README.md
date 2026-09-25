@@ -59,8 +59,8 @@ paths, which is the warning worth not ignoring.
     - { role: my_service, tags: [my_service] }
 ```
 
-`baseline` is `hosts: all` and runs `os`, `ufw`, `fail2ban`, `docker`, `rclone` in that order — the order is
-load-bearing, not stylistic. Scope a run with `-l <host>`, never by narrowing the play.
+`baseline` is `hosts: all` and runs `os`, `sshd`, `firewall`, `fail2ban`, `docker`, `rclone` in that order — the order
+is load-bearing, not stylistic. Scope a run with `-l <host>`, never by narrowing the play.
 
 `bootstrap` and `update` ship too: `fabbrito.infra.bootstrap` creates the unprivileged deploy user on a fresh box (run
 once, as root), `fabbrito.infra.update` does a serial apt upgrade with a reboot when required.
