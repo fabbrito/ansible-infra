@@ -1,0 +1,173 @@
+---
+# Read-only. Refuses a host before any other role changes it.
+
+- name: Assert host_kind
+  ansible.builtin.assert:
+    that: host_kind | default('') in ['board', 'vm']
+    fail_msg: >-
+      host_kind is "{{ host_kind | default('') }}". Set it per host or group:
+      `board` for single-board computers, `vm` for cloud or local VMs.
+    quiet: true
+
+- name: Stat the board model
+  ansible.builtin.stat:
+    path: /proc/device-tree/model
+  register: preflight_model_stat
+
+- name: Assert a board has a device tree
+  ansible.builtin.assert:
+    that: host_kind != 'board' or preflight_model_stat.stat.exists
+    fail_msg: >-
+      host_kind is board but /proc/device-tree/model is absent. This looks like
+      a VM or PC: set host_kind: vm.
+    quiet: true
+
+- name: Read the board model
+  ansible.builtin.slurp:
+    src: /proc/device-tree/model
+  register: preflight_model_raw
+  when: preflight_model_stat.stat.exists
+
+# The file ends in a NUL.
+- name: Record the board model
+  ansible.builtin.set_fact:
+    preflight_board_model: >-
+      {{ (preflight_model_raw.content | b64decode | regex_replace('\x00', ''))
+         if preflight_model_stat.stat.exists else 'none' }}
+
+- name: Show the board model
+  ansible.builtin.debug:
+    msg: "{{ preflight_board_model }}"
+  when: host_kind == 'board'
+
+# The kernel arch, not dpkg's: Raspbian's armhf userland also runs on ARMv6.
+- name: Refuse ARMv6
+  ansible.builtin.assert:
+    that: ansible_facts['architecture'] != 'armv6l'
+    fail_msg: >-
+      {{ preflight_board_model }} is ARMv6. Nothing here builds for it.
+    quiet: true
+
+- name: Assert the platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] == 'Debian'
+      - ansible_facts['service_mgr'] == 'systemd'
+      - ansible_facts['distribution'] in preflight_min_major
+      - >-
+        ansible_facts['distribution_major_version'] | int
+        >= preflight_min_major[ansible_facts['distribution']] | default(0) | int
+    fail_msg: >-
+      {{ ansible_facts['distribution'] }}
+      {{ ansible_facts['distribution_version'] }} with
+      {{ ansible_facts['service_mgr'] }}. Needs systemd and a distribution at or
+      above its floor in preflight_min_major: {{ preflight_min_major | to_json }}.
+    quiet: true
+
+# Separate from become: the SSH login itself. Root logins are what `sshd`
+# closes, and a converge as root would cut its own access.
+- name: Read the login user
+  ansible.builtin.command: id -un
+  become: false
+  register: preflight_login_user
+  changed_when: false
+  check_mode: false
+
+- name: Assert the converge does not log in as root
+  ansible.builtin.assert:
+    that: preflight_login_user.stdout != 'root'
+    fail_msg: >-
+      This converge logs in as root. Run playbooks/bootstrap.yml (or seed) to
+      create deploy_user, then connect as it.
+    quiet: true
+
+- name: Stat the OpenSSH server config
+  ansible.builtin.stat:
+    path: /etc/ssh/sshd_config
+  register: preflight_sshd_stat
+
+- name: Assert OpenSSH
+  ansible.builtin.assert:
+    that: preflight_sshd_stat.stat.exists
+    fail_msg: No /etc/ssh/sshd_config. Needs OpenSSH.
+    quiet: true
+
+# Minimized cloud images drop man pages and docs via dpkg excludes. Reported,
+# not fixed: `unminimize` is a large, one-way operator decision.
+- name: Stat the dpkg excludes of a minimized image
+  ansible.builtin.stat:
+    path: /etc/dpkg/dpkg.cfg.d/excludes
+  register: preflight_minimized_stat
+
+- name: Report a minimized image
+  ansible.builtin.debug:
+    msg: >-
+      Minimized {{ ansible_facts['distribution'] }} image: man pages and docs
+      are excluded. Run `unminimize` by hand if they are wanted.
+  when: preflight_minimized_stat.stat.exists
+
+- name: Stat cloud-init
+  ansible.builtin.stat:
+    path: /usr/bin/cloud-init
+  register: preflight_cloud_init_stat
+
+# Exit code ignored: 2 whenever cloud-init logged a warning.
+- name: Read cloud-init status
+  ansible.builtin.command: cloud-init status --format json
+  register: preflight_cloud_init_raw
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: preflight_cloud_init_stat.stat.exists
+
+# Not JSON (a crash, an old cloud-init) reads as a status the assert refuses.
+- name: Parse cloud-init status
+  ansible.builtin.set_fact:
+    preflight_cloud_init: >-
+      {{ {'status': 'not installed'} if not preflight_cloud_init_stat.stat.exists
+         else preflight_cloud_init_raw.stdout | from_json
+         if preflight_cloud_init_raw.stdout is match('\s*\{')
+         else {'status': 'unreadable: ' ~ (preflight_cloud_init_raw.stderr
+                                            | default('', true) | truncate(200))} }}
+
+# On a board the seed on the card is the only recovery path.
+- name: Warn that break-glass is unavailable
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: cloud-init is {{ preflight_cloud_init.status }}. The seed on the
+      card cannot recover this board.
+  when:
+    - host_kind == 'board'
+    - preflight_cloud_init.status in ['disabled', 'not installed']
+
+- name: Assert cloud-init finished
+  ansible.builtin.assert:
+    that:
+      - preflight_cloud_init.status == 'done'
+      - preflight_cloud_init.errors | default([]) | length == 0
+    fail_msg: >-
+      cloud-init is {{ preflight_cloud_init.status }}, errors
+      {{ preflight_cloud_init.errors | default([]) }}. Still booting: wait with
+      `cloud-init status --wait`. Otherwise read `cloud-init status --long`.
+    quiet: true
+  when: preflight_cloud_init.status not in ['disabled', 'not installed']
+
+# Raspberry Pi OS always has one: its cloud.cfg names a module that does not
+# exist.
+- name: Show cloud-init recoverable errors
+  ansible.builtin.debug:
+    msg: "{{ preflight_cloud_init.recoverable_errors }}"
+    verbosity: 1
+  when: preflight_cloud_init.recoverable_errors | default({}) | length > 0
+
+- name: Assert the hostname matches the inventory
+  ansible.builtin.assert:
+    that: ansible_facts['hostname'] == inventory_hostname.split('.') | first
+    fail_msg: >-
+      Board says {{ ansible_facts['hostname'] }}, inventory says
+      {{ inventory_hostname.split('.') | first }}: a card seeded for another
+      board? For an inventory keyed by IP, set preflight_assert_hostname: false.
+    quiet: true
+  when:
+    - host_kind == 'board'
+    - preflight_assert_hostname | bool

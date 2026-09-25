@@ -6,6 +6,18 @@ consumers pin the tag, so a change that is not released is a change nobody gets.
 A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
 that, and the next correction is 1.0.1.
 
+## Unreleased
+
+### Added
+
+- `preflight`: read-only checks before any role changes the host — platform floor per distribution, ARMv6 refused, no
+  root login, OpenSSH present, cloud-init finished, minimized image reported. Board-only: device tree present, hostname
+  matches the inventory, break-glass warning.
+
+### Changed
+
+- `host_kind` (`board` | `vm`) is a new required contract var, asserted by `preflight`.
+
 ## 1.2.0
 
 ### Changed

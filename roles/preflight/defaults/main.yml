@@ -1,0 +1,10 @@
+---
+# Oldest major release per distribution. A distribution not listed is refused:
+# add it here once tested. Raspberry Pi OS reports as Debian.
+preflight_min_major:
+  Ubuntu: 24
+  Debian: 12
+
+# Boards only: the hostname must match the inventory key's first label, which
+# catches a card seeded for another board. Off for an inventory keyed by IP.
+preflight_assert_hostname: true

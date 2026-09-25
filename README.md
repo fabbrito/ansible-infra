@@ -86,9 +86,10 @@ work or fails loudly, and which one is stated below.
 
 **Required to converge anything**
 
-| Var           | Where            | What it buys                                                         |
-| ------------- | ---------------- | -------------------------------------------------------------------- |
-| `deploy_user` | `group_vars/all` | The unprivileged account Ansible connects as and services run under. |
+| Var           | Where                       | What it buys                                                                                                         |
+| ------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `deploy_user` | `group_vars/all`            | The unprivileged account Ansible connects as and services run under.                                                 |
+| `host_kind`   | `group_vars` or `host_vars` | `board` or `vm`. Asserted by `preflight`; `board` also needs `/proc/device-tree/model`. Board-only checks key on it. |
 
 **Required by `bootstrap`**
 
