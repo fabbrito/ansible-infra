@@ -1,13 +1,7 @@
 #!/usr/bin/env bash
-#
-# A release's notes, to stdout: its commits since the release before it,
-# oldest first, under their scope — an unscoped subject under its type. The
-# first release has none before it, so its notes run from the root.
+# A release's notes to stdout: commits since the previous tag, oldest first,
+# grouped by scope, then the requirements.yml block a consumer pins.
 #   scripts/notes.sh v1.0.2
-#
-# The tag IS the artifact here: nothing is uploaded and nothing is published
-# to Galaxy, so the notes carry the requirements.yml block a consumer pins.
-#
 # No errexit: each step is checked where it can fail.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
@@ -32,7 +26,6 @@ re_subject='^([a-z]+)(\(([a-z0-9-]+)\))?!?:'
 
 declare -A lines
 while IFS= read -r subject; do
-	# The bump `make release` commits: the tag already says it.
 	[[ $subject == 'chore(galaxy): release '* ]] && continue
 	section=other
 	if [[ $subject =~ $re_subject ]]; then
@@ -51,16 +44,10 @@ for section in "${sections[@]}"; do
 	printf '### %s\n\n%s' "$section" "${lines[$section]}"
 done
 
-# No origin — a bare clone — just means no links, and the pin block below
-# still needs a URL, so it falls back to the one galaxy.yml declares.
-slug=$(git remote get-url origin 2>/dev/null)
-slug=${slug%.git}
-slug=${slug#*github.com[:/]}
-[[ -n $slug ]] || slug='fabbrito/ansible-infra'
+slug=$(awk '$1 == "repository:" { print $2 }' galaxy.yml)
+slug=${slug#https://github.com/}
+[[ -n $slug ]] || die 'galaxy.yml has no repository'
 
-# The whole consumer contract for a release: resolve this tag, read the
-# version from MANIFEST.json, converge. A tag, never a branch — an upgrade is
-# a chosen act, and a moved tag installs clean while shipping other bytes.
 cat <<EOF
 
 ## Use it

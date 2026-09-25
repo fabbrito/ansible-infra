@@ -1,19 +1,18 @@
 ---
-# A box that has joined the monitoring group but has not been paired yet — the
-# first converge, before the hub exists to mint anything. ADR-0015: hub and
-# Dozzle come up, the agent renders NOWHERE, and the converge is green.
+# A box in the monitoring group, not yet paired — the first converge, before the hub
+# mints anything. ADR-0015: hub and Dozzle come up, the agent renders NOWHERE, the
+# converge is green.
 #
-# This is the fixture that fails if the pairing gate ever inverts. A `TOKEN=`
-# line in the .env or a beszel-agent service in the compose here means an agent
-# that starts and can never authenticate.
+# Fails if the pairing gate inverts: a `TOKEN=` line in the .env or a beszel-agent
+# service in the compose means an agent that starts and never authenticates.
 #
-# monitoring_agent_token IS SET, TO EMPTY, ON PURPOSE. It has no role default —
-# it is vaulted in the consuming repo — so nothing would clear the value the
-# `paired` fixture sets, and this case would silently become a second copy of it.
+# monitoring_agent_token IS SET, EMPTY, ON PURPOSE — it has no role default (vaulted
+# in the consumer), so nothing clears the value the `paired` fixture sets and this
+# case would silently become a second copy of it.
 monitoring_agent_token: ""
 
-# The key without the token is the documented revoke, and it is fine: it renders
-# nothing on its own. Set here so this fixture covers that half too.
+# The key without the token is the documented revoke and renders nothing on its own;
+# set so this fixture covers that half too.
 monitoring_agent_key: golden-fixture-not-a-key
 
 monitoring_admin_email: ops@example.org

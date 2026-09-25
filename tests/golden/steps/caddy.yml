@@ -1,11 +1,10 @@
 ---
-# What roles/caddy/tasks/main.yml does before it renders, minus everything that
-# touches a host.
+# What roles/caddy/tasks/main.yml does before it renders, minus host-touching tasks.
 #
-# THE ROLE'S OWN FILE, not a copy of it. ADR-0008 makes caddy_all_routes the one
-# input every derivation reads, so fixtures set the two source lists and the
-# role resolves them — restating the union here would let the harness and the
-# role drift on precisely the derivation the ADR exists to protect.
+# THE ROLE'S OWN FILE, not a copy of it: ADR-0008 makes caddy_all_routes the one input
+# every derivation reads, so fixtures set the two source lists and the role resolves
+# them. Restating the union here would let the harness and the role drift on precisely
+# the derivation the ADR protects.
 - name: Resolve the effective route list
   ansible.builtin.include_tasks: "{{ golden_repo }}/roles/caddy/tasks/routes.yml"
 

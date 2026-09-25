@@ -6,5 +6,5 @@
 # reclaims them. errexit: a systemd oneshot should fail its unit rather than
 # exit 0 on a half-done prune.
 set -euo pipefail
-docker system prune -af --filter "until={{ docker_cleanup_until }}"
-docker image prune -f --filter "until={{ docker_cleanup_until }}"
+docker system prune -af --filter "until=168h"
+docker image prune -f --filter "until=168h"

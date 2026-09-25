@@ -1,16 +1,7 @@
 # Thin Makefile — a discoverable entry point that delegates to scripts/.
-# There are no converge targets here on purpose: this repo ships roles, it does
-# not own an inventory and cannot reach a host. Converging is the consumer's job.
-#
-#   make             # show this help
-#   make deps        # install the collections the roles depend on
-#   make hooks       # point git at .githooks (once per clone)
-#   make check       # every hook lane over the working changes (the gate)
-#   make sanity      # ansible-test sanity (a release leg; slow on a cold venv)
-#   make test        # golden render tests (a release leg)
-#   make check-codes # sweep for plan labels (manual)
-#   make release     # stamp, gate, commit and tag (VERSION=x.y.z)
-#   make publish     # send the tag up and cut the GitHub release
+# There are no converge targets here on purpose: this repo ships roles, it does not
+# own an inventory and cannot reach a host. Converging is the consumer's job.
+# `make` lists the targets; each one's comment is its help string.
 
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
@@ -41,11 +32,9 @@ deps: ## Install/upgrade the Ansible collections the roles depend on
 
 ##@ Local checks
 
-# core.hooksPath is per-clone and git will not set it for you — a hook that
-# nobody enabled is worth nothing, so this is the one setup step besides `deps`.
-# chmod too: git runs the shims directly, and a mode bit lost to a checkout or
-# a zip download disables the whole gate silently. The engine refuses bash
-# below 4.4 itself, naming the version it found.
+# A hook nobody enabled is worth nothing, and core.hooksPath is per-clone, so this
+# is the one setup step besides `deps`. chmod too: git runs the shims directly, and
+# a mode bit lost to a checkout or a zip download disables the gate silently.
 .PHONY: hooks
 hooks: ## Enable the repo's git hooks (once per clone)
 	git config core.hooksPath .githooks

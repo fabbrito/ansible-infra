@@ -1,14 +1,11 @@
-# Development-time install, for linting this repo. galaxy.yml's `dependencies:`
-# is the SHIPPED truth — that is what ansible-galaxy resolves for a consumer.
-# These two lists must agree; change both or neither.
-#
-# ansible-core floor: >=2.18.0, declared in meta/runtime.yml and enforced by
-# scripts/lint.sh. No ceiling — see that file for why.
+# Development-time install for linting this repo. galaxy.yml's `dependencies:` is
+# the SHIPPED truth; the two lists must agree — change both or neither. The core
+# floor is meta/runtime.yml's, and scripts/lint.sh enforces it.
 collections:
-  # Pin to current major. Bump bounds explicitly when adopting a new major
-  # so deprecation/breakage surfaces as a chosen upgrade, not silent drift.
+  # Bump bounds explicitly when adopting a new major: a deprecation should surface
+  # as a chosen upgrade, not silent drift.
   - name: community.docker
-    version: ">=5.0.0,<6.0.0" # v4.0 removed legacy `docker_compose`; we use `docker_compose_v2` (5.x+)
+    version: ">=5.0.0,<6.0.0" # `docker_compose_v2` arrived in 5.x; v4 removed the legacy module
   - name: community.general
     version: ">=13.0.0,<14.0.0"
   - name: ansible.posix

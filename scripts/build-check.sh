@@ -1,23 +1,13 @@
 #!/usr/bin/env bash
-# Build the collection and inspect what it would ship.
+# Build the collection into .collections/build and inspect what it ships.
 #   ./scripts/build-check.sh
-#
-# A release leg, not a commit-time one: nothing here changes between commits
-# that do not touch galaxy.yml, and the answer only matters at a tag.
-#
-# Proves galaxy.yml parses and that build_ignore does not drop something the
-# collection needs. A successful exit proves nothing about what shipped:
-# build_ignore is the ONLY exclusion list the build reads, .gitignore is not
-# consulted, and omitting .collections/ once vendored every dependency plus a
-# symlink loop back to this repo — a 259MB tarball that built green. Inspect
-# the contents, not the status.
-#
-# No errexit: each step is checked where it can actually fail.
+# A green build proves nothing: omitting .collections from build_ignore once
+# shipped a 259MB tarball. Inspect the contents.
+# No errexit: each step is checked where it can fail.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
-# ansible refuses non-blocking descriptors, and the check runs at import.
-# Fresh pipes through cat are blocking; see AGENTS.md > Shell.
+# Ansible refuses non-blocking stdio; pipe through cat (AGENTS.md > Shell).
 exec </dev/null > >(cat) 2>&1
 
 red() { printf '\033[0;31m%s\033[0m\n' "$*"; }
@@ -26,11 +16,7 @@ bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 
 bold '==> collection build'
 
-# A dedicated, emptied directory rather than .collections/ itself: it makes the
-# tarball findable by glob, so nothing here re-parses galaxy.yml for the
-# version. Deriving the path by awk meant any change to how `version:` is
-# written — quotes, a trailing comment — silently pointed tar at a file that
-# does not exist.
+# Emptied, so the tarball is found by glob, not by parsing the version.
 build_out='.collections/build'
 rm -rf "$build_out" && mkdir -p "$build_out" || exit 1
 if ! ansible-galaxy collection build --force \
@@ -48,9 +34,7 @@ if ((${#tarballs[@]} != 1)); then
 	exit 1
 fi
 
-# tar's status is checked: an unreadable tarball must not read as zero
-# stowaways, which is how this guard used to print "ok (1 entries)" while
-# inspecting nothing.
+# Checked: an unreadable tarball must not read as zero stowaways.
 if ! entries=$(tar tzf "${tarballs[0]}"); then
 	red "  FAIL cannot read ${tarballs[0]}"
 	exit 1

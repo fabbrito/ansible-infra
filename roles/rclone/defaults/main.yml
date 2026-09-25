@@ -2,6 +2,7 @@
 # Pinned upstream .deb per userland arch (`dpkg --print-architecture`): the
 # distros ship 1.60, too old for R2. Bump the version and every hash together,
 # after verifying rclone's signed SHA256SUMS: docs/rclone/upgrading.md.
+
 rclone_version: v1.75.1
 rclone_debs:
   amd64:

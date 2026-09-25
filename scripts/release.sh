@@ -1,20 +1,8 @@
 #!/usr/bin/env bash
-#
-# Cut a release on this machine: stamp, gate, commit, tag. Nothing leaves the
-# machine — `make publish` does that.
+# Stamp, gate, commit, tag, on this machine; there is no CI.
 #   make release VERSION=1.0.2 [DRY_RUN=1]
-#
-# There is no CI. This is the whole release gate, and it runs every leg the
-# pre-commit hook leaves out because they are too slow to pay for per commit:
-# the golden renders, ansible-test sanity, and what the tarball ships.
-#
-# galaxy.yml's version, CHANGELOG.md's heading and the tag move together —
-# consumers pin the tag and read the version out of MANIFEST.json, so a
-# disagreement reaches them as a stale install they cannot fix. The prose is
-# yours: write the CHANGELOG section first, this refuses without it.
-#
-# A dry run writes nothing and reports every refusal instead of the first.
-#
+# Version, CHANGELOG heading and tag move together (AGENTS.md > Releases).
+# A dry run writes nothing and reports every refusal.
 # No errexit: each step is checked where it can fail.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
@@ -37,7 +25,7 @@ if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 	exit 2
 fi
 tag=v$version
-# The subject every release since 1.0.1 has used; notes.sh groups by scope.
+# notes.sh skips this subject.
 subject="chore(galaxy): release $version"
 
 refusals=0
@@ -57,8 +45,7 @@ if git remote get-url origin >/dev/null 2>&1; then
 	git fetch --quiet origin master || die 'cannot fetch origin'
 	git merge-base --is-ancestor origin/master HEAD ||
 		refuse 'origin/master has commits this branch lacks'
-	# A tag absent here may still be on origin: a stale clone, a pruned tag.
-	# `git tag` cannot see it; publish would then collide.
+	# A tag absent here may be on origin; publish would collide.
 	git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null
 	case $? in
 		0) refuse "$tag is on origin — never move a release" ;;
@@ -75,31 +62,24 @@ if $dry; then
 	exit 0
 fi
 
-# Stamped before the gate: a release is proven with exactly the bytes that
-# ship, and the ansible lane re-resolves galaxy.yml on the way through.
+# Stamped before the gate, so the gate proves the bytes that ship.
 sed -i "s/^version: .*/version: $version/" galaxy.yml ||
 	die 'cannot stamp galaxy.yml'
 grep -q "^version: $version\$" galaxy.yml || die 'stamp did not take'
 
 unstamp() { git checkout -- galaxy.yml; }
 
-for leg in 'make check' 'make test' 'make sanity' './scripts/build-check.sh'; do
+# tag-check builds the tarball through build-check.sh.
+for leg in 'make check' 'make test' 'make sanity' \
+	"./scripts/tag-check.sh $tag"; do
 	if ! $leg; then
 		unstamp
 		die "$leg failed — nothing committed"
 	fi
 done
 
-# Last, because it reads the built MANIFEST.json rather than galaxy.yml: the
-# byte a consumer's own gate compares their pin against.
-if ! ./scripts/tag-check.sh "$tag"; then
-	unstamp
-	die 'tag-check failed — nothing committed'
-fi
-
-# The stamp is this script's to own all the way down: the commit runs the
-# repo's own hooks and can be rejected, and a stamped galaxy.yml left behind
-# refuses the next run as "tree not clean", naming nothing.
+# The commit runs the hooks and can be rejected; a stamp left behind would
+# refuse the next run as "tree not clean".
 git add galaxy.yml || die 'cannot stage the stamp'
 if ! git commit -qm "$subject"; then
 	git reset -q galaxy.yml

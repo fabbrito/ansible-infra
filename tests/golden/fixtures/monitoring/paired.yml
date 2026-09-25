@@ -1,14 +1,13 @@
 ---
-# A box that has been through the hub's one-time "Add System" step: the agent
-# service renders into the compose and its token into the .env.
+# A box through the hub's one-time "Add System" step: the agent service renders into
+# the compose and its token into the .env.
 #
-# Pins the pinned image tags too. `monitoring_hub_version` and its siblings are
-# a coupled pair — Beszel's registry tags carry no `v`, Dozzle's do — so a bump
-# that gets the prefix wrong fails at the pull, on the host, at converge time.
-# Here it is a golden diff at review time.
+# Pins the image tags too: `monitoring_hub_version` and its siblings are a coupled
+# pair (Beszel's registry tags carry no `v`, Dozzle's do), so a bump with the wrong
+# prefix fails at the pull, on the host, at converge. Here it is a golden diff.
 #
-# EVERY VALUE BELOW IS FAKE. The role reads its two real secrets from a
-# consumer's vault; this repo has none and must never acquire one.
+# EVERY VALUE BELOW IS FAKE. The role reads its two real secrets from a consumer's
+# vault; this repo has none and must never acquire one.
 monitoring_admin_email: ops@example.org
 monitoring_admin_password: golden-fixture-not-a-password
 
@@ -16,5 +15,5 @@ monitoring_agent_key: golden-fixture-not-a-key
 monitoring_agent_token: golden-fixture-not-a-token
 
 # infra_install_dir is a cross-role contract var the consumer sets, so it has no
-# role default to inherit and each fixture states it.
+# role default to inherit; each fixture states it.
 infra_install_dir: /opt/infra

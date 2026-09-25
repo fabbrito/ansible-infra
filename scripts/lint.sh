@@ -1,23 +1,18 @@
 #!/usr/bin/env bash
 # Ansible checks: ./scripts/lint.sh
 #
-# The `ansible` lane in .githooks/hooks.conf, as a script because a lane is
-# exec'd as written — no redirect, and it inherits the caller's descriptors.
-# ansible-core's check_blocking_io() runs at import of ansible.cli and exits
-# if any of the three is non-blocking; there is no flag and no env var, so a
-# harness handing us a non-blocking stderr can only be answered here. Fresh
-# pipes through cat are blocking, which is the whole fix.
+# The `ansible` lane in .githooks/hooks.conf, as a script because a lane is exec'd
+# as written: ansible-core's check_blocking_io() exits at import on a non-blocking
+# descriptor, there is no flag or env var, so fresh pipes through cat are the fix.
 #
-# Formatters are lanes. The golden render, ansible-test sanity and the
-# collection build are release legs (scripts/release.sh), not commit-time.
+# Formatters are lanes. The golden render, ansible-test sanity and the collection
+# build are release legs (scripts/release.sh).
 #
-# This repo is a collection, not a control node: no inventory, no host. The
-# dry-run leg the consuming repo runs (--check --diff) has no equivalent here
-# — what can be proven upstream is proven here, the rest is the consumer's
-# gate. README.md, "Where the gate lives".
+# A collection, not a control node: no inventory, no host, so the consumer's dry-run
+# leg has no equivalent here. README.md, "Where the gate lives".
 #
-# A missing tool fails, never skips. No errexit: each level records its own
-# failure, so one broken playbook does not hide the state of the rest.
+# A missing tool fails, never skips. No errexit: each level records its own failure,
+# so one broken playbook does not hide the state of the rest.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
@@ -51,13 +46,11 @@ if [[ $oldest != "$min_core" ]]; then
 fi
 green "  ok  $cur_core"
 
-# The playbooks name their roles by FQCN, and ansible resolves those only through
-# a collections path — the repo root BEING the collection root is not enough.
-# Stage a symlink at <path>/ansible_collections/<ns>/<name> so a syntax-check
-# resolves fabbrito.infra.* against the working tree, uncommitted edits
-# included. Cheaper and more honest than rebuilding a tarball per run. `make
-# deps` installs the third-party collections into the same tree, so one path
-# serves both.
+# The playbooks name their roles by FQCN, and ansible resolves those only through a
+# collections path — the repo root BEING the collection root is not enough. Stage a
+# symlink at <path>/ansible_collections/<ns>/<name> so a syntax-check resolves
+# fabbrito.infra.* against the working tree, uncommitted edits included. `make deps`
+# installs the third-party collections into the same tree.
 staged='.collections/ansible_collections/fabbrito'
 mkdir -p "$staged" || exit 1
 ln -sfn "$PWD" "$staged/infra" || exit 1
@@ -80,14 +73,11 @@ done
 bold ''
 bold '==> ansible-lint'
 if command -v ansible-lint >/dev/null 2>&1; then
-	# The whole tree, not just playbooks/: here the roles are the product, and
-	# the galaxy rules only fire when galaxy.yml is in scope.
-	#
-	# ANSIBLE_COLLECTIONS_PATH is dropped for this leg. ansible-lint stages its
-	# own copy of the collection and resolves galaxy.yml's dependencies itself;
-	# leaving ours exported makes it find two installs and warn on every run.
-	# Dropping it also makes this the check that galaxy.yml's dependency list —
-	# the SHIPPED one — actually resolves, rather than requirements.yml's copy.
+	# The whole tree, not just playbooks/: here the roles are the product, and the
+	# galaxy rules only fire when galaxy.yml is in scope. Dropping
+	# ANSIBLE_COLLECTIONS_PATH makes this the check that galaxy.yml's SHIPPED
+	# dependency list resolves, not requirements.yml's copy; ansible-lint stages
+	# its own copy and warns on two installs if ours stays exported.
 	env -u ANSIBLE_COLLECTIONS_PATH ansible-lint . || fail=$((fail + 1))
 else
 	# A missing tool is a FAILURE, not a skip. This is the leg the README calls

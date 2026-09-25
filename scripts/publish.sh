@@ -1,16 +1,8 @@
 #!/usr/bin/env bash
-#
-# Publish what `make release` tagged: master and the tag to origin, then a
-# GitHub release carrying scripts/notes.sh's notes. The tag IS the artifact —
-# nothing is uploaded, and nothing goes to Galaxy: consumers install from the
-# git tag (README.md, "Install").
+# Push master and the tag `make release` cut, then a GitHub release with
+# notes.sh's notes. The tag is the artifact: nothing goes to Galaxy.
 #   make publish [DRY_RUN=1]
-#
-# A release is never moved after this. A bad one gets the next patch.
-#
-# A dry run touches neither origin nor gh, reports every refusal instead of
-# the first, and prints the notes it would send.
-#
+# A dry run touches neither origin nor gh, and prints the notes.
 # No errexit: each step is checked where it can fail.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
@@ -43,8 +35,6 @@ grep -q "^version: ${tag#v}\$" galaxy.yml ||
 	refuse "galaxy.yml is not stamped ${tag#v}"
 command -v gh >/dev/null 2>&1 || refuse 'gh not found'
 
-# A file, not a string: the notes are a document, and `gh --notes-file` takes
-# one. Their shape is notes.sh's problem, and it runs standalone.
 notes=$(mktemp "${TMPDIR:-/tmp}/infra-notes.XXXXXX") || die 'mktemp failed'
 trap 'rm -f "$notes"' EXIT
 ./scripts/notes.sh "$tag" >"$notes" || die 'notes failed'
