@@ -23,4 +23,4 @@ Surface a contradiction rather than silently overriding:
 ## What an ADR here may decide
 
 Why a role has its shape. How a fleet is run — where a secret sits in a vault, which repo owns a host — is the
-consumer's call, recorded in its own repo.
+consumer's call, recorded in its own repo. A fully superseded ADR is deleted and its number consumed, never reused.

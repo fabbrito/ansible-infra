@@ -1,48 +1,40 @@
 # 15. A declared role asserts its secrets
 
-- **Status:** accepted
-- **Date:** 2026-09-25
-- **Supersedes:** [ADR-0001](0001-secrets-in-vault-and-an-absent-secret-skips.md)
+- Status: accepted
 
-## Context
+## Chosen
 
-ADR-0001 made a role skip its work when its secret was absent. The reason was `baseline.yml`: every host ran every role,
-so the first host had to converge before any credential existed. Skipping was the only way to avoid a chicken-and-egg
-failure.
+**A role's own secret is a precondition. Absent, the role fails its assert and names the key.** A host not ready for a
+role is a host the consumer does not list it on yet.
 
-2.0 removes `baseline`, and consumers compose roles themselves. Listing a role is now a choice, and a choice states
-intent. A host that lists `rclone` and converges without R2 credentials has no backups and no error, which is the silent
-failure [ADR-0014](0014-roles-assert-pre-and-postconditions.md) exists to prevent. ADR-0001 also accepted that a
-misspelled key looks the same as an absent one. That cost made sense when skipping was forced. It no longer is.
+An optional feature inside a role is different: the consumer turns it on by setting its key, and leaving the key unset
+leaves the feature off. That is composition inside the role, not a skip, and the role says so beside the key.
 
-## Decision
+Where it does not depend on skipping, the earlier rule still holds: secrets are supplied by the consumer, encrypted on
+their side; this collection holds none; a task rendering one is `no_log: true`.
 
-**A role's own secret is a precondition. If it is absent, the role fails its assert and names the key.** If a host isn't
-ready for a role, the consumer doesn't list that role yet.
+## Why
 
-Some features inside a role are optional, and the consumer turns one on by setting its key. Leaving the key unset leaves
-the feature off. That is composition inside the role, not a skip:
+The earlier skip existed because one fixed playbook ran every role on every host, so the first host had to converge
+before any credential existed. Skipping was the only way to avoid that.
 
-- `docker` installs Docker. The registry login is a separate feature, and it runs only when its token is set.
-- `monitoring`'s agent is paired by a key and token that the hub mints after its own first converge. That is a real
-  two-phase bootstrap, so the agent stays off until both exist.
+Consumers list roles themselves now, and listing a role states intent. A host that lists the backup role and converges
+without credentials has no backups and no error — precisely the silent failure the assert rules exist to prevent. The
+earlier rule also accepted that a misspelled key looked like an absent one. That cost made sense only while skipping was
+forced.
 
-A role that has such a feature says so in `defaults/main.yml`, next to the key.
+## Cost
 
-The parts of ADR-0001 that don't depend on skipping still hold. Secrets are supplied by the consumer and encrypted on
-their side. This repo holds none. Any task that renders a secret carries `no_log: true`.
+**A misspelled role secret now fails the converge**, instead of converging successfully without the thing it was meant
+to configure.
 
-## Consequences
+**A consumer upgrading from a fixed-playbook release must check its lists**: a role listed without its secret now fails
+its assert. This is a breaking change.
 
-- **A misspelled role secret now fails the converge**, instead of converging "successfully" without the thing it was
-  meant to configure.
-- **Composition decides when a role joins.** A host that is waiting on credentials leaves the role out until they exist.
-- **Consumers upgrading from 1.x must check their lists.** A role they listed without its secret now fails its assert.
-  This is a breaking change and it goes in the 2.0 changelog.
-- **Optional features keep the typo cost.** A misspelled key for an optional feature still leaves that feature off with
-  no error. Where that matters, the role adds an explicit flag and asserts the key when the flag is on.
+**Optional features keep the typo cost.** A misspelled key for an optional feature still leaves it off with no error, so
+where that matters the role adds an explicit flag and asserts the key when the flag is on.
 
-## What would change this
+## Reverses
 
-- **A playbook that runs a role on every host again.** Skipping would then be forced once more, for the same reason as
-  ADR-0001.
+A playbook that runs a role on every host again. Skipping is then forced once more, for the same reason as the first
+record.

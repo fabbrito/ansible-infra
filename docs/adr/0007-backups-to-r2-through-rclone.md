@@ -1,41 +1,40 @@
 # 7. Backups to R2 through rclone, with a crypt wrapper
 
-- **Status:** accepted
-- **Date:** 2026-07-13
+- Status: accepted
 
-## Context
+## Chosen
 
-Service backups need offsite storage. We use **Cloudflare R2** with **bucket-scoped API tokens**, reached through
-**rclone**, which the `rclone` role installs on every host that lists it.
+Offsite backups go to R2, reached through rclone, with bucket-scoped API tokens. The role renders an S3 remote plus an
+optional fleet-wide crypt wrapper over the backups bucket; a service opts into encryption by pointing at the wrapped
+remote instead of the plain one.
 
-Bucket-scoped tokens are the least-privilege choice, and they are also the source of every non-obvious setting below. A
-token scoped to one bucket cannot do things rclone assumes it can.
+A bucket is scoped per project, not per host, and its token lives in the vault of the group that shares it.
 
-## Decision
+## Why
 
-An `r2` S3 remote, plus an optional fleet-wide `r2crypt` **crypt wrapper** over the backups bucket. Services opt into
-encryption by pointing their destination at `r2crypt:` instead of `r2:`.
+Per-host buckets were the obvious alternative and lose: a second host serving the same service would need its own bucket
+and its own copy of the credentials, which turns scaling a service into a credential-provisioning task.
 
-**A bucket is scoped per project, not per host**, and its token lives in the vault of the group that shares it. Per-host
-buckets were the obvious alternative and lose: a second box serving the same service would need its own bucket and its
-own copy of the credentials, which makes scaling a service a credential-provisioning task. This is the decision the
-hardening runbook and the role's defaults both follow.
+Bucket-scoped tokens are the least-privilege choice, and they are the source of every non-obvious setting on the remote.
+Two of them look like mistakes until you know they are forced: a bucket-scoped token cannot do what the client assumes
+it can, so the per-upload permission header and the pre-flight bucket check both come back denied and are both turned
+off.
 
-Two settings on the R2 remote are forced by the scoped token, and both look like mistakes until you know why:
+The crypt wrapper leaves directory names unencrypted so the tree stays readable to the provider and its lifecycle prefix
+rules still match. File names and contents are still encrypted.
 
-- **No `acl = private`.** R2's "Object Read & Write" tokens deny `PutObjectAcl`, so rclone's per-PUT
-  `x-amz-acl: private` header comes back as a 403.
-- **`no_check_bucket = true`.** Bucket-scoped tokens lack the list-buckets permission, so rclone's pre-flight `HEAD` on
-  the bucket 403s too.
+## Cost
 
-The crypt wrapper sets `directory_name_encryption = false`, so the directory tree stays readable to R2 and bucket
-lifecycle prefix rules still match. Filenames and contents are still encrypted.
+**Lose the crypt passwords and the backups are unrecoverable.** There is no escrow and no support path that fixes it.
+They belong in a password manager, not only in the vault.
 
-## Consequences
+**The remote name is fixed.** A consumer's backup roles reference it by that name, and this layer ships none of them, so
+renaming it means changing every one of them in lockstep.
 
-- **Lose the crypt passwords and the backups are unrecoverable.** There is no recovery path, no escrow, and no support
-  ticket that fixes it. They belong in a password manager, not only in the vault.
-- **The remote name `r2` is hardcoded.** A consumer's backup roles reference `r2:bucket/...` by that name; this layer
-  ships none of them. Renaming it means changing every one of them in lockstep.
-- Per [ADR-0001](0001-secrets-in-vault-and-an-absent-secret-skips.md), a host without R2 credentials still converges:
-  rclone is installed, and no config is rendered.
+The credentials are a precondition: a host that lists the role without them fails the converge naming the key
+(ADR-0015).
+
+## Reverses
+
+A different object store, or per-host buckets once credential provisioning is cheap. Neither touches the crypt decision,
+which is independent.

@@ -33,7 +33,7 @@ services:
   # Host + container metrics for the hub. host networking to read the box's real
   # interfaces and disks; docker socket READ-ONLY for per-container stats; system
   # D-Bus socket READ-ONLY so host systemd units surface too (needs systemd 243+;
-  # Ubuntu clears it). Rendered only once paired (fabbrito.infra ADR-0001):
+  # Ubuntu clears it). Rendered only once paired (fabbrito.infra ADR-0015):
   # KEY + TOKEN come from the hub's one-time "Add System" step — KEY public,
   # TOKEN the secret from .env.
   beszel-agent:

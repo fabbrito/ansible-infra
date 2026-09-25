@@ -1,39 +1,39 @@
 # 2. A converge can never lock us out
 
-- **Status:** accepted
-- **Date:** 2026-07-13
+- Status: accepted
 
-## Context
+## Chosen
 
-Ansible reaches a host over SSH — through the very firewall and the very `sshd` it is reconfiguring. A task that severs
-that path does not fail loudly; it succeeds, and then the host is gone. There is no console we control and no
-out-of-band path back in. On a VPS reachable only over the network, losing SSH is losing the box.
+Ansible reaches a host over the very path it reconfigures. Where a task can sever that path, the guard runs first, in
+the same run:
 
-This is not a hypothetical class of bug. Two tasks in this repo could each do it.
+- The firewall opens the declared ingress ports and rate-limits the port effective sshd listens on **before** the policy
+  flips to deny-by-default.
+- The sshd role validates the fully merged configuration **before** the handler reloads; a syntax error aborts the play
+  instead of asking sshd to load something broken.
+- Root stays reachable over the provider-injected key as break-glass, while password authentication is off outright.
+  Daily work goes through the unprivileged deploy user.
 
-## Decision
+New tasks touching the firewall, sshd or the network path inherit the rule.
 
-**When a task can sever Ansible's own connection, the guard comes first, in the same run.**
+## Why
 
-The three live instances:
+Reversed, either order does not fail loudly: the task succeeds and the host is gone. There is no console we control and
+no out-of-band path back in, so a converge that drops its own connection cannot report it.
 
-- The `firewall` role opens the declared ingress ports and rate-limits the ports effective `sshd` listens on **before**
-  flipping the policy to deny-by-default. Reversed, the enable would drop the connection that was about to open port 22.
-- The `sshd` role validates the full merged `sshd` config with `sshd -G` **before** the handler reloads. `sshd` reads
-  every drop-in, so only the merged config is meaningful. A syntax error aborts the play rather than asking `sshd` to
-  reload something broken. **`-G` wherever it exists** — `-t` stats the privsep directory `/run/sshd` and dies before it
-  reports a verdict, and on a socket-activated host that directory is absent for the whole play once `dist-upgrade`
-  restarts `openssh-server`. Releases too old for `-G` are not socket-activated, so `/run/sshd` is present and `-t` is
-  safe there; the role probes for `-G` and its comments carry the detail.
-- Root stays reachable over the provider-injected key (`PermitRootLogin prohibit-password`) as a **break-glass** path,
-  while password authentication is disabled outright. Daily operations go through the unprivileged `deploy_user`.
+Validation reads every drop-in, because sshd does. Checking one file proves nothing about the configuration that loads.
+The role prefers the check that prints the merged configuration; the older one inspects a runtime directory that is
+absent on a socket-activated host once the upgrade restarts the server, and would fail before reporting a verdict.
 
-## Consequences
+## Cost
 
-- **Task order inside `firewall` and `sshd` is not stylistic.** Reordering those tasks is not a refactor; it is a bug
-  that manifests only on a host you can no longer reach to fix it. The roles say so in comments, at the point where it
-  matters.
-- **Break-glass root depends on a key held in the provider account.** Lose that key and the last way back into a
-  misconfigured host is gone with it.
-- **New tasks inherit the rule.** Anything touching the firewall, `sshd`, or the network path has to answer "what
-  happens if this runs and the next task doesn't?" before it lands.
+Task order inside those two roles is not stylistic. Reordering is a bug that manifests only on a host you can no longer
+reach to fix it.
+
+Break-glass root depends on a key held in the provider account. Lose that key and the last way into a misconfigured host
+is gone with it.
+
+## Reverses
+
+Move the reconnect path off SSH — a console, or an agent that dials out — and the ordering rule stops being a safety
+requirement.

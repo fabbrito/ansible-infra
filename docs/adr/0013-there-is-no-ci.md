@@ -1,39 +1,36 @@
 # 13. There is no CI; the maintainer runs the gate before merge
 
-- **Status:** accepted
-- **Date:** 2026-09-25
-- **Supersedes:** [ADR-0012](0012-ci-is-hardened-at-the-fork-boundary.md)
+- Status: accepted
 
-## Context
+## Chosen
 
-CI ran `make check`, `make sanity` and `make test` on every push and PR. Every one of those is static, touches no host,
-and runs the same on a laptop. So CI proved nothing the hooks and the release command could not, and it brought its own
-attack surface: ADR-0012 existed only to guard it.
+No workflow runs on a push or a pull request.
 
-What a consumer gets is the tag. A green CI run on an untagged commit is evidence nobody installs.
+- **Per commit:** the pre-commit hook runs the gate's lanes, and a second hook grades the commit message.
+- **Per pull request:** the maintainer checks out the branch and runs the gate before merging. A contributor's green run
+  is a claim, not proof.
+- **Per tag:** the release command runs every leg the commit hook skips — goldens, sanity, what the tarball ships — and
+  checks the tag against the built manifest. A release cannot be cut red.
 
-## Decision
+## Why
 
-**No workflow runs on a push or a PR.**
+CI ran the same static checks a laptop runs, and every one of them touches no host. So it proved nothing the hooks and
+the release command could not, and it brought its own attack surface: one record existed only to guard it.
 
-- **Per commit:** the pre-commit hook runs the lanes in `.githooks/hooks.conf`, and `commit-msg` checks the message.
-- **Per PR:** the maintainer checks out the branch and runs `make check` before merging. A contributor's green run is a
-  claim, not proof.
-- **Per tag:** `make release` runs every leg the hook skips (goldens, sanity, what the tarball ships) and checks the tag
-  against the built `MANIFEST.json`. A release cannot be cut red.
+What a consumer gets is the tag. A green run on an untagged commit is evidence nobody installs.
 
-## Consequences
+## Cost
 
-- **ADR-0012's guards protect nothing now.** Fork-run approval and the `actions/*` allowlist are repository settings
-  that still exist, but no workflow runs for them to guard. They are harmless, and they are the right starting point if
-  a workflow comes back.
-- **A PR shows no status check.** Merging without running the gate is possible, and no tool here can stop it.
-- **Hooks are opt-in per clone** (`make hooks`). A commit made without them is caught at the next `make check`, before
-  merge or before release, whichever comes first.
+A pull request shows no status check, so merging without running the gate is possible and no tool here can stop it.
 
-## What would change this
+Hooks are opt-in per clone. A commit made without them is caught at the next gate run — before merge, or before release
+— whichever comes first.
 
-- **Enough outside contributors that running the gate by hand per PR stops scaling.** Then a workflow comes back, and
-  ADR-0012's reasoning comes back with it, from the top: `pull_request` only, fork approval, the action allowlist.
-- **Anything that must run on infrastructure we do not hold**, such as a converge against a disposable VM. That is a job
-  a laptop cannot do, and it is the first real reason for a runner.
+The repository settings a workflow would need still exist and now guard nothing. They are harmless, and the right
+starting point if one comes back.
+
+## Reverses
+
+Enough outside contributors that running the gate by hand per pull request stops scaling. A workflow then comes back,
+and the fork-boundary reasoning comes back with it from the top. Or anything that must run on infrastructure we do not
+hold — a converge against a disposable machine — which is the first real reason for a runner.

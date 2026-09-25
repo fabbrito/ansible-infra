@@ -88,10 +88,9 @@ that, and the next correction is 1.0.1.
   worth closing: the key loop was a no-op over `[]`, so the play went on to grant passwordless sudo and exited
   **green**, leaving an account nobody holds a key for on a box that reports itself converged. Unset died at the key
   loop instead, after the account existed but before the sudoers write.
-- Minor rather than major, deliberately: [ADR-0001](docs/adr/0001-secrets-in-vault-and-an-absent-secret-skips.md) and
-  the README contract both already listed the var as required, so the contract did not move — only its enforcement. No
-  converged fleet can be running with it empty either, because such a host was never reachable as `deploy_user` to begin
-  with.
+- Minor rather than major, deliberately: the README contract already listed the var as required, so the contract did not
+  move — only its enforcement. No converged fleet can be running with it empty either, because such a host was never
+  reachable as `deploy_user` to begin with.
 
 ## 1.0.1
 
@@ -137,7 +136,7 @@ taking the fleet it was written for.
 ### Gates
 
 Static only — this repo owns no inventory and reaches no host, so the dry-run and second-converge legs stay the
-consumer's ([ADR-0003](docs/adr/0003-the-gate-is-make-check-and-a-second-converge.md)).
+consumer's ([ADR-0003](docs/adr/0003-the-gate-is-static-checks-and-a-second-converge.md)).
 
 - `make check` — formatting, playbook syntax, `ansible-lint` at the production profile, `shellcheck`, collection build.
   The pre-commit hook runs it, so every commit leaves it green.

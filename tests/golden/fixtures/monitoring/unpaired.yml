@@ -1,6 +1,6 @@
 ---
 # A box that has joined the monitoring group but has not been paired yet — the
-# first converge, before the hub exists to mint anything. ADR-0001: hub and
+# first converge, before the hub exists to mint anything. ADR-0015: hub and
 # Dozzle come up, the agent renders NOWHERE, and the converge is green.
 #
 # This is the fixture that fails if the pairing gate ever inverts. A `TOKEN=`
