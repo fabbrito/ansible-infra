@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Assert a release tag matches the version a consumer will actually install.
-#   ./scripts/tag-check.sh v1.0.1     # or $GITHUB_REF_NAME on a tag build
+#   ./scripts/tag-check.sh v1.0.1     # scripts/release.sh calls it per tag
 #
 # The one release invariant only this side can enforce. `ansible-galaxy` records
 # no git ref anywhere in an installed tree, so the sole version a consumer can
@@ -17,7 +17,11 @@
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
-tag=${1-${GITHUB_REF_NAME-}}
+# ansible refuses non-blocking descriptors, and the check runs at import.
+# Fresh pipes through cat are blocking; see AGENTS.md > Agent shell gotchas.
+exec </dev/null > >(cat) 2>&1
+
+tag=${1-}
 if [[ -z $tag ]]; then
 	printf 'usage: %s <tag>\n' "$0" >&2
 	exit 2

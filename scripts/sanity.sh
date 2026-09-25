@@ -2,12 +2,17 @@
 # ansible-test sanity. Run from repo root: ./scripts/sanity.sh
 #
 # Deliberately NOT part of `make check`: check is the pre-commit gate and stays
-# fast, while this builds a venv per Python version on first run. CI runs both.
+# fast, while this builds a venv per Python version on first run. It is a
+# release leg — scripts/release.sh runs it before a tag is cut.
 #
 # No errexit: the staging steps guard themselves, and the one command that
 # matters records its own status.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
+
+# ansible refuses non-blocking descriptors, and the check runs at import.
+# Fresh pipes through cat are blocking; see AGENTS.md > Agent shell gotchas.
+exec </dev/null > >(cat) 2>&1
 
 red() { printf '\033[0;31m%s\033[0m\n' "$*"; }
 green() { printf '\033[0;32m%s\033[0m\n' "$*"; }

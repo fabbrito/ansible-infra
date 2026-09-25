@@ -1,7 +1,7 @@
 # Ansible
 *.retry
 # `make deps` installs here, scripts/lint.sh symlinks this collection in
-# alongside them, and `make build` drops the tarball here too.
+# alongside them, and `make build-check` drops the tarball here too.
 .collections/
 # per-project runtime cache created by ansible-lint / ansible-compat
 .ansible/

@@ -66,6 +66,7 @@ issues: https://github.com/fabbrito/ansible-infra/issues
 build_ignore:
   - .collections
   - .ansible
+  - .tmp
   - .github
   - .githooks
   - .gitignore

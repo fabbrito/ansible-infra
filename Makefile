@@ -6,9 +6,11 @@
 #   make deps        # install the collections the roles depend on
 #   make hooks       # point git at .githooks (once per clone)
 #   make check       # every hook lane over the working changes (the gate)
-#   make sanity      # ansible-test sanity (CI; slow on a cold venv)
-#   make test        # golden render tests (CI)
+#   make sanity      # ansible-test sanity (a release leg; slow on a cold venv)
+#   make test        # golden render tests (a release leg)
 #   make check-codes # sweep for plan labels (manual)
+#   make release     # stamp, gate, commit and tag (VERSION=x.y.z)
+#   make publish     # send the tag up and cut the GitHub release
 
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
@@ -66,10 +68,10 @@ check-codes: ## Sweep for plan labels (manual, not in check)
 fmt: ## Run the same lanes, writing (prettier --write, shfmt -w); never stages
 	.githooks/githooks check --fix
 
-##@ CI checks
+##@ Release legs
 
 # Out of `check` on purpose: the pre-commit hook runs check on every commit, and
-# a first `sanity` run builds a sanity venv per supported Python. CI runs it.
+# a first `sanity` run builds a sanity venv per supported Python.
 .PHONY: sanity
 sanity: ## ansible-test sanity against a staged copy of the working tree
 	./scripts/sanity.sh
@@ -86,13 +88,17 @@ golden-update: ## Accept the current render as the expectation (READ THE DIFF)
 
 ##@ Release
 
-.PHONY: build
-build: ## Build the collection tarball into $(COLLECTIONS_DIR)/
-	ansible-galaxy collection build --force --output-path $(COLLECTIONS_DIR)
+.PHONY: build-check
+build-check: ## Build the collection and inspect what the tarball ships
+	./scripts/build-check.sh
 
-# Out of `check` because it needs a tag to grade and there is none on a branch.
-# CI runs it on every v* tag; run it yourself before tagging to catch the bump
-# you forgot while the fix is still one amend away.
-.PHONY: tag-check
-tag-check: ## Assert TAG matches galaxy.yml's version (make tag-check TAG=v1.0.1)
-	./scripts/tag-check.sh $(TAG)
+# The whole release gate, because there is no CI: lanes, goldens, sanity, the
+# tarball, then the tag against the built MANIFEST. Stamps galaxy.yml, refuses
+# without the CHANGELOG section, and leaves the commit and tag on this machine.
+.PHONY: release
+release: ## Stamp, gate, commit and tag — VERSION=x.y.z [DRY_RUN=1]
+	./scripts/release.sh $(if $(DRY_RUN),--dry-run) $(VERSION)
+
+.PHONY: publish
+publish: ## Send master and the tag up, then the GitHub release [DRY_RUN=1]
+	./scripts/publish.sh $(if $(DRY_RUN),--dry-run)
