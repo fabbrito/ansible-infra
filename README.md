@@ -44,7 +44,21 @@ paths, which is the warning worth not ignoring.
 
 ```yaml
 # playbooks/site.yml, in the consuming repo
-- import_playbook: fabbrito.infra.baseline
+- name: Every host
+  hosts: all
+  become: true
+  roles:
+    - { role: fabbrito.infra.preflight, tags: [preflight] }
+    - { role: fabbrito.infra.os, tags: [os] }
+    - { role: fabbrito.infra.sshd, tags: [sshd] }
+    - { role: fabbrito.infra.firewall, tags: [firewall] }
+    - { role: fabbrito.infra.fail2ban, tags: [fail2ban] }
+
+- name: Backups
+  hosts: backup_hosts
+  become: true
+  roles:
+    - { role: fabbrito.infra.rclone, tags: [rclone] }
 
 - name: Caddy reverse proxy
   hosts: caddy_hosts
@@ -59,8 +73,9 @@ paths, which is the warning worth not ignoring.
     - { role: my_service, tags: [my_service] }
 ```
 
-`baseline` is `hosts: all` and runs `os`, `sshd`, `firewall`, `fail2ban`, `docker` in that order — the order is
-load-bearing, not stylistic. Scope a run with `-l <host>`, never by narrowing the play.
+There is no fixed baseline: the consumer composes the roles each group runs, and every role asserts what it needs from
+the host and its vars. Keep the order `preflight`, `os`, `sshd`, `firewall`, `fail2ban`, then the rest — `firewall`
+reads the ports from the effective sshd config, and `fail2ban` bans through ufw. Scope a run with `-l <host>`.
 
 `bootstrap` and `update` ship too: `fabbrito.infra.bootstrap` creates the unprivileged deploy user on a fresh box (run
 once, as root), `fabbrito.infra.update` does a serial apt upgrade with a reboot when required.
@@ -80,8 +95,8 @@ inventory: zero hosts, a host-pattern warning, and **exit 0** — a green run th
 a forgotten flag cannot fan user-creation and sudoers writes across the whole fleet, but it only protects you if you
 know the flag is there.
 
-`caddy` and `monitoring` are deliberately **not** in the baseline. They are group-scoped: a host runs them iff it is in
-that group, which is one line of inventory rather than a conditional inside a role.
+A role runs on a host iff the consumer's plays put the host in a group that lists it: one line of inventory rather than
+a conditional inside a role.
 
 ## What the consumer must provide
 

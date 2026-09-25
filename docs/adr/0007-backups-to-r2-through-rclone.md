@@ -6,7 +6,7 @@
 ## Context
 
 Service backups need offsite storage. We use **Cloudflare R2** with **bucket-scoped API tokens**, reached through
-**rclone**, which the baseline installs on every host.
+**rclone**, which the `rclone` role installs on every host that lists it.
 
 Bucket-scoped tokens are the least-privilege choice, and they are also the source of every non-obvious setting below. A
 token scoped to one bucket cannot do things rclone assumes it can.

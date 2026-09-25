@@ -54,8 +54,8 @@ rclone_crypt_password: "<obscured-1>"
 rclone_crypt_password2: "<obscured-2>"
 ```
 
-**4. Re-converge the baseline** against every host that takes backups, to render `rclone.conf`. The consuming repo owns
-the invocation.
+**4. Re-converge `rclone`** on every host that takes backups, to render `rclone.conf`. The consuming repo owns the
+invocation.
 
 **5. Prove a round-trip before trusting it.** Take a backup, then confirm the ciphertext is opaque through `r2:` and
 readable through `r2crypt:`:

@@ -39,7 +39,7 @@ that, and the next correction is 1.0.1.
 ### Changed
 
 - `host_kind` (`board` | `vm`) is a new required contract var, asserted by `preflight`.
-- `os` no longer touches sshd; add `sshd` to keep the hardening. `baseline` runs it right after `os`.
+- `os` no longer touches sshd; add `sshd` after it to keep the hardening.
 - `os` no longer upgrades or reboots during a converge: unattended-upgrades is the only upgrader and rebooter, and
   `playbooks/update.yml` is the explicit catch-up.
 - `os` swap is opt-in: `os_swap_enabled` defaults to `false`. Set it on small VMs that relied on the old default.
@@ -49,8 +49,10 @@ that, and the next correction is 1.0.1.
   `sshd_permit_root_login` to override.
 - `ufw` role renamed `firewall`; vars `ufw_*` → `firewall_*`. `os` no longer installs `ufw`, `firewall` does.
 - `rclone` requires its three R2 credentials and fails naming the missing ones, instead of installing without a remote.
-  `baseline` no longer runs it; add it to the plays of hosts that back up. `rclone_deb_sha256` is replaced by
-  `rclone_debs`.
+  Add it to the plays of hosts that back up. `rclone_deb_sha256` is replaced by `rclone_debs`.
+- `playbooks/baseline.yml` is removed: consumers compose the roles per group (README, "Use"). Replace
+  `import_playbook: fabbrito.infra.baseline` with a play listing `preflight`, `os`, `sshd`, `firewall`, `fail2ban`, and
+  `docker`/`rclone` where the host needs them.
 
 ### Upgrading from 1.x
 

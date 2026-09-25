@@ -47,10 +47,11 @@ _Avoid_: emergency access, recovery mode
 **Converged end state**: A host that is correct and finished — including one that skipped work whose secret was absent.
 Skipped is not degraded. _Avoid_: partial, degraded
 
-**Baseline**: The ordered set of roles every host gets. The order is load-bearing, not stylistic.
+**Composition**: The roles a consumer's plays list for each group, in order. The collection ships no fixed set; the
+order is load-bearing, not stylistic. _Avoid_: baseline
 
-**Group-scoped role**: A role deliberately outside the baseline, which a host runs iff its inventory puts it in that
-group. One line of inventory instead of a conditional inside a role. _Avoid_: optional role, conditional role
+**Group-scoped role**: A role a host runs iff its inventory puts it in a group whose play lists it. One line of
+inventory instead of a conditional inside a role. _Avoid_: optional role, conditional role
 
 **Load-bearing**: Of an order, a field name, a default: change it and something breaks silently, elsewhere. Marks the
 places where "it reads better this way" is a bug report. _Avoid_: important, critical
@@ -130,8 +131,8 @@ scrubbing
 
 ## Backups
 
-**Remote**: A named rclone destination. The baseline installs rclone on every host and renders the remote only where the
-R2 credentials exist. Renaming it is a breaking change consumers' backup roles feel, because they address it by name.
+**Remote**: A named rclone destination, rendered by `rclone` on every host that lists it; its R2 credentials are
+required. Renaming it is a breaking change consumers' backup roles feel, because they address it by name.
 
 **Crypt wrapper**: The optional encryption layer over the backups remote, which services opt into by pointing at it
 instead. Lose its passwords and the backups are unrecoverable — no escrow, no support ticket. _Avoid_: encrypted remote

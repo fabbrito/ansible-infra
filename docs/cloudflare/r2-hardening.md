@@ -63,7 +63,7 @@ rclone_r2_secret_access_key: "<secret>"
 rclone_r2_endpoint: "https://<account_id>.r2.cloudflarestorage.com"
 ```
 
-Then re-converge the baseline against those hosts to re-render `rclone.conf` (the consuming repo owns the invocation).
+Then re-converge `rclone` on those hosts to re-render `rclone.conf` (the consuming repo owns the invocation).
 
 The bucket-scoped token is also what forces the two settings in `roles/rclone` that look like mistakes — no
 `acl = private`, and `no_check_bucket = true`. Both are 403s waiting to happen otherwise;
@@ -97,8 +97,8 @@ have no ransomware protection.
 
 ## 4. Ops
 
-- **Rotate a token** — create the new one, swap it into the vault, re-converge the baseline against every host that
-  shares it, then revoke the old one.
+- **Rotate a token** — create the new one, swap it into the vault, re-converge `rclone` on every host that shares it,
+  then revoke the old one.
 - **Decommission a host** — if others still share the bucket, nothing changes but the host's access; re-converge the
   rest after rotating.
 - **Decommission a project** — revoke the token, remove the lock rule (or wait out the retention), then empty and delete
