@@ -1,53 +1,55 @@
 ---
+# Installed, never removed. unattended-upgrades is installed regardless.
 os_apt_packages:
+  - apt-listchanges
   - ca-certificates
   - curl
   - gnupg
+  - jq
   - python3
   - python3-pip
-  - python3-debian # required by ansible.builtin.deb822_repository (docker/caddy roles)
+  - python3-debian # ansible.builtin.deb822_repository (docker, caddy)
   - sqlite3
   - ufw
-  - unattended-upgrades
-  - apt-listchanges
-  # fail2ban is NOT here — the fail2ban role owns its package and its config.
 
-# Name the box in a zone YOU own — never a client's, never the provider's. A
-# service's public origin often lives in DNS you neither control nor can trust
-# from the inside; box name and service origin are separate concerns. Set this
-# fleet-wide in group_vars/all, and the box becomes <inventory key>.<domain>.
+# Boards only: reach the board as <hostname>.local.
+os_board_packages:
+  - avahi-daemon
+
+# Name the box in a zone YOU own — never a client's or the provider's. Set
+# fleet-wide, and the box becomes <inventory key>.<domain>.
 os_hostname_domain: ""
 
-# Overrides the derivation above when the inventory key is not the name you want
-# on the box. Set one or the other, not both.
-#
-# Both empty means the role does not name the box AT ALL — it leaves whatever the
-# provider set. That is the skip, and it is deliberate: deriving a name from the
-# inventory key alone would RENAME a host already carrying an FQDN, on an
-# otherwise green converge, for a consumer who never asked for a name.
+# Per-host override of that derivation. Both empty: the box is not renamed,
+# which keeps an FQDN the provider already set.
 os_hostname: ""
 
-# Swap — minimum 1G, set higher per host_vars when needed.
-os_swap_enabled: true
+# Opt-in swapfile. Worth it on a small VM, where apt can OOM without it; not on
+# a board, where it wears the card.
+os_swap_enabled: false
 os_swap_file: /swapfile
 os_swap_size: 1G
-os_swap_swappiness: 10 # 10 = prefer RAM, only swap under pressure
+os_swap_swappiness: 10
 os_swap_vfs_cache_pressure: 50
 
-# Timezone — IANA name. Also the clock os_unattended_reboot_time is read in, so
-# the two are one decision. This default is one region's; set it fleet-wide.
+# IANA name. os_unattended_reboot_time is read in this zone. This default is one
+# region's; set it fleet-wide.
 os_timezone: America/Sao_Paulo
 
-# playbooks/update.yml overrides this to 0 to force a refresh before the
-# dist-upgrade; 3600 skips an apt-update on re-runs within the hour.
+# 3600 skips an apt-update on re-runs within the hour.
 os_apt_cache_valid_time: 3600
 
-# Auto-reboot stays ON so an overnight security kernel takes effect, but the
-# MINUTE is derived per host: a fleet must never reboot at once, and that holds
-# here as much as in update.yml (which gets it from serial: 1). Seeding on
-# inventory_hostname keeps the render stable run-to-run (no
-# changed-every-converge). 60 slots inside one hour is spread, not uniqueness —
-# widen past ~10 hosts. The hour is LOCAL time (os_timezone) and assumed
-# off-peak; move it if your traffic is not.
+# unattended-upgrades is the only upgrader and rebooter; playbooks/update.yml is
+# the explicit catch-up. Extra Origins-Pattern entries for repos beyond the
+# distribution's own, e.g. "origin=Armbian,codename=${distro_codename}".
+os_unattended_origins: []
+
+# Local time for a reboot an upgrade requires. The minute is seeded per host so
+# a fleet never reboots at once and the render stays stable; 60 slots is
+# spread, not uniqueness. Asserted HH:MM.
 os_unattended_reboot_hour: "03"
 os_unattended_reboot_time: "{{ os_unattended_reboot_hour }}:{{ '%02d' | format(59 | random(seed=inventory_hostname)) }}"
+
+# NTP servers for systemd-timesyncd. Empty removes ours and the image default
+# stands. Skipped where timesyncd is absent.
+os_ntp_servers: []

@@ -36,9 +36,8 @@ restricted to the Ubuntu security origins, and Caddy's repo is not one of them.
   build. That is a deliberate migration, not a tweak. [ADR-0006](0006-http-01-forced-and-the-ca-unpinned.md) is what
   keeps us from ever needing one.
 - **Never run `caddy upgrade` on these hosts.** It self-replaces the binary in place, and the next operator-run
-  dist-upgrade (`playbooks/update.yml`, via the `os` role) clobbers it. `unattended-upgrades` will _not_ — it allows
-  only the Ubuntu security origins — and that delay is exactly what makes the clobber a surprise. Caddy upgrades ride
-  apt.
+  dist-upgrade (`playbooks/update.yml`) clobbers it. `unattended-upgrades` will _not_ — it allows only the Ubuntu
+  security origins — and that delay is exactly what makes the clobber a surprise. Caddy upgrades ride apt.
 - **There are two log streams, and the one that matters is not on disk.** Caddy's `log` directive configures _only_ a
   site's HTTP access log; the role writes those per-vhost under `/var/log/caddy`. Everything else — including **all TLS
   and ACME certificate management** — goes to Caddy's `default` logger, which writes to stderr, which systemd captures.

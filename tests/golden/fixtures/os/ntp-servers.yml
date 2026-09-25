@@ -1,0 +1,4 @@
+---
+# NTP servers set: the drop-in renders, clearing earlier files' servers first.
+host_kind: vm
+os_ntp_servers: [ntp.example.org, 192.0.2.123]

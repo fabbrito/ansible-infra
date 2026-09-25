@@ -1,9 +1,17 @@
 ---
-# --- Hostname: name the box <inventory key>.<domain> (FQDN) ---
-# Opt-in, and the whole block is skipped when neither var is set: naming the box
-# after the inventory key alone would RENAME a host that already carries an
-# FQDN, on a converge that reports green. Order-independent otherwise — nothing
-# else in the baseline reads the live hostname.
+- name: Assert the os inputs
+  ansible.builtin.assert:
+    that:
+      - host_kind | default('') in ['board', 'vm']
+      - os_unattended_reboot_time is match('^([01][0-9]|2[0-3]):[0-5][0-9]$')
+    fail_msg: >-
+      host_kind is "{{ host_kind | default('') }}" (needs board or vm; the
+      preflight role checks it against the host), and os_unattended_reboot_time
+      is "{{ os_unattended_reboot_time }}" (needs HH:MM).
+    quiet: true
+
+# Opt-in: naming the box after the inventory key alone would rename a host that
+# already carries an FQDN.
 - name: Name the box
   when: os_hostname | length > 0 or os_hostname_domain | length > 0
   tags: [hostname]
@@ -18,12 +26,9 @@
       ansible.builtin.hostname:
         name: "{{ os_hostname_target }}"
 
-    # The hostname module does NOT touch /etc/hosts. The live hostname must map
-    # to a loopback IP here or `sudo` warns "unable to resolve host" (glibc
-    # reads /etc/hosts before DNS). The regexp is anchored to the resolved name,
-    # so this adds a line and never rewrites the 127.0.1.1 entry the cloud image
-    # already ships — that one usually resolves in the provider's public DNS and
-    # is worth keeping.
+    # The hostname module leaves /etc/hosts alone, and sudo warns "unable to
+    # resolve host" without a loopback entry. Anchored to the name, so the
+    # image's own 127.0.1.1 line is kept.
     - name: Add the FQDN to /etc/hosts on 127.0.1.1
       ansible.builtin.lineinfile:
         path: /etc/hosts
@@ -32,162 +37,185 @@
         line: "127.0.1.1 {{ os_hostname_target }} {{ inventory_hostname }}"
         state: present
 
-# --- Swap FIRST (>= 1G; tiny VPS without it OOMs during the apt run that follows) ---
-- name: Stat swapfile
-  ansible.builtin.stat:
-    path: "{{ os_swap_file }}"
-  register: os_swap_stat
-  when: os_swap_enabled
+# Swap before apt: a small VM OOMs in the install below without it.
+- name: Swap
+  when: os_swap_enabled | bool
   tags: [swap]
+  block:
+    - name: Stat swapfile
+      ansible.builtin.stat:
+        path: "{{ os_swap_file }}"
+      register: os_swap_stat
 
-# Gate Format + Enable on active-in-/proc/swaps, not file existence: a run that
-# allocated the file but died before mkswap leaves it on disk, and existence
-# gating would then skip Format/Enable until someone deletes it by hand.
-- name: Check if swapfile is active in /proc/swaps
-  ansible.builtin.command: "grep -q '^{{ os_swap_file }} ' /proc/swaps"
-  register: os_swap_active
-  changed_when: false
-  failed_when: false
-  check_mode: false
-  when: os_swap_enabled
-  tags: [swap]
+    # Gated on /proc/swaps, not the file: a run that died after fallocate leaves
+    # the file, and existence gating would never format it.
+    - name: Check if swapfile is active in /proc/swaps
+      ansible.builtin.command: "grep -q '^{{ os_swap_file }} ' /proc/swaps"
+      register: os_swap_active
+      changed_when: false
+      failed_when: false
+      check_mode: false
 
-- name: Allocate swapfile
-  ansible.builtin.command: "fallocate -l {{ os_swap_size }} {{ os_swap_file }}"
-  args:
-    creates: "{{ os_swap_file }}"
-  when: os_swap_enabled
-  tags: [swap]
+    - name: Allocate swapfile
+      ansible.builtin.command: "fallocate -l {{ os_swap_size }} {{ os_swap_file }}"
+      args:
+        creates: "{{ os_swap_file }}"
 
-- name: Secure swapfile permissions
-  ansible.builtin.file:
-    path: "{{ os_swap_file }}"
-    owner: root
-    group: root
-    mode: "0600"
-  when:
-    - os_swap_enabled
-    - os_swap_stat.stat.exists or not ansible_check_mode
-  tags: [swap]
+    - name: Secure swapfile permissions
+      ansible.builtin.file:
+        path: "{{ os_swap_file }}"
+        owner: root
+        group: root
+        mode: "0600"
+      when: os_swap_stat.stat.exists or not ansible_check_mode
 
-- name: Format swapfile
-  ansible.builtin.command: "mkswap {{ os_swap_file }}"
-  when:
-    - os_swap_enabled
-    - os_swap_active.rc | default(1) != 0
-  changed_when: true
-  tags: [swap]
+    - name: Format swapfile
+      ansible.builtin.command: "mkswap {{ os_swap_file }}"
+      when: os_swap_active.rc != 0
+      changed_when: true
 
-- name: Enable swap (runtime)
-  ansible.builtin.command: "swapon {{ os_swap_file }}"
-  when:
-    - os_swap_enabled
-    - os_swap_active.rc | default(1) != 0
-  changed_when: true
-  tags: [swap]
+    - name: Enable swap (runtime)
+      ansible.builtin.command: "swapon {{ os_swap_file }}"
+      when: os_swap_active.rc != 0
+      changed_when: true
 
-- name: Persist swap in /etc/fstab
-  ansible.posix.mount:
-    path: none
-    src: "{{ os_swap_file }}"
-    fstype: swap
-    opts: sw
-    state: present
-  when:
-    - os_swap_enabled
-    - os_swap_stat.stat.exists or not ansible_check_mode
-  tags: [swap]
+    - name: Persist swap in /etc/fstab
+      ansible.posix.mount:
+        path: none
+        src: "{{ os_swap_file }}"
+        fstype: swap
+        opts: sw
+        state: present
+      when: os_swap_stat.stat.exists or not ansible_check_mode
 
-- name: Tune vm.swappiness
-  ansible.posix.sysctl:
-    name: vm.swappiness
-    value: "{{ os_swap_swappiness }}"
-    state: present
-    sysctl_set: true
-    reload: true
-  when:
-    - os_swap_enabled
-    - os_swap_stat.stat.exists or not ansible_check_mode
-  tags: [swap]
+    - name: Tune swap sysctls
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        sysctl_set: true
+        reload: true
+      loop:
+        - { name: vm.swappiness, value: "{{ os_swap_swappiness }}" }
+        - { name: vm.vfs_cache_pressure, value: "{{ os_swap_vfs_cache_pressure }}" }
+      when: os_swap_stat.stat.exists or not ansible_check_mode
 
-- name: Tune vm.vfs_cache_pressure
-  ansible.posix.sysctl:
-    name: vm.vfs_cache_pressure
-    value: "{{ os_swap_vfs_cache_pressure }}"
-    state: present
-    sysctl_set: true
-    reload: true
-  when:
-    - os_swap_enabled
-    - os_swap_stat.stat.exists or not ansible_check_mode
-  tags: [swap]
-
-# --- Full apt upgrade FIRST so the base layer lands on a current system ---
-# Otherwise Docker/Caddy land beside deps superseded minutes later. Costs 2-5
-# min on a fresh image.
-- name: Apt update + dist-upgrade + autoremove
+# No upgrade here: unattended-upgrades owns upgrades and reboots, and
+# playbooks/update.yml is the explicit catch-up.
+- name: Install base packages
   ansible.builtin.apt:
+    name: >-
+      {{ os_apt_packages + ['unattended-upgrades']
+         + (os_board_packages if host_kind == 'board' else []) }}
+    state: present
     update_cache: true
-    upgrade: dist
-    autoremove: true
-    autoclean: true
     cache_valid_time: "{{ os_apt_cache_valid_time }}"
-  tags: [apt-upgrade]
-
-- name: Check if reboot is required (kernel/libc updates)
-  ansible.builtin.stat:
-    path: /var/run/reboot-required
-  register: os_reboot_required
-  tags: [apt-upgrade]
-
-- name: Reboot if needed
-  ansible.builtin.reboot:
-    msg: "Reboot triggered by bootstrap apt-upgrade"
-    connect_timeout: 5
-    reboot_timeout: 600
-    pre_reboot_delay: 5
-    post_reboot_delay: 30
-    test_command: uptime
-  when: os_reboot_required.stat.exists
-  tags: [apt-upgrade]
-
-# --- Apt base packages (relies on swap headroom on tiny VPS) ---
-- name: Apt base packages
-  ansible.builtin.apt:
-    name: "{{ os_apt_packages }}"
-    state: present
-    update_cache: false # already refreshed above
   tags: [apt]
 
-# --- Timezone ---
+# Separate tasks: apt ignores autoclean when packages are named.
+- name: Remove unneeded packages
+  ansible.builtin.apt:
+    autoremove: true
+  tags: [apt]
+
+- name: Clean obsolete package files
+  ansible.builtin.apt:
+    autoclean: true
+  tags: [apt]
+
 - name: Set system timezone
   community.general.timezone:
     name: "{{ os_timezone }}"
   tags: [timezone]
 
-# --- Unattended security upgrades (config-only — needs unattended-upgrades from apt step) ---
-- name: Enable unattended-upgrades (apt periodic)
-  ansible.builtin.copy:
-    dest: /etc/apt/apt.conf.d/20auto-upgrades
+# Validated: a syntax error in apt.conf.d breaks every apt run, unattended ones
+# included.
+- name: Configure unattended upgrades
+  ansible.builtin.template:
+    src: 52infra-unattended-upgrades.j2
+    dest: /etc/apt/apt.conf.d/52infra-unattended-upgrades
+    owner: root
+    group: root
     mode: "0644"
-    content: |
-      APT::Periodic::Update-Package-Lists "1";
-      APT::Periodic::Unattended-Upgrade "1";
-      APT::Periodic::AutocleanInterval "7";
+    validate: /usr/bin/apt-config -c %s dump
   tags: [upgrades]
 
-- name: Configure unattended-upgrades policy
-  ansible.builtin.copy:
-    dest: /etc/apt/apt.conf.d/50unattended-upgrades
-    mode: "0644"
-    content: |
-      Unattended-Upgrade::Allowed-Origins {
-          "${distro_id}:${distro_codename}-security";
-          "${distro_id}ESMApps:${distro_codename}-apps-security";
-          "${distro_id}ESM:${distro_codename}-infra-security";
-      };
-      Unattended-Upgrade::Automatic-Reboot "true";
-      Unattended-Upgrade::Automatic-Reboot-Time "{{ os_unattended_reboot_time }}";
-      Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
-      Unattended-Upgrade::Remove-Unused-Dependencies "true";
-  tags: [upgrades]
+- name: Stat systemd-timesyncd
+  ansible.builtin.stat:
+    path: /usr/lib/systemd/system/systemd-timesyncd.service
+  register: os_timesyncd_stat
+  tags: [ntp]
+
+- name: Configure NTP servers
+  when: os_timesyncd_stat.stat.exists
+  tags: [ntp]
+  block:
+    # Read before any change: the handler restarts timesyncd only if it runs.
+    - name: Read whether timesyncd is running
+      ansible.builtin.command:
+        argv: [systemctl, is-active, --quiet, systemd-timesyncd]
+      register: os_timesyncd_status
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Ensure the timesyncd drop-in directory
+      ansible.builtin.file:
+        path: /etc/systemd/timesyncd.conf.d
+        state: directory
+        mode: "0755"
+      when: os_ntp_servers | length > 0
+
+    - name: Render the NTP servers
+      ansible.builtin.template:
+        src: 99-infra-ntp.conf.j2
+        dest: /etc/systemd/timesyncd.conf.d/99-infra-ntp.conf
+        owner: root
+        group: root
+        mode: "0644"
+      when: os_ntp_servers | length > 0
+      notify: Restart timesyncd
+
+    - name: Remove the NTP servers
+      ansible.builtin.file:
+        path: /etc/systemd/timesyncd.conf.d/99-infra-ntp.conf
+        state: absent
+      when: os_ntp_servers | length == 0
+      notify: Restart timesyncd
+
+- name: Apply the timesyncd restart now
+  ansible.builtin.meta: flush_handlers
+
+# Postconditions, read back from the host. Labeled lines: a probe that prints
+# nothing must not shift the others. Skipped in --check, where nothing landed.
+- name: Read the effective os state
+  ansible.builtin.shell: |
+    echo "swap=$(grep -c '^{{ os_swap_file }} ' /proc/swaps)"
+    echo "timezone=$(timedatectl show --property=Timezone --value)"
+    echo "reboot=$(apt-config dump Unattended-Upgrade::Automatic-Reboot-Time)"
+    echo "ntp=$(timedatectl show-timesync --property=SystemNTPServers --value)"
+  args:
+    executable: /bin/bash
+  register: os_effective_raw
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Assert the effective os state
+  ansible.builtin.assert:
+    that:
+      - not os_swap_enabled | bool or os_effective.swap | int > 0
+      - os_effective.timezone == os_timezone
+      - os_unattended_reboot_time in os_effective.reboot
+      - >-
+        os_ntp_servers | length == 0 or os_timesyncd_status.rc | default(1) != 0
+        or os_effective.ntp == os_ntp_servers | join(' ')
+    fail_msg: >-
+      Read back from the host: {{ os_effective }}. Wanted swap
+      {{ os_swap_enabled | bool }}, timezone {{ os_timezone }}, reboot
+      {{ os_unattended_reboot_time }}, NTP "{{ os_ntp_servers | join(' ') }}".
+      A later apt.conf.d or timesyncd drop-in overrides ours.
+    quiet: true
+  vars:
+    os_effective: "{{ dict(os_effective_raw.stdout_lines | map('split', '=', 1)) }}"
+  when: not ansible_check_mode

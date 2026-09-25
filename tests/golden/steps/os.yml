@@ -1,0 +1,14 @@
+---
+# What roles/os/tasks/main.yml renders.
+- name: Render the unattended-upgrades config
+  ansible.builtin.template:
+    src: "{{ golden_repo }}/roles/os/templates/52infra-unattended-upgrades.j2"
+    dest: "{{ golden_case_out }}/52infra-unattended-upgrades"
+    mode: "0644"
+
+- name: Render the NTP drop-in
+  ansible.builtin.template:
+    src: "{{ golden_repo }}/roles/os/templates/99-infra-ntp.conf.j2"
+    dest: "{{ golden_case_out }}/99-infra-ntp.conf"
+    mode: "0644"
+  when: os_ntp_servers | length > 0

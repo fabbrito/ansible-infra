@@ -13,6 +13,8 @@ that, and the next correction is 1.0.1.
 - `preflight`: read-only checks before any role changes the host — platform floor per distribution, ARMv6 refused, no
   root login, OpenSSH present, cloud-init finished, minimized image reported. Board-only: device tree present, hostname
   matches the inventory, break-glass warning.
+- `os`: `jq` installed; `avahi-daemon` on boards; NTP servers via `os_ntp_servers`; extra unattended-upgrades origins
+  via `os_unattended_origins`. Asserts its inputs and reads back swap, timezone, reboot time and NTP servers.
 - `sshd`: the hardening drop-in, moved out of `os`. The merged config is validated before the reload, and the effective
   config is asserted, so an earlier drop-in that overrides ours fails the converge.
 
@@ -20,6 +22,11 @@ that, and the next correction is 1.0.1.
 
 - `host_kind` (`board` | `vm`) is a new required contract var, asserted by `preflight`.
 - `os` no longer touches sshd; add `sshd` to keep the hardening. `baseline` runs it right after `os`.
+- `os` no longer upgrades or reboots during a converge: unattended-upgrades is the only upgrader and rebooter, and
+  `playbooks/update.yml` is the explicit catch-up.
+- `os` swap is opt-in: `os_swap_enabled` defaults to `false`. Set it on small VMs that relied on the old default.
+- `os` writes its unattended-upgrades settings to a `52infra-unattended-upgrades` drop-in, no longer overwriting
+  `20auto-upgrades` and `50unattended-upgrades`. Timers run daily on a VM and weekly on a board.
 - `sshd` on a board refuses root login (`PermitRootLogin no`); a VM keeps key-only root as break-glass. Set
   `sshd_permit_root_login` to override.
 
