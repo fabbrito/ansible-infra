@@ -1,0 +1,5 @@
+---
+# A host whose wired interface is not eth0: the name reaches id and
+# interface-name, and it decides the file the task writes.
+network_address: 198.51.100.11/24
+network_interface: enp1s0

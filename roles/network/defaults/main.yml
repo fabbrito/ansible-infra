@@ -1,0 +1,5 @@
+---
+# The wired interface the fixed address lands on. Asserted present.
+network_interface: eth0
+
+# network_address is a contract var (README): the fixed address, asserted CIDR.

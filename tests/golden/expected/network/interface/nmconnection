@@ -1,0 +1,17 @@
+# Rendered by Ansible — do not edit on host.
+# Source: fabbrito.infra collection — roles/network/templates/nmconnection.j2
+[connection]
+id=enp1s0
+type=ethernet
+interface-name=enp1s0
+
+# DHCP stays: a wrong fixed address cannot cut the host off.
+[ipv4]
+method=auto
+address1=198.51.100.11/24
+
+[ipv6]
+method=auto
+# The image's mode. Unset, a keyfile falls back to EUI-64: the MAC in every
+# global address.
+addr-gen-mode=stable-privacy

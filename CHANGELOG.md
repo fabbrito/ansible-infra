@@ -26,6 +26,9 @@ that, and the next correction is 1.0.1.
   mode 0600.
 - `journal` and `playbooks/journal.yml`: the journal bind-mounted onto a storage volume at `storage_path`, a new
   contract var. Asserts the volume mounted, and reads back the bind from the same device.
+- `network` and `playbooks/network.yml`: a board's fixed LAN address beside DHCP, through a NetworkManager keyfile.
+  `network_address` is a new contract var. Refuses a vm, and a board without NetworkManager or the interface; reads back
+  the address.
 
 ### Changed
 
