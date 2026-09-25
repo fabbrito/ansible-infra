@@ -24,6 +24,8 @@ that, and the next correction is 1.0.1.
 - `rclone`: amd64, arm64 and armhf from a per-arch pinned `.deb` table (`rclone_debs`), bumped to v1.75.1.
   `rclone_crypt_target` moves the `r2crypt` wrapper off `r2:backups`. Reads back the installed version and `rclone.conf`
   mode 0600.
+- `journal` and `playbooks/journal.yml`: the journal bind-mounted onto a storage volume at `storage_path`, a new
+  contract var. Asserts the volume mounted, and reads back the bind from the same device.
 
 ### Changed
 

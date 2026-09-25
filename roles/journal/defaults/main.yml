@@ -1,0 +1,9 @@
+---
+# journald always persists to /var/log/journal, so moving it onto the storage
+# volume is a bind mount, not a config line.
+#
+# storage_path is a contract var (README): the volume's mount path, asserted
+# absolute and mounted.
+#
+# The directory under storage_path, relative.
+journal_dir: journal

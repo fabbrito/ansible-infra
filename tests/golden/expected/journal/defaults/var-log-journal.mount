@@ -1,0 +1,16 @@
+# Rendered by Ansible — do not edit on host.
+# Source: fabbrito.infra collection — roles/journal/templates/var-log-journal.mount.j2
+[Unit]
+Description=Journal on the storage volume
+# The volume first: absent, the mount fails and journald stays in
+# /run, rather than writing to the root disk.
+RequiresMountsFor=/srv/data
+
+[Mount]
+What=/srv/data/journal
+Where=/var/log/journal
+Type=none
+Options=bind
+
+[Install]
+WantedBy=local-fs.target
