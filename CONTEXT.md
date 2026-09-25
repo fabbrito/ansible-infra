@@ -8,8 +8,8 @@ entry says so.
 
 ## The two repos
 
-**Layer**: This collection — the part of a host that every box needs and no box is interesting for. It owns roles and
-playbooks, never an inventory, a vault, or a host. _Avoid_: framework, platform
+**Layer**: This collection — the parts of a host no host is interesting for, as roles a consumer composes. It owns roles
+and playbooks, never an inventory, a vault, or a host. _Avoid_: framework, platform
 
 **Consumer**: The repo that installs this layer and holds what it deliberately does not: inventory, secrets, service
 roles, and the converge itself. There is more than one, and none of them may be named here. _Avoid_ as a name for this
@@ -27,25 +27,47 @@ _Avoid_: version, dependency
 **Fleet**: The set of hosts one consumer converges. This layer never sees one; it makes promises that hold across all of
 them.
 
-**Host**: A long-lived Ubuntu VPS, reachable only over the network — there is no console we control. _Avoid_: server,
-machine, instance
+**Host**: A long-lived Debian-family machine, x86 or ARM, that a consumer converges: a cloud VM or a board. Its
+`host_kind` says which. _Avoid_: server, machine, instance, device, node
+
+**VM**: A host with `host_kind: vm` — a cloud or hypervisor instance, reached over the network through a provider that
+injects its first key. There is no console we control.
+
+**Board**: A host with `host_kind: board` — a single-board computer (the reference is a Raspberry Pi on Raspberry Pi
+OS), plus the card it boots from and any storage volume attached. Board-only checks and roles key on it.
+
+**Arch**: The **userland** architecture, as `dpkg --print-architecture` reports it — `amd64`, `arm64` or `armhf`. Not
+the kernel's: a 64-bit kernel with a 32-bit userland reports `arm64` there and `armhf` here, and only the latter is what
+packages install for. _Avoid_: platform, `uname -m`
 
 **Operator**: The human running a converge and reading its output at 3am. Usually someone we have never met. _Avoid_:
 user, admin
 
-**Deploy user**: The unprivileged account Ansible connects as and services run under. Created by `bootstrap`, never
-defaulted.
+**Deploy user**: The unprivileged account Ansible connects as and services run under. Created by `bootstrap` or `seed`,
+never defaulted.
 
-**Break-glass**: The root-over-provider-key path that stays open as the last way back into a misconfigured host.
-_Avoid_: emergency access, recovery mode
+**Seed**: The cloud-init `user-data` (and, on a board, `meta-data`) that creates the deploy user on first boot. This
+layer renders it from the consumer's inventory; the consumer hands it to the provider or writes it to the card. _Avoid_:
+preseed, firstrun, provisioning
+
+**Break-glass**: The last way back into a misconfigured host. On a VM, the provider's default user or root over the
+provider's key; on a board, the seed on the card — edit it, bump its generation, boot. _Avoid_: emergency access,
+recovery mode
+
+**Storage volume**: A disk mounted at a fixed path (`storage_path`) by filesystem UUID, prepared by hand
+(`docs/storage/`). The collection neither formats nor mounts one. _Avoid_: disk, drive, mount
+
+**Tailnet**: The private network Tailscale joins a host to. Additive: the host's own SSH path stays reachable, so the
+tailnet is never the only door. _Avoid_: VPN, overlay
 
 ## Converging
 
 **Converge**: One run of a play against a host, driving it to its declared end state. _Avoid_: deploy, provision
 (deploying a service is the consumer's word for its own roles)
 
-**Converged end state**: A host that is correct and finished — including one that skipped work whose secret was absent.
-Skipped is not degraded. _Avoid_: partial, degraded
+**Converged end state**: A host that is correct and finished — every role its plays list has run, and each read its
+postconditions back from the host. An optional feature left off because its secret is unset is finished, not degraded.
+_Avoid_: partial, degraded
 
 **Composition**: The roles a consumer's plays list for each group, in order. The collection ships no fixed set; the
 order is load-bearing, not stylistic. _Avoid_: baseline
@@ -63,7 +85,12 @@ time, not recovered from. _Avoid_: outage, bricking
 ## The gate
 
 **Gate**: The three checks that stand between a change and a converged fleet, in increasing order of truthfulness. Only
-the first runs here. _Avoid_: test suite, CI (there is no suite; naming one oversells it)
+the first runs here, in two tiers: the lanes on every commit, the release legs once per tag. _Avoid_: test suite, CI
+(there is no suite; naming one oversells it)
+
+**Lane**: One group of checks in `.githooks/hooks.conf`, matched to the file kinds it grades and run by the vendored
+hook engine. A file no lane matches is never checked, so a new kind of file means a new lane. _Avoid_: hook, step (the
+hook is the engine that runs the lanes)
 
 **Dry-run**: A check-mode converge against a real host, read for its diff. Not proof, because check mode lies where a
 prerequisite was never really installed — but an unexpected diff is always real. _Avoid_: simulation, preview
@@ -74,20 +101,24 @@ real test that exists here.
 **Changed-every-run**: A task that reports changed on every converge. A bug even when the host ends up correct, because
 real drift then hides in the noise. _Avoid_: noisy, non-idempotent
 
-**Precondition**: An invariant a role depends on that the variable schema cannot make unrepresentable, and that fails
-silently if unguarded. Roles assert these and nothing else — never that a package installed. _Avoid_: check, outcome
-(ADR-0010 uses "validate" for the act; the noun for the thing asserted is precondition)
+**Precondition**: What a role needs before it changes anything — consumer vars and host state, read from the host, never
+from a "role ran" marker. Asserted, and the failure names the var to set or the role to add (ADR-0014). _Avoid_: check
+
+**Postcondition**: The state a role promises, read back from the host after it acts by a cheap, read-only probe:
+effective config, a listening port, a running service. Asserted; skipped in check mode, where nothing landed. _Avoid_:
+verification, smoke test
 
 ## Secrets and absence
 
-**Absent-secret skip**: The default behaviour: a role missing its secret does less, quietly, and still converges. It is
-what lets a host join a fleet before its secrets exist. _Avoid_: graceful degradation, fallback
+**Declared role**: A role a consumer's play lists for a host. Listing it is the choice, so its own secret is a
+precondition: absent, the role asserts and names the key (ADR-0015). _Avoid_: enabled role
 
-**Assert instead of skip**: The exception, taken where absence leaves nothing to do or leaves the host unsafe. A role
-choosing it says why, in place.
+**Keyed feature**: An optional part of a role that runs iff its secret is set — a registry login, a crypt wrapper, an
+agent pairing. Absent, the role does less and still converges; the key's comment in `defaults/main.yml` says so.
+_Avoid_: graceful degradation, fallback
 
-**Silent skip**: The cost of the rule — a misspelled secret key is indistinguishable from an absent one, and a skipped
-task you expected to run is the only signal.
+**Silent skip**: The cost of a keyed feature — a misspelled key is indistinguishable from an absent one, and a feature
+you expected to see is the only signal.
 
 ## The edge
 
