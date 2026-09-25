@@ -1,0 +1,13 @@
+---
+# The journal on a storage volume. Needs `storage_path` (README): import it for
+# the hosts that carry one.
+#
+#   - import_playbook: fabbrito.infra.journal
+#
+# Scope a run with -l.
+- name: Journal
+  hosts: all
+  become: true
+  gather_facts: false
+  roles:
+    - fabbrito.infra.journal

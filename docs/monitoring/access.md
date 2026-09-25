@@ -29,8 +29,8 @@ Then, in a browser on your machine:
 
 The hub and Dozzle need no secret, so they start on the first converge. The agent does **not**: it needs a key and token
 that only the running hub can mint, so it stays down until you pair it. This is the
-[ADR-0001](../adr/0001-secrets-in-vault-and-an-absent-secret-skips.md) pattern — a box joins the group and monitors
-nothing until its secrets exist, rather than failing the play.
+[ADR-0015](../adr/0015-a-declared-role-asserts-its-secrets.md) pattern — a box joins the group and monitors nothing
+until its secrets exist, rather than failing the play.
 
 `monitoring_admin_email` and `monitoring_admin_password` are the exception: both are **asserted**, so the role refuses
 to converge without them. An admin-less hub starts, serves, and never creates a first user, which is not a converged end

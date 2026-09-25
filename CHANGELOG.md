@@ -6,6 +6,67 @@ consumers pin the tag, so a change that is not released is a change nobody gets.
 A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
 that, and the next correction is 1.0.1.
 
+## Unreleased
+
+### Added
+
+- `preflight`: read-only checks before any role changes the host — platform floor per distribution, ARMv6 refused, no
+  root login, OpenSSH present, cloud-init finished, minimized image reported. Board-only: device tree present, hostname
+  matches the inventory, break-glass warning.
+- `os`: `jq` installed; `avahi-daemon` on boards; NTP servers via `os_ntp_servers`; extra unattended-upgrades origins
+  via `os_unattended_origins`. Asserts its inputs and reads back swap, timezone, reboot time and NTP servers.
+- `sshd`: the hardening drop-in, moved out of `os`. The merged config is validated before the reload, and the effective
+  config is asserted, so an earlier drop-in that overrides ours fails the converge.
+- `firewall`: refuses a host with `netfilter-persistent`. Rate-limits the ports the effective sshd config listens on,
+  not a fixed 22. Reads back ufw active, deny-default and the limits.
+- `fail2ban`: refuses to run with ufw inactive, since it bans through ufw. Reads back the `sshd` and `recidive` jails as
+  loaded, which a service reporting active does not prove.
+- `rclone`: amd64, arm64 and armhf from a per-arch pinned `.deb` table (`rclone_debs`), bumped to v1.75.1.
+  `rclone_crypt_target` moves the `r2crypt` wrapper off `r2:backups`. Reads back the installed version and `rclone.conf`
+  mode 0600.
+- `journal` and `playbooks/journal.yml`: the journal bind-mounted onto a storage volume at `storage_path`, a new
+  contract var. Asserts the volume mounted, and reads back the bind from the same device.
+- `network` and `playbooks/network.yml`: a board's fixed LAN address beside DHCP, through a NetworkManager keyfile.
+  `network_address` is a new contract var. Refuses a vm, and a board without NetworkManager or the interface; reads back
+  the address.
+- `tailscale` and `playbooks/tailscale.yml` (hosts in the `tailscale` group): Tailscale's apt repo, `/ubuntu` or
+  `/debian` by distribution, and a join with `--accept-dns=false`. `tailscale_auth_key` is asserted; reads back the host
+  on the tailnet.
+- `seed` and `playbooks/seed.yml`: renders a cloud-init seed for one host, creating `deploy_user` with
+  `deploy_authorized_keys`. A board gets `user-data` and `meta-data` for its boot partition; a vm gets `user-data` for
+  the provider, keeping the provider's default user.
+
+### Changed
+
+- `host_kind` (`board` | `vm`) is a new required contract var, asserted by `preflight`.
+- `os` no longer touches sshd; add `sshd` after it to keep the hardening.
+- `os` no longer upgrades or reboots during a converge: unattended-upgrades is the only upgrader and rebooter, and
+  `playbooks/update.yml` is the explicit catch-up.
+- `os` swap is opt-in: `os_swap_enabled` defaults to `false`. Set it on small VMs that relied on the old default.
+- `os` writes its unattended-upgrades settings to a `52infra-unattended-upgrades` drop-in, no longer overwriting
+  `20auto-upgrades` and `50unattended-upgrades`. Timers run daily on a VM and weekly on a board.
+- `sshd` on a board refuses root login (`PermitRootLogin no`); a VM keeps key-only root as break-glass. Set
+  `sshd_permit_root_login` to override.
+- `ufw` role renamed `firewall`; vars `ufw_*` → `firewall_*`. `os` no longer installs `ufw`, `firewall` does.
+- `rclone` requires its three R2 credentials and fails naming the missing ones, instead of installing without a remote.
+  Add it to the plays of hosts that back up. `rclone_deb_sha256` is replaced by `rclone_debs`.
+- `playbooks/baseline.yml` is removed: consumers compose the roles per group (README, "Use"). Replace
+  `import_playbook: fabbrito.infra.baseline` with a play listing `preflight`, `os`, `sshd`, `firewall`, `fail2ban`, and
+  `docker`/`rclone` where the host needs them.
+
+### Upgrading from 1.x
+
+- **Restore the package's `50unattended-upgrades` on every host 1.x converged.** 1.x overwrote it with a frozen
+  security-only origin list; 2.0 leaves it to the package, so a 1.x host never picks up an origin a later package adds.
+  Do not just delete it: dpkg never restores a deleted conffile, and without it Ubuntu upgrades nothing at all.
+
+  ```bash
+  sudo rm /etc/apt/apt.conf.d/50unattended-upgrades
+  sudo apt-get install --reinstall -o Dpkg::Options::=--force-confmiss unattended-upgrades
+  ```
+
+  `20auto-upgrades` can stay: 1.x wrote the package's own defaults there.
+
 ## 1.2.0
 
 ### Changed
@@ -27,10 +88,9 @@ that, and the next correction is 1.0.1.
   worth closing: the key loop was a no-op over `[]`, so the play went on to grant passwordless sudo and exited
   **green**, leaving an account nobody holds a key for on a box that reports itself converged. Unset died at the key
   loop instead, after the account existed but before the sudoers write.
-- Minor rather than major, deliberately: [ADR-0001](docs/adr/0001-secrets-in-vault-and-an-absent-secret-skips.md) and
-  the README contract both already listed the var as required, so the contract did not move — only its enforcement. No
-  converged fleet can be running with it empty either, because such a host was never reachable as `deploy_user` to begin
-  with.
+- Minor rather than major, deliberately: the README contract already listed the var as required, so the contract did not
+  move — only its enforcement. No converged fleet can be running with it empty either, because such a host was never
+  reachable as `deploy_user` to begin with.
 
 ## 1.0.1
 
@@ -76,7 +136,7 @@ taking the fleet it was written for.
 ### Gates
 
 Static only — this repo owns no inventory and reaches no host, so the dry-run and second-converge legs stay the
-consumer's ([ADR-0003](docs/adr/0003-the-gate-is-make-check-and-a-second-converge.md)).
+consumer's ([ADR-0003](docs/adr/0003-the-gate-is-static-checks-and-a-second-converge.md)).
 
 - `make check` — formatting, playbook syntax, `ansible-lint` at the production profile, `shellcheck`, collection build.
   The pre-commit hook runs it, so every commit leaves it green.

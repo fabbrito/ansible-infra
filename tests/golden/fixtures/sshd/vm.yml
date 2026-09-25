@@ -1,0 +1,3 @@
+---
+# Root stays reachable key-only: the provider's injected key is break-glass.
+host_kind: vm

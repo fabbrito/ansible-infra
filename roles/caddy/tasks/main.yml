@@ -2,21 +2,22 @@
 - name: Resolve the effective route list
   ansible.builtin.include_tasks: routes.yml
 
-# The schema cannot make these unrepresentable, so they fail the converge instead.
-- name: Assert every route declares a TLS mode
+- name: Assert every route is complete
   ansible.builtin.assert:
     that:
       - item.tls is defined
       - item.tls in ['acme', 'cert']
+      - item.default_upstream is defined or item.redirect_to is defined
+      - item.proxied_by is not defined or item.proxied_by in caddy_proxy_ranges
     fail_msg: >-
-      Route {{ item.host }} needs `tls: acme` or `tls: cert`.
+      Route {{ item.host }} needs `tls: acme` or `tls: cert`, a
+      default_upstream or redirect_to, and a proxied_by (if any) naming a key of
+      caddy_proxy_ranges.
     quiet: true
   loop: "{{ caddy_all_routes }}"
   loop_control:
     label: "{{ item.host }}"
-  # No default may replace this: the template once emitted
-  # `tls <certs>/default.pem` unconditionally, at a file no ACME host writes, and
-  # an ACME-only host could not converge at all.
+  # `tls` has no default: either guess breaks the other mode's hosts.
 
 - name: Assert an ACME account email is set when any route uses ACME
   ansible.builtin.assert:
@@ -28,8 +29,29 @@
       it is an address, not a credential, so it needs no vault.
     quiet: true
   when: caddy_all_routes | selectattr('tls', 'equalto', 'acme') | list | length > 0
-  # ADR-0006: the email is what admits ZeroSSL as a fallback issuer. Absent,
-  # Caddy's chain silently shrinks to Let's Encrypt alone.
+  # Absent, the issuer chain silently loses ZeroSSL (ADR-0006).
+
+# Otherwise `caddy validate` fails mid-role, naming a path, not the var.
+- name: Name the origin certs this host has both halves of
+  ansible.builtin.set_fact:
+    caddy_available_certs: >-
+      {{ caddy_origin_certs
+         | selectattr('cert', 'defined') | selectattr('cert')
+         | selectattr('key', 'defined') | selectattr('key')
+         | map(attribute='name') | list }}
+
+- name: Assert every cert-mode route has its origin cert and key
+  ansible.builtin.assert:
+    that: item.cert | default('default') in caddy_available_certs
+    fail_msg: >-
+      Route {{ item.host }} uses `tls: cert` with cert
+      "{{ item.cert | default('default') }}", but that cert or its key is unset.
+      Set caddy_origin_cert + caddy_origin_key for "default", or a
+      caddy_extra_certs entry with both cert and key.
+    quiet: true
+  loop: "{{ caddy_all_routes | selectattr('tls', 'equalto', 'cert') | list }}"
+  loop_control:
+    label: "{{ item.host }}"
 
 - name: Assert at most one proxy provider fronts this host
   ansible.builtin.assert:
@@ -40,15 +62,9 @@
       Routes name more than one `proxied_by` provider. Trust is server-level in
       Caddy and every vhost shares :443, so one host can trust one provider.
     quiet: true
-  # The ranges could union; `client_ip_headers` could not — two providers on one
-  # host is unrepresentable in Caddy.
+  # Ranges could union; client_ip_headers cannot.
 
-# The third schema constraint, unasserted above because it cannot be:
-# `upstreams[].paths` must stay LITERAL strings. Ansible renders a var before the
-# role sees it, so `/api/{{ version }}/*` arrives as `/api/v1/*` and the assert
-# passes every time. The check must read the inventory YAML raw, which puts it in
-# the consuming repo's CI, not in this role. Cost of getting it wrong:
-# defaults/main.yml, by the field.
+# Unassertable here: `upstreams[].paths` must be literal (defaults/main.yml).
 - name: Caddy apt key
   ansible.builtin.shell: |
     set -o pipefail
@@ -58,8 +74,7 @@
     creates: /usr/share/keyrings/caddy-stable-archive-keyring.gpg
     executable: /bin/bash
 
-# Remove legacy .list from the old apt_repository module — deb822 writes
-# caddy.sources; a lingering caddy.list would be a duplicate-repo source.
+# Left by the old apt_repository task; beside caddy.sources it duplicates the repo.
 - name: Remove legacy Caddy apt .list
   ansible.builtin.file:
     path: /etc/apt/sources.list.d/caddy.list
@@ -75,17 +90,9 @@
     signed_by: /usr/share/keyrings/caddy-stable-archive-keyring.gpg
     state: present
 
-# The distro package is what Caddy recommends for production
-# (https://caddyserver.com/docs/install).
-#   * Never run `caddy upgrade`: it self-replaces the binary in place and the
-#     next dist-upgrade clobbers it. Upgrades ride apt. unattended-upgrades
-#     allows only the Ubuntu security origins (see `os`), not Caddy's Cloudsmith
-#     — so the replaced binary survives until an operator next runs
-#     playbooks/update.yml, which is what makes the clobber a surprise.
-#   * Standard modules only. A third-party plugin (DNS-challenge, WAF) means
-#     leaving apt for an xcaddy build.
-# The package starts + enables the `caddy` unit; the service task below guards
-# against a hand-disable, it does not bring caddy up.
+# Upstream apt package (ADR-0004). Never `caddy upgrade`: the next apt upgrade
+# of caddy clobbers the self-replaced binary. Standard modules only.
+# The package starts the unit; the service task only undoes a hand-disable.
 - name: Install caddy
   ansible.builtin.apt:
     name: caddy
@@ -100,60 +107,35 @@
     group: caddy
     mode: "0750"
 
-# --- Default cert (one CF zone — covers most hosts) ---
-- name: Drop default origin certificate
-  ansible.builtin.copy:
-    dest: "{{ caddy_certs_dir }}/default.pem"
-    content: "{{ caddy_origin_cert }}"
-    owner: root
-    group: caddy
-    mode: "0640"
-  when: caddy_origin_cert is defined and caddy_origin_cert | length > 0
-  notify: Reload caddy
-
-- name: Drop default origin private key
-  ansible.builtin.copy:
-    dest: "{{ caddy_certs_dir }}/default.key"
-    content: "{{ caddy_origin_key }}"
-    owner: root
-    group: caddy
-    mode: "0640"
-  when: caddy_origin_key is defined and caddy_origin_key | length > 0
-  no_log: true
-  notify: Reload caddy
-
-# --- Extra certs (multi-zone hosts only — caddy_extra_certs in host_vars) ---
-- name: Drop extra origin certificates
+- name: Drop origin certificates
   ansible.builtin.copy:
     dest: "{{ caddy_certs_dir }}/{{ item.name }}.pem"
     content: "{{ item.cert }}"
     owner: root
     group: caddy
     mode: "0640"
-  loop: "{{ caddy_extra_certs }}"
+  loop: "{{ caddy_origin_certs }}"
   loop_control:
     label: "{{ item.name }}"
   when: item.cert | default('') | length > 0
   notify: Reload caddy
 
-- name: Drop extra origin private keys
+- name: Drop origin private keys
   ansible.builtin.copy:
     dest: "{{ caddy_certs_dir }}/{{ item.name }}.key"
     content: "{{ item.key }}"
     owner: root
     group: caddy
     mode: "0640"
-  loop: "{{ caddy_extra_certs }}"
+  loop: "{{ caddy_origin_certs }}"
   loop_control:
     label: "{{ item.name }}"
   when: item.key | default('') | length > 0
   no_log: true
   notify: Reload caddy
 
-# The next task's `validate:` runs `caddy validate` as root, which Provision()'s
-# the file logger and creates a missing log file root-owned — runtime Caddy (uid
-# caddy) then can't write it, causing endless reload-timeout loops. Pre-creating
-# them caddy-owned makes validate a no-op.
+# `validate:` below runs as root and creates missing log files root-owned;
+# caddy then cannot write them and reloads time out forever.
 - name: Ensure per-vhost access log files exist (caddy-owned)
   ansible.builtin.file:
     path: "/var/log/caddy/{{ item.host }}.log"
@@ -184,3 +166,26 @@
     state: started
     enabled: true
   when: not ansible_check_mode
+
+# A config that loads but cannot bind leaves caddy active, serving nothing.
+# Handlers first, so the probe sees this run's config.
+- name: Apply the pending caddy reload
+  ansible.builtin.meta: flush_handlers
+
+- name: Probe the HTTPS listener
+  ansible.builtin.command: ss -Hltn 'sport = :443'
+  register: caddy_https_listener
+  changed_when: false
+  check_mode: false
+  when: caddy_all_routes | rejectattr('host', 'match', 'http://') | list | length > 0
+
+- name: Assert caddy listens on :443
+  ansible.builtin.assert:
+    that: caddy_https_listener.stdout | length > 0
+    fail_msg: >-
+      Routes need HTTPS but nothing listens on :443. Check
+      `journalctl -u caddy` for a bind or certificate error.
+    quiet: true
+  when:
+    - not ansible_check_mode
+    - caddy_https_listener is not skipped

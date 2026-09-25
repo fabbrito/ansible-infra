@@ -1,0 +1,6 @@
+---
+# Role defaults: the volume at the runbook's path.
+#
+# storage_path is a contract var, so it is not in the role defaults and every
+# fixture sets it. The path is the runbook's example, never a live mount.
+storage_path: /srv/data

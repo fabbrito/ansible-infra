@@ -1,12 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Rendered by Ansible — do not edit on host.
 # Source: fabbrito.infra collection — roles/docker/templates/docker-cleanup.sh.j2
-# Volumes are NOT touched: we never pass --volumes.
-# Two image passes: `system prune -a` (dangling=false) skips fully-untagged
-# orphans on the containerd image store; the dangling pass reclaims those.
-# Errexit ON here, against this repo's no-`set -e` policy for scripts/: that policy
-# is about checks that must report every failure, and this is a systemd oneshot,
-# which should fail its unit rather than press on and exit 0 on a half-done prune.
+# Volumes are never touched: no `--volumes`. Two passes because `system prune -a`
+# skips fully-untagged orphans on the containerd image store; the dangling pass
+# reclaims them. errexit: a systemd oneshot should fail its unit rather than
+# exit 0 on a half-done prune.
 set -euo pipefail
 docker system prune -af --filter "until={{ docker_cleanup_until }}"
 docker image prune -f --filter "until={{ docker_cleanup_until }}"

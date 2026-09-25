@@ -1,0 +1,6 @@
+---
+# Role defaults on Debian trixie: the /debian repo. Facts, so the fixture sets
+# them.
+ansible_facts:
+  distribution: Debian
+  distribution_release: trixie

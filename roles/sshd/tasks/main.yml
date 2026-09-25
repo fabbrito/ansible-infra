@@ -1,0 +1,93 @@
+---
+- name: Stat the sshd binary
+  ansible.builtin.stat:
+    path: /usr/sbin/sshd
+  register: sshd_binary_stat
+
+- name: Assert OpenSSH server is installed
+  ansible.builtin.assert:
+    that: sshd_binary_stat.stat.exists
+    fail_msg: No /usr/sbin/sshd. Install openssh-server before the sshd role.
+    quiet: true
+
+- name: Assert a known PermitRootLogin value
+  ansible.builtin.assert:
+    that: sshd_permit_root_login in ['no', 'prohibit-password']
+    fail_msg: >-
+      sshd_permit_root_login is "{{ sshd_permit_root_login }}". Only `no` and
+      `prohibit-password` keep root off passwords.
+    quiet: true
+
+# The login, not become: `no` would cut the connection this converge came in on.
+- name: Read the login user
+  ansible.builtin.command: id -un
+  become: false
+  register: sshd_login_user
+  changed_when: false
+  check_mode: false
+  when: sshd_permit_root_login == 'no'
+
+- name: Assert the converge does not log in as root
+  ansible.builtin.assert:
+    that: sshd_login_user.stdout != 'root'
+    fail_msg: >-
+      Logged in as root, and sshd_permit_root_login is `no`: the reload would
+      lock this converge out. Connect as deploy_user.
+    quiet: true
+  when: sshd_permit_root_login == 'no'
+
+# `-G` where it exists (OpenSSH >= 9.3): `-T` stats /run/sshd, absent while
+# socket-activated ssh.service is inactive. Older releases are not socket-activated.
+- name: Probe for sshd -G
+  ansible.builtin.command: /usr/sbin/sshd -G -f /dev/null
+  register: sshd_g_probe
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Name the sshd config test flag
+  ansible.builtin.set_fact:
+    sshd_test_flag: "{{ '-G' if sshd_g_probe.rc == 0 else '-T' }}"
+
+# Validated alone, so a syntax error never lands for the next sshd start.
+- name: Render the sshd hardening drop-in
+  ansible.builtin.template:
+    src: 10-infra-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/10-infra-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/sbin/sshd {{ sshd_test_flag }} -f %s
+  notify: Reload sshd
+
+# Before the reload: a reload onto a broken drop-in locks us out (ADR-0002),
+# and a failure here aborts with the handler unrun.
+- name: Read the effective sshd config
+  ansible.builtin.command: /usr/sbin/sshd {{ sshd_test_flag }}
+  register: sshd_effective
+  changed_when: false
+  check_mode: false
+
+# sshd prints prohibit-password under its old name. A file sorting before ours
+# in sshd_config.d wins silently; this is what catches it. Skipped in --check,
+# where our file has not landed.
+- name: Assert the effective sshd config
+  ansible.builtin.assert:
+    that:
+      - "'passwordauthentication no' in sshd_effective.stdout_lines"
+      - "'kbdinteractiveauthentication no' in sshd_effective.stdout_lines"
+      - "'pubkeyauthentication yes' in sshd_effective.stdout_lines"
+      - "'x11forwarding no' in sshd_effective.stdout_lines"
+      - >-
+        'permitrootlogin ' ~ ('without-password'
+        if sshd_permit_root_login == 'prohibit-password'
+        else sshd_permit_root_login) in sshd_effective.stdout_lines
+    fail_msg: >-
+      sshd {{ sshd_test_flag }} does not show the hardening: a file sorting
+      before 10-infra-hardening.conf in /etc/ssh/sshd_config.d sets these first.
+    quiet: true
+  when: not ansible_check_mode
+
+# A later role failing must not leave sshd on the old config until a reboot.
+- name: Apply the sshd reload now
+  ansible.builtin.meta: flush_handlers

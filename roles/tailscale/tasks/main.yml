@@ -1,0 +1,90 @@
+---
+- name: Assert tailscale_auth_key
+  ansible.builtin.assert:
+    that: tailscale_auth_key | default('') | length > 0
+    fail_msg: >-
+      tailscale_auth_key is unset. Vault it, or leave tailscale out of this
+      host's role list.
+    quiet: true
+
+- name: Probe the Tailscale signing key
+  ansible.builtin.stat:
+    path: "{{ tailscale_keyring }}"
+  register: tailscale_key_stat
+
+# Bootstrap only: once installed, the keyring package replaces this file, and a
+# rotated key must not fail the pinned hash.
+- name: Download the Tailscale signing key
+  ansible.builtin.get_url:
+    url: "{{ tailscale_repo_url }}/{{ ansible_facts['distribution_release'] }}.noarmor.gpg"
+    checksum: "sha256:{{ tailscale_key_sha256 }}"
+    dest: "{{ tailscale_keyring }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: not tailscale_key_stat.stat.exists
+
+- name: Add the Tailscale repo
+  ansible.builtin.template:
+    src: tailscale.sources.j2
+    dest: /etc/apt/sources.list.d/tailscale.sources
+    owner: root
+    group: root
+    mode: "0644"
+  register: tailscale_sources
+
+# In check mode on a fresh host the repo was never added, so apt knows no
+# tailscale package to plan.
+- name: Install tailscale
+  ansible.builtin.apt:
+    name: [tailscale, tailscale-archive-keyring]
+    update_cache: "{{ tailscale_sources is changed }}"
+    lock_timeout: 600
+  when: not (ansible_check_mode and tailscale_sources is changed)
+
+- name: Enable tailscaled
+  ansible.builtin.systemd_service:
+    name: tailscaled
+    state: started
+    enabled: true
+  when: not ansible_check_mode
+
+# --json exits 0 logged out too; the backend state says whether to join.
+- name: Probe the tailnet state
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# Running is joined; Stopped is an operator's `tailscale down`, which a
+# converge does not undo. DNS stays the host's: resolving through the tailnet
+# would make it a door the host cannot do without. no_log: the key is in argv.
+- name: Join the tailnet
+  ansible.builtin.command:
+    argv: >-
+      {{ ['tailscale', 'up', '--auth-key=' ~ tailscale_auth_key,
+          '--accept-dns=false', '--timeout=120s'] + tailscale_up_args }}
+  changed_when: true
+  no_log: true
+  when:
+    - not ansible_check_mode
+    - tailscale_backend_state not in ['Running', 'Stopped']
+
+# Skipped in --check, where nothing landed.
+- name: Read the tailnet state after the join
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Assert the host is on the tailnet
+  ansible.builtin.assert:
+    that: tailscale_backend_state in ['Running', 'Stopped']
+    fail_msg: >-
+      tailscale reports {{ tailscale_backend_state | default('nothing', true) }}.
+      NeedsLogin after a join means an expired or spent tailscale_auth_key.
+    quiet: true
+  when: not ansible_check_mode

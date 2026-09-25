@@ -1,0 +1,6 @@
+---
+# Role defaults: eth0.
+#
+# network_address is a contract var, so it is not in the role defaults and every
+# fixture sets it. The address is documentation-range, never a live LAN.
+network_address: 198.51.100.10/24

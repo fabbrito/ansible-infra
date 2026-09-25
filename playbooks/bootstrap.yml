@@ -1,18 +1,10 @@
 ---
-# First-contact play — run ONCE per fresh host, as root, before the baseline.
-# Creates the unprivileged account every other playbook connects as.
+# Run once per fresh host, as root, to create the account every other play
+# connects as. The seed does this on first boot; this is for hosts it missed.
 #
 #   ansible-playbook fabbrito.infra.bootstrap -e target=<host>
 #
-# Connects as root over the cloud-provider-injected key. `ansible_user: root` is a
-# play var, not only the `remote_user` keyword: the consumer's inventory-wide
-# `ansible_user` would otherwise win, and that account does not exist yet.
-# `deploy_authorized_keys` is a vaulted contract var, asserted before anything is
-# created — ADR-0001 names it a required exception to the absent-secret skip.
-#
-# `hosts: bootstrap_target_unspecified` is a deliberate inventory mismatch:
-# forgetting -e target= matches zero hosts instead of fanning user-creation +
-# sudoers writes across the whole fleet.
+# Without -e target= the pattern matches no host, never the fleet.
 - name: Bootstrap deploy user
   hosts: "{{ target | default('bootstrap_target_unspecified') }}"
   serial: 1
@@ -20,37 +12,24 @@
   become: true
   gather_facts: false
   vars:
-    # ansible_user ONLY. deploy_user must NOT be pinned here: a play var beats
-    # the consumer's group_vars, so pinning it would create one account while
-    # every later play connects as another — a fresh box, converged, unreachable.
+    # A play var, so the inventory's ansible_user (not yet created) loses.
+    # Never deploy_user: it would beat group_vars and strand the host.
     ansible_user: root
   tasks:
-    - name: Assert the deploy account is named
+    # Before anything is created: an empty key list would still grant sudo to
+    # an account nobody can reach (ADR-0015).
+    - name: Assert the deploy account
       ansible.builtin.assert:
         that:
-          - deploy_user is defined
-          - deploy_user | length > 0
-        fail_msg: >-
-          deploy_user is unset. It names the account this play creates and every
-          later play connects as, so bootstrapping without it strands the host.
-          Set it fleet-wide.
-        quiet: true
-
-    # Both asserts run before the first thing is created, because the states
-    # they prevent are not symmetric. Unset dies at the key loop and leaves an
-    # account with no keys and no sudo — loud, and recoverable. EMPTY is the
-    # dangerous one: the loop is a no-op over [], so the play would go on to
-    # grant passwordless sudo and exit GREEN, leaving an account nobody holds a
-    # key for on a box that reports itself converged.
-    - name: Assert the deploy account has keys to install
-      ansible.builtin.assert:
-        that:
-          - deploy_authorized_keys is defined
+          - deploy_user | default('') is match('^[a-z][-a-z0-9_]*$')
+          - deploy_user != 'root'
+          - deploy_authorized_keys | default('') is sequence
+          - deploy_authorized_keys is not string
           - deploy_authorized_keys | length > 0
         fail_msg: >-
-          deploy_authorized_keys is unset or empty. It is the only way into the
-          account this play creates, and an empty list installs no key while
-          still granting it passwordless sudo. Set it in the vault first.
+          deploy_user must name a non-root account and deploy_authorized_keys be
+          a non-empty list: the keys are the only way into the account this play
+          grants passwordless sudo.
         quiet: true
 
     - name: Create deploy user

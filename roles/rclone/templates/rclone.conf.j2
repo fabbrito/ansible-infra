@@ -1,0 +1,24 @@
+# Rendered by Ansible — do not edit on host.
+# Source: fabbrito.infra collection — roles/rclone/templates/rclone.conf.j2
+
+# No `acl`: R2 object read/write tokens deny PutObjectAcl, so an ACL header 403s.
+# `no_check_bucket`: bucket-scoped tokens cannot list buckets.
+[r2]
+type = s3
+provider = Cloudflare
+access_key_id = {{ rclone_r2_access_key_id }}
+secret_access_key = {{ rclone_r2_secret_access_key }}
+endpoint = {{ rclone_r2_endpoint }}
+no_check_bucket = true
+{% if rclone_crypt_enabled %}
+
+# Plain directory names keep R2 lifecycle prefix rules matching. Lose these
+# passwords and the backups are unrecoverable.
+[r2crypt]
+type = crypt
+remote = {{ rclone_crypt_target }}
+password = {{ rclone_crypt_password }}
+password2 = {{ rclone_crypt_password2 }}
+filename_encryption = standard
+directory_name_encryption = false
+{% endif %}

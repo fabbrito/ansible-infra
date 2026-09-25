@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sweep the tree for plan labels — AGENTS.md > No internal codes.
+# Sweep the tree for plan labels — AGENTS.md > Guardrails.
 #   ./scripts/check-codes.sh [pathspec...]
 #
 # A net, not a proof: one uppercase letter and digits (`P0`, `R3`, `B2.1`).

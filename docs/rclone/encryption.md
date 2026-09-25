@@ -20,14 +20,13 @@ r2crypt:<service>/<scope>/     →  r2:backups/<service>/<scope>/<encrypted-file
 Directory names stay plain (`directory_name_encryption = false`), so R2 bucket lifecycle rules that key on a prefix keep
 matching. Filenames, contents, and size (within 16 bytes) are encrypted.
 
-The `[r2crypt]` stanza is rendered by `roles/rclone`, gated on `rclone_crypt_password` being defined. A host without it
-gets the plain `[r2]` remote only — per [ADR-0001](../adr/0001-secrets-in-vault-and-an-absent-secret-skips.md), an
-absent secret makes the role do less, quietly. A service that references `r2crypt:` on such a host fails loudly with
-"remote not found", which is the intended outcome.
+The `[r2crypt]` stanza is rendered by `roles/rclone` only when both passwords are set: an optional feature keyed on its
+secret ([ADR-0015](../adr/0015-a-declared-role-asserts-its-secrets.md)). Without it a host gets the plain `[r2]` remote,
+and a service that references `r2crypt:` there fails loudly with "remote not found". `rclone_crypt_target` names what it
+wraps, `r2:backups` by default.
 
-**Setting exactly one of the two passwords is the case that does not skip quietly.** The role asserts both or neither
-([ADR-0010](../adr/0010-roles-assert-their-preconditions-not-their-outcomes.md)), because an empty second password keys
-the remote differently — the converge fails rather than rendering a wrapper whose objects nothing can read back.
+**Exactly one password set fails the converge**, because an empty second password keys the remote differently: a wrapper
+whose objects nothing can read back.
 
 ## First-time setup
 
@@ -55,8 +54,8 @@ rclone_crypt_password: "<obscured-1>"
 rclone_crypt_password2: "<obscured-2>"
 ```
 
-**4. Re-converge the baseline** against every host that takes backups, to render `rclone.conf`. The consuming repo owns
-the invocation.
+**4. Re-converge `rclone`** on every host that takes backups, to render `rclone.conf`. The consuming repo owns the
+invocation.
 
 **5. Prove a round-trip before trusting it.** Take a backup, then confirm the ciphertext is opaque through `r2:` and
 readable through `r2crypt:`:

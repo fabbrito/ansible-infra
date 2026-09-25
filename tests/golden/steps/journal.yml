@@ -1,0 +1,13 @@
+---
+# What roles/journal/tasks/main.yml renders.
+- name: Render the journal bind-mount unit
+  ansible.builtin.template:
+    src: "{{ golden_repo }}/roles/journal/templates/var-log-journal.mount.j2"
+    dest: "{{ golden_case_out }}/var-log-journal.mount"
+    mode: "0644"
+
+- name: Render the persistent-storage drop-in
+  ansible.builtin.template:
+    src: "{{ golden_repo }}/roles/journal/templates/50-persistent.conf.j2"
+    dest: "{{ golden_case_out }}/50-persistent.conf"
+    mode: "0644"

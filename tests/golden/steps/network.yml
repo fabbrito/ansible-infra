@@ -1,0 +1,7 @@
+---
+# What roles/network/tasks/main.yml renders.
+- name: Render the interface profile
+  ansible.builtin.template:
+    src: "{{ golden_repo }}/roles/network/templates/nmconnection.j2"
+    dest: "{{ golden_case_out }}/nmconnection"
+    mode: "0600"

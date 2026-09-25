@@ -1,0 +1,22 @@
+---
+- name: Reload NetworkManager profiles
+  ansible.builtin.command: nmcli connection reload
+  changed_when: true
+  listen: Apply the interface profile
+
+# Activating drops the interface for seconds, and this SSH session with it: fire
+# and forget, then reconnect.
+- name: Activate the interface profile
+  ansible.builtin.command: nmcli connection up {{ network_interface }}
+  async: 60
+  poll: 0
+  changed_when: true
+  when: not ansible_check_mode
+  listen: Apply the interface profile
+
+- name: Wait for the host
+  ansible.builtin.wait_for_connection:
+    delay: 10
+    timeout: 120
+  when: not ansible_check_mode
+  listen: Apply the interface profile

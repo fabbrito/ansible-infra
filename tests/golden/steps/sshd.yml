@@ -1,0 +1,7 @@
+---
+# What roles/sshd/tasks/main.yml renders.
+- name: Render the sshd drop-in
+  ansible.builtin.template:
+    src: "{{ golden_repo }}/roles/sshd/templates/10-infra-hardening.conf.j2"
+    dest: "{{ golden_case_out }}/10-infra-hardening.conf"
+    mode: "0644"

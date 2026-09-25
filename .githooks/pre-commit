@@ -1,36 +1,4 @@
 #!/usr/bin/env bash
-#
-# Runs `make check` before the commit lands. AGENTS.md asks every commit be
-# green, not just the tip; only a hook can enforce that.
-#
-# Enable once per clone:  make hooks
-# Skip for one commit:    git commit --no-verify
-#
-# Grades the working tree, not the index: prettier and ansible-lint read from
-# disk.
+# Vendored from fabbrito/githooks; edit hooks.conf, not this.
 set -uo pipefail
-
-cd "$(git rev-parse --show-toplevel)" || exit 1
-
-# Nothing staged is an empty commit: nothing to gate.
-git diff --cached --quiet && exit 0
-
-printf '==> %s\n' 'make check'
-make check && exit 0
-
-# `--no-verify` is named once, and last: an escape from a broken hook, not a
-# peer option to fixing the tree.
-cat >&2 <<-'EOF'
-
-	  The gate is red, so this commit would break "green between commits"
-	  (AGENTS.md > Commits). A red commit mid-branch is a revert that
-	  does not build.
-
-	    make fmt      formatting failures fix themselves
-	    make check    re-run the gate
-
-	  Scope the commit down if the failure is in unfinished work.
-	  --no-verify is for a broken hook, not a gate telling you something.
-
-EOF
-exit 1
+exec "$(dirname "$0")/githooks" pre-commit "$@"

@@ -1,0 +1,112 @@
+---
+- name: Assert storage_path
+  ansible.builtin.assert:
+    that: storage_path | default('') is match('^/.*[^/]$')
+    fail_msg: >-
+      storage_path is required: the storage volume's mount path, absolute and
+      without a trailing slash (docs/storage/persistent-usb-storage.md on a board).
+    quiet: true
+
+# Relative and without `..`, or the journal lands off the volume.
+- name: Assert journal_dir
+  ansible.builtin.assert:
+    that:
+      - journal_dir is match('^[^/].*$')
+      - journal_dir is not match('.*/$')
+      - "'..' not in journal_dir.split('/')"
+    fail_msg: >-
+      journal_dir must be a relative path under storage_path, without a
+      trailing slash or `..`.
+    quiet: true
+
+# The probe reads, so it runs in check mode too. `findmnt` resolves the mount a
+# path lands on; on an unmounted path that is /, and the assert below catches it.
+- name: Probe the storage volume
+  ansible.builtin.command:
+    argv: [findmnt, --noheadings, --output, TARGET, --target, "{{ storage_path }}"]
+  register: journal_volume
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# Absence is unsafe here: an unguarded path takes the journal back onto the
+# card, silently, and only fills it.
+- name: Assert the volume is mounted
+  ansible.builtin.assert:
+    that:
+      - journal_volume.rc == 0
+      - journal_volume.stdout | trim == storage_path
+    fail_msg: >-
+      {{ storage_path }} is not a mount point. Attach the storage volume
+      (docs/storage/persistent-usb-storage.md on a board) before moving the journal onto it.
+    quiet: true
+
+# Immutable while the volume is absent, so this fails loudly there instead of
+# creating the directory on the root disk.
+- name: Create the journal directory on the storage volume
+  ansible.builtin.file:
+    path: "{{ storage_path }}/{{ journal_dir }}"
+    state: directory
+    owner: root
+    group: systemd-journal
+    mode: "2755"
+
+- name: Ensure the mount point
+  ansible.builtin.file:
+    path: /var/log/journal
+    state: directory
+    owner: root
+    group: systemd-journal
+    mode: "2755"
+
+- name: Ensure the journald drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Move the journal onto the storage volume
+  ansible.builtin.template:
+    src: var-log-journal.mount.j2
+    dest: /etc/systemd/system/var-log-journal.mount
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Apply the journal location
+
+- name: Keep the journal on disk
+  ansible.builtin.template:
+    src: 50-persistent.conf.j2
+    dest: /etc/systemd/journald.conf.d/50-persistent.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Apply the journal location
+
+- name: Apply the journal location now
+  ansible.builtin.meta: flush_handlers
+
+# Same device, not the unit's state: an active mount keeps an old `What=`.
+# Skipped in --check, where nothing landed.
+- name: Read the devices under the journal and the volume
+  ansible.builtin.command:
+    argv: [findmnt, --noheadings, --output, "MAJ:MIN", --mountpoint, "{{ item }}"]
+  loop: [/var/log/journal, "{{ storage_path }}"]
+  register: journal_devices
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Assert the journal is mounted from the volume
+  ansible.builtin.assert:
+    that:
+      - journal_devices.results[0].rc == 0
+      - journal_devices.results[0].stdout == journal_devices.results[1].stdout
+    fail_msg: >-
+      /var/log/journal is not bind-mounted from {{ storage_path }}. Check
+      `systemctl status var-log-journal.mount`.
+    quiet: true
+  when: not ansible_check_mode

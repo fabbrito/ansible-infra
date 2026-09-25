@@ -1,0 +1,5 @@
+---
+# Role defaults on Ubuntu noble: the /ubuntu repo.
+ansible_facts:
+  distribution: Ubuntu
+  distribution_release: noble

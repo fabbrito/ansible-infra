@@ -1,14 +1,9 @@
 ---
-# The floor the roles actually need: community.general 13.x requires it, and the
-# roles call ansible.builtin.systemd_service (aliased in 2.18). ansible-galaxy
-# enforces this at install time, so a consumer on an older core fails with a
-# version error instead of an obscure module failure.
-#
-# No upper bound, deliberately. `>=2.18.0,<3.0.0` lints clean — the ceiling is
-# expressible — but ansible-galaxy enforces this at install time, so a ceiling
-# blocks every consumer who upgrades core until we cut a release, to guard
-# against an incompatibility we have not seen. A core 3.x therefore lands as a
-# converge failure in the consumer, not an install error, and the consumer's dry-run
-# is what catches it. scripts/lint.sh checks the floor only, and repeats it as a
-# literal — move both together.
+# Floor: community.general 13.x needs it and the roles call
+# ansible.builtin.systemd_service (aliased in 2.18), so an older core fails at
+# install with a version error instead of an obscure module failure.
+# No ceiling, deliberately: one blocks every consumer who upgrades core until we
+# cut a release, to guard an incompatibility we have not seen. A core 3.x is then
+# a converge failure the consumer's dry-run catches. scripts/lint.sh repeats this
+# literal; move both together.
 requires_ansible: ">=2.18.0"

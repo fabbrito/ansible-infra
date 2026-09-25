@@ -1,0 +1,6 @@
+---
+# An operator address added to the defaults: ignoreip joins on spaces.
+fail2ban_ignoreip:
+  - 127.0.0.1/8
+  - ::1
+  - 203.0.113.7

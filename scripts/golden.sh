@@ -3,11 +3,10 @@
 #   ./scripts/golden.sh            # render and diff against tests/golden/expected
 #   ./scripts/golden.sh --update   # accept the current render as the expectation
 #
-# What this buys that `make check` cannot: ansible-lint and `caddy validate` both
-# accept configs that are wrong in ways only the BYTES show — a trust block on a
-# host nothing fronts, a body cap silently clamped by a matcher-less default, a
-# redaction filter naming a prefix that never occurs. Asserts validate the
-# consumer's input; goldens validate our output.
+# What this buys that `make check` cannot: ansible-lint and `caddy validate` accept
+# configs wrong in ways only the BYTES show — a trust block on a host nothing fronts,
+# a body cap clamped by a matcher-less default, a redaction filter naming a prefix
+# that never occurs. Asserts check the consumer's input; goldens our output.
 #
 # No errexit: each step is checked where it can actually fail.
 set -uo pipefail

@@ -1,0 +1,11 @@
+---
+# What roles/docker/tasks/install-cleanup-timer.yml renders, named as on the host.
+- name: Render the docker-cleanup units and script
+  ansible.builtin.template:
+    src: "{{ golden_repo }}/roles/docker/templates/{{ item.src }}"
+    dest: "{{ golden_case_out }}/{{ item.dest }}"
+    mode: "0644"
+  loop:
+    - { src: docker-cleanup.sh.j2, dest: docker-cleanup }
+    - { src: docker-cleanup.service.j2, dest: docker-cleanup.service }
+    - { src: docker-cleanup.timer.j2, dest: docker-cleanup.timer }

@@ -1,0 +1,8 @@
+# Rendered by Ansible — do not edit on host.
+# Source: fabbrito.infra collection — roles/journal/templates/50-persistent.conf.j2
+#
+# Overrides Raspberry Pi OS's 40-rpi-volatile-storage.conf, which loses the
+# journal on every reboot. With the bind mount in place, "persistent" is the
+# storage volume, not the root disk.
+[Journal]
+Storage=persistent

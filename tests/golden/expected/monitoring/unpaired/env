@@ -1,10 +1,9 @@
 # Rendered by Ansible — do not edit on host.
 # Source: fabbrito.infra collection — roles/monitoring/templates/env.j2
 #
-# Read by docker compose for variable interpolation. Secrets ONLY — non-secret
-# config sits in the compose, where it stays reviewable.
+# Read by docker compose for interpolation. Secrets only — other config sits in
+# the compose, where it stays reviewable.
 
 # Beszel hub first-run admin password (USER_PASSWORD). Box-local, vaulted.
-# Asserted non-empty before this renders: an admin-less hub serves without ever
-# creating a first user, so the role fails rather than shipping one.
+# Asserted non-empty: an admin-less hub serves without ever creating a first user.
 BESZEL_ADMIN_PASSWORD=golden-fixture-not-a-password

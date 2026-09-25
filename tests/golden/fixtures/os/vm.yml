@@ -1,0 +1,3 @@
+---
+# Role defaults on a VM: daily timers, no NTP drop-in.
+host_kind: vm

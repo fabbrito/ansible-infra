@@ -1,0 +1,8 @@
+---
+# `try-reload-or-restart`, not `state: reloaded`: sshd is socket-activated on
+# Ubuntu >= 22.10, so ssh.service is often inactive and a plain reload fails.
+# On an inactive unit this is a no-op (the next connection starts sshd on the
+# new config); on an active one it reloads and never drops the live session.
+- name: Reload sshd
+  ansible.builtin.command: systemctl try-reload-or-restart ssh # noqa: command-instead-of-module
+  changed_when: true

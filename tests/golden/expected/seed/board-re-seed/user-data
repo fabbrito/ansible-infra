@@ -1,0 +1,24 @@
+#cloud-config
+# Rendered by Ansible — do not edit on host.
+# Source: fabbrito.infra collection — roles/seed/templates/user-data.j2
+#
+# A key whose module the image's cloud.cfg does not run is ignored without a
+# warning.
+hostname: board-b
+# Without it sudo warns "unable to resolve host".
+manage_etc_hosts: true
+timezone: "Etc/UTC"
+# Merges over the image's default_user, which keeps groups and shell. sudo is
+# restated because Ansible needs it and a seed can strip it (Imager writes
+# `sudo: null`). No password: the card is the way back in.
+user:
+  name: operator
+  lock_passwd: true
+  sudo: ALL=(ALL) NOPASSWD:ALL
+  ssh_authorized_keys:
+    - "ssh-ed25519 AAAAgolden-fixture-not-a-key operator@example"
+    - "ssh-rsa AAAAgolden-fixture-not-a-key-either spare@example"
+ssh_pwauth: false
+runcmd:
+  # Raspberry Pi OS Lite ships SSH disabled.
+  - [systemctl, enable, --now, ssh]

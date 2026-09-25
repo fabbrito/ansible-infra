@@ -1,0 +1,39 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  listen: Apply the journal location
+
+# journald back to /run, so the remount below finds /var/log/journal unused;
+# unmounting under its open files fails busy.
+- name: Relinquish the persistent journal
+  ansible.builtin.command: journalctl --relinquish-var
+  changed_when: true
+  when: not ansible_check_mode
+  listen: Apply the journal location
+
+# The unit pulls the volume in (`RequiresMountsFor`), and mounting before
+# journald restarts is what puts its directory on the volume. Restarted, not
+# started: an active mount keeps its old `What=` until remounted. Skipped in
+# check mode: on a fresh host the unit file was never written.
+- name: Mount the journal
+  ansible.builtin.systemd_service:
+    name: var-log-journal.mount
+    state: restarted
+    enabled: true
+  when: not ansible_check_mode
+  listen: Apply the journal location
+
+- name: Restart journald
+  ansible.builtin.systemd_service:
+    name: systemd-journald
+    state: restarted
+  listen: Apply the journal location
+
+# Moves this boot's entries from /run onto the storage volume. Only ever runs
+# when something above changed, so a second converge reports nothing.
+- name: Flush the runtime journal
+  ansible.builtin.command: journalctl --flush
+  changed_when: true
+  when: not ansible_check_mode
+  listen: Apply the journal location

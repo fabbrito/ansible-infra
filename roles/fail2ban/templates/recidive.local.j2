@@ -1,0 +1,8 @@
+# Rendered by Ansible — do not edit on host.
+# Source: fabbrito.infra collection — roles/fail2ban/templates/recidive.local.j2
+# Reads fail2ban's own bans back from the journal.
+[recidive]
+enabled = true
+findtime = {{ fail2ban_recidive_findtime }}
+bantime = {{ fail2ban_recidive_bantime }}
+maxretry = {{ fail2ban_recidive_maxretry }}

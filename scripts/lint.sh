@@ -1,17 +1,25 @@
 #!/usr/bin/env bash
-# Static checks. Run from repo root: ./scripts/lint.sh
+# Ansible checks: ./scripts/lint.sh
 #
-# This repo is a collection, not a control node: no inventory, no host. The
-# dry-run leg the consuming repo runs (TEST_HOST=<host>, --check --diff) has no
-# equivalent here — what can be proven upstream is proven here, the rest is the
-# consumer's gate. README.md, "Where the gate lives".
+# The `ansible` lane in .githooks/hooks.conf, as a script because a lane is exec'd
+# as written: ansible-core's check_blocking_io() exits at import on a non-blocking
+# descriptor, there is no flag or env var, so fresh pipes through cat are the fix.
 #
-# No errexit: each level records its own failure, so one broken playbook does
-# not hide the state of the rest.
+# Formatters are lanes. The golden render, ansible-test sanity and the collection
+# build are release legs (scripts/release.sh).
+#
+# A collection, not a control node: no inventory, no host, so the consumer's dry-run
+# leg has no equivalent here. README.md, "Where the gate lives".
+#
+# A missing tool fails, never skips. No errexit: each level records its own failure,
+# so one broken playbook does not hide the state of the rest.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
+exec </dev/null > >(cat) 2>&1
+
 playbooks_dir='playbooks'
+min_core='2.18'
 pass=0
 fail=0
 
@@ -20,34 +28,35 @@ green() { printf '\033[0;32m%s\033[0m\n' "$*"; }
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 
 # Enforce the ansible-core floor from meta/runtime.yml. An unparseable version
-# cannot prove the floor, so it is fatal.
-min_core='2.18'
+# cannot prove the floor, so it is fatal. It guards every later leg: linting
+# roles against a core that cannot run them proves nothing.
+bold '==> ansible-core floor'
 cur_core=$(ansible --version |
 	awk 'NR == 1 { gsub(/[^0-9.]/, "", $NF); print $NF }')
 if [[ -z $cur_core ]]; then
-	red 'ansible not found, or its --version output did not parse'
+	red '  ansible not found, or its --version output did not parse'
 	exit 1
 fi
 
 # sort -V puts the lower version first. If that is not the floor, we are under.
 oldest=$(printf '%s\n%s\n' "$min_core" "$cur_core" | sort -V | head -1)
 if [[ $oldest != "$min_core" ]]; then
-	red "ansible-core $cur_core < required $min_core (see meta/runtime.yml)"
+	red "  ansible-core $cur_core < required $min_core (see meta/runtime.yml)"
 	exit 1
 fi
+green "  ok  $cur_core"
 
-# baseline.yml names its roles by FQCN, and ansible resolves those only through
-# a collections path — the repo root BEING the collection root is not enough.
-# Stage a symlink at <path>/ansible_collections/<ns>/<name> so a syntax-check
-# resolves fabbrito.infra.* against the working tree, uncommitted edits
-# included. Cheaper and more honest than rebuilding a tarball per run. `make
-# deps` installs the third-party collections into the same tree, so one path
-# serves both.
+# The playbooks name their roles by FQCN, and ansible resolves those only through a
+# collections path — the repo root BEING the collection root is not enough. Stage a
+# symlink at <path>/ansible_collections/<ns>/<name> so a syntax-check resolves
+# fabbrito.infra.* against the working tree, uncommitted edits included. `make deps`
+# installs the third-party collections into the same tree.
 staged='.collections/ansible_collections/fabbrito'
 mkdir -p "$staged" || exit 1
 ln -sfn "$PWD" "$staged/infra" || exit 1
 export ANSIBLE_COLLECTIONS_PATH="$PWD/.collections"
 
+bold ''
 bold '==> Syntax check'
 for pb in "$playbooks_dir"/*.yml; do
 	[[ -f $pb ]] || continue
@@ -64,103 +73,17 @@ done
 bold ''
 bold '==> ansible-lint'
 if command -v ansible-lint >/dev/null 2>&1; then
-	# The whole tree, not just playbooks/: here the roles are the product, and
-	# the galaxy rules only fire when galaxy.yml is in scope.
-	#
-	# ANSIBLE_COLLECTIONS_PATH is dropped for this leg. ansible-lint stages its
-	# own copy of the collection and resolves galaxy.yml's dependencies itself;
-	# leaving ours exported makes it find two installs and warn on every run.
-	# Dropping it also makes this the check that galaxy.yml's dependency list —
-	# the SHIPPED one — actually resolves, rather than requirements.yml's copy.
+	# The whole tree, not just playbooks/: here the roles are the product, and the
+	# galaxy rules only fire when galaxy.yml is in scope. Dropping
+	# ANSIBLE_COLLECTIONS_PATH makes this the check that galaxy.yml's SHIPPED
+	# dependency list resolves, not requirements.yml's copy; ansible-lint stages
+	# its own copy and warns on two installs if ours stays exported.
 	env -u ANSIBLE_COLLECTIONS_PATH ansible-lint . || fail=$((fail + 1))
 else
-	# A missing tool is a FAILURE, not a skip. This is the leg README and
-	# ADR-0003 both call the gate; skipping it and still printing "All checks
-	# passed" is how unlinted work reaches a commit through the pre-commit hook.
+	# A missing tool is a FAILURE, not a skip. This is the leg the README calls
+	# the gate; skipping it and still printing "All checks passed" is how
+	# unlinted work reaches a commit through the pre-commit hook.
 	red '  ansible-lint not installed (pip install ansible-lint)'
-	fail=$((fail + 1))
-fi
-
-bold ''
-bold '==> shellcheck'
-if command -v shellcheck >/dev/null 2>&1; then
-	# nullglob: a role with no shell contributes nothing, not a literal path.
-	# .githooks/* is extension-less and matched by shebang; it is graded
-	# because a hook that dies takes the gate's own enforcement with it.
-	shopt -s nullglob
-	sh_files=(scripts/*.sh roles/*/files/*.sh .githooks/*)
-	shopt -u nullglob
-	if shellcheck -x "${sh_files[@]}"; then
-		green "  ok  ${#sh_files[@]} shell script(s)"
-	else
-		fail=$((fail + 1))
-	fi
-
-	# These run on a contributor's own bash, and a Mac's /bin/bash is 3.2.
-	# There is no bash-version target, so pick the POSIX codes that are
-	# bash 4 features colliding with nothing 3.2 has. A net, not a proof —
-	# `bash -n` does not catch a bad substitution.
-	shopt -s nullglob
-	authoring=(.githooks/* scripts/*.sh)
-	shopt -u nullglob
-	if shellcheck --shell=sh --include=SC3059,SC3032,SC3029 \
-		"${authoring[@]}"; then
-		green "  ok  ${#authoring[@]} file(s) free of bash 4 constructs"
-	else
-		red '  bash 4 construct — .githooks/ and scripts/ meet bash 3.2'
-		fail=$((fail + 1))
-	fi
-else
-	red '  shellcheck not installed'
-	fail=$((fail + 1))
-fi
-
-# Proves galaxy.yml parses and that build_ignore does not drop something the
-# collection needs. Output lands in .collections/, which is gitignored.
-#
-# A successful exit proves nothing about what shipped: build_ignore is the only
-# exclusion list the build reads, .gitignore is not consulted, and omitting
-# .collections/ once vendored every dependency plus a symlink loop back to this
-# repo — a 259MB tarball that built green. Inspect the contents, not the status.
-bold ''
-bold '==> collection build'
-# A dedicated, emptied directory rather than .collections/ itself: it makes the
-# tarball findable by glob, so nothing here re-parses galaxy.yml for the version.
-# Deriving the path by awk meant any change to how `version:` is written — quotes,
-# a trailing comment — silently pointed tar at a file that does not exist.
-build_out='.collections/build'
-rm -rf "$build_out" && mkdir -p "$build_out" || exit 1
-if ansible-galaxy collection build --force \
-	--output-path "$build_out" >/dev/null 2>&1; then
-	shopt -s nullglob
-	tarballs=("$build_out"/*.tar.gz)
-	shopt -u nullglob
-	# tar's status is checked: an unreadable tarball must not read as zero
-	# stowaways, which is how this guard used to print "ok (1 entries)" while
-	# inspecting nothing.
-	if ((${#tarballs[@]} != 1)); then
-		red "  FAIL build produced ${#tarballs[@]} tarballs, expected 1"
-		fail=$((fail + 1))
-	elif ! entries=$(tar tzf "${tarballs[0]}"); then
-		red "  FAIL cannot read ${tarballs[0]}"
-		fail=$((fail + 1))
-	else
-		stowaways=$(printf '%s\n' "$entries" | while IFS= read -r path; do
-			case $path in
-				.collections/* | .ansible/*) printf '%s\n' "$path" ;;
-			esac
-		done)
-		if [[ -n $stowaways ]]; then
-			red '  FAIL tarball ships repo-local trees (add them to build_ignore):'
-			printf '%s\n' "$stowaways" | head -5
-			fail=$((fail + 1))
-		else
-			green "  ok  galaxy.yml builds ($(printf '%s\n' "$entries" | wc -l) entries)"
-		fi
-	fi
-else
-	red '  FAIL collection build'
-	ansible-galaxy collection build --force --output-path "$build_out"
 	fail=$((fail + 1))
 fi
 

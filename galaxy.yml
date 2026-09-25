@@ -1,32 +1,22 @@
 ---
-# Collection manifest. Consumed by `ansible-galaxy collection install`, which is
-# how consuming repos take this layer — never by vendoring or a submodule.
-#
-# Starts at 1.0.0 by choice, not by rule: ansible-lint's version floor
-# (galaxy[version-incorrect]) is opt-in and this repo does not enable it. 0.x
-# would say the contract may still move, and the README's var table is a
-# contract we intend to hold. Tag the repo to match on every release;
-# consumers pin that tag in their requirements.yml.
+# Installed from a git tag, never vendored. Began at 1.0.0: the README's var
+# table was a contract from the first release.
 namespace: fabbrito
 name: infra
 version: 1.2.0
 readme: README.md
 
-# No mailbox: this manifest ships to every consumer and MANIFEST.json is world
-# readable once the repo is public. Contact goes through the repo — issues for
-# bugs, the Security tab for anything private (SECURITY.md).
+# No mailbox: MANIFEST.json is public. Issues, or the Security tab.
 authors:
   - Fabrício Brito (@fabbrito)
 
 description: >-
-  Baseline convergence for long-lived Ubuntu VPS hosts — OS hardening, firewall,
-  fail2ban, Docker, rclone/R2 backups, Caddy reverse proxy, and a loopback-bound
-  monitoring stack. Service roles stay in the consuming repo.
+  Composable roles for long-lived Debian-family hosts, cloud VMs and boards —
+  OS, SSH hardening, firewall, fail2ban, Docker, rclone/R2 backups, Caddy,
+  monitoring, Tailscale, and a board's network and journal. Service roles stay
+  in the consuming repo.
 
-# Both, and they do coexist — each answers a different reader. `license` is the
-# SPDX id a tool matches on (Galaxy's search, a consumer's licence audit);
-# `license_file` is what actually ships the terms. Declaring only the id would
-# leave a tarball with no licence text in it.
+# Both: the SPDX id is what tools match, the file is the text that ships.
 license:
   - Apache-2.0
 
@@ -41,8 +31,7 @@ tags:
   - firewall
   - backup
 
-# Mirrors the bounds the source repo pinned. Pinned to majors so a breaking
-# collection release arrives as a chosen upgrade, not as drift.
+# Majors: a breaking release is a chosen upgrade, not drift.
 dependencies:
   community.docker: ">=5.0.0,<6.0.0"
   community.general: ">=13.0.0,<14.0.0"
@@ -53,19 +42,13 @@ documentation: https://github.com/fabbrito/ansible-infra/blob/master/README.md
 homepage: https://github.com/fabbrito/ansible-infra
 issues: https://github.com/fabbrito/ansible-infra/issues
 
-# Repo-local development tooling and authoring rules. They lint and govern this
-# repo; they are not part of what a consumer installs, and shipping them would
-# put a second Makefile, a second scripts/, and our house style on their disk
-# under ansible/collections/. AGENTS.md especially: a consumer's own agents read
-# whatever lands in their tree.
-# build_ignore is the ONLY exclusion list the build reads — .gitignore is not
-# consulted, so a gitignored directory still ships unless it is named here.
-# .collections/ holds `make deps`' installs AND lint.sh's symlink back to this
-# repo, so omitting it vendored all three dependency collections plus a
-# recursive copy of ourselves: a 259MB tarball.
+# The build's ONLY exclusion list: .gitignore is not read. Authoring tools and
+# rules stay out of a consumer's tree, where their agents would read them.
+# build-check.sh fails on anything shipped outside its allowlist.
 build_ignore:
   - .collections
   - .ansible
+  - .tmp
   - .github
   - .githooks
   - .gitignore
@@ -74,10 +57,7 @@ build_ignore:
   - .prettierrc.json
   - AGENTS.md
   - CLAUDE.md
-  # The glossary points at AGENTS.md, which does not ship — sending it alone
-  # ships a dangling pointer. docs/agents/ is skill configuration for authoring
-  # THIS repo (it names this repo's issue tracker), so it is the same class as
-  # AGENTS.md, not documentation a consumer can act on.
+  # Both configure this repo's authoring, like AGENTS.md.
   - CONTEXT.md
   - docs/agents
   - Makefile

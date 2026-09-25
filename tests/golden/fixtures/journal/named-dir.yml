@@ -1,0 +1,4 @@
+---
+# journal_dir overridden, and the mount follows it.
+storage_path: /mnt/state
+journal_dir: logs/journal

@@ -1,0 +1,12 @@
+# Rendered by Ansible — do not edit on host.
+# Source: fabbrito.infra collection — roles/rclone/templates/rclone.conf.j2
+
+# No `acl`: R2 object read/write tokens deny PutObjectAcl, so an ACL header 403s.
+# `no_check_bucket`: bucket-scoped tokens cannot list buckets.
+[r2]
+type = s3
+provider = Cloudflare
+access_key_id = golden-fixture-not-a-key-id
+secret_access_key = golden-fixture-not-a-secret
+endpoint = https://golden-fixture.r2.example
+no_check_bucket = true

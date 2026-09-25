@@ -1,13 +1,15 @@
 ---
-# CIDRs/IPs fail2ban never bans. Add a fixed office or CI egress IP per host_vars
-# so an operator who fat-fingers SSH from a known address isn't locked out.
+# Never banned. Add a fixed office or egress IP per host, so a mistyped key
+# from a known address does not lock its operator out.
 fail2ban_ignoreip:
   - 127.0.0.1/8
   - ::1
 
-fail2ban_findtime: 600 # 10 min window
-fail2ban_bantime: 3600 # 1 hour
+fail2ban_findtime: 600 # 10 min
+fail2ban_bantime: 3600 # 1 h
 fail2ban_maxretry: 5
-fail2ban_recidive_bantime: 604800 # 1 week
+
+# Repeat offenders: banned on every port after this many bans in the window.
 fail2ban_recidive_findtime: 86400 # 1 day
+fail2ban_recidive_bantime: 604800 # 1 week
 fail2ban_recidive_maxretry: 5

@@ -1,0 +1,74 @@
+---
+# A cloud VM's address is the provider's; rewriting it cuts the host off.
+- name: Assert a board
+  ansible.builtin.assert:
+    that: host_kind | default('') == 'board'
+    fail_msg: >-
+      host_kind is "{{ host_kind | default('') }}". network fixes a board's LAN
+      address; leave it out of a vm's role list.
+    quiet: true
+
+- name: Assert network_address
+  ansible.builtin.assert:
+    that: network_address | default('') is match('^[0-9]{1,3}([.][0-9]{1,3}){3}/[0-9]{1,2}$')
+    fail_msg: network_address is required, as CIDR (e.g. 192.168.0.202/24).
+    quiet: true
+
+# A board image without NetworkManager (systemd-networkd) ignores a keyfile.
+- name: Read whether NetworkManager runs
+  ansible.builtin.command:
+    argv: [systemctl, is-active, NetworkManager]
+  register: network_manager_state
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Stat the interface
+  ansible.builtin.stat:
+    path: "/sys/class/net/{{ network_interface }}"
+  register: network_interface_stat
+
+- name: Assert NetworkManager and the interface
+  ansible.builtin.assert:
+    that:
+      - network_manager_state.stdout == 'active'
+      - network_interface_stat.stat.exists
+    fail_msg: >-
+      NetworkManager is {{ network_manager_state.stdout }} and interface
+      {{ network_interface }} {{ 'exists' if network_interface_stat.stat.exists
+      else 'is absent' }}. The role needs both: set network_interface, or leave
+      network out of this host's role list.
+    quiet: true
+
+# A real profile also stops NetworkManager generating its in-memory
+# "Wired connection 1".
+- name: Render the interface profile
+  ansible.builtin.template:
+    src: nmconnection.j2
+    dest: "/etc/NetworkManager/system-connections/{{ network_interface }}.nmconnection"
+    owner: root
+    group: root
+    # NetworkManager ignores a keyfile anyone else can read.
+    mode: "0600"
+  notify: Apply the interface profile
+
+- name: Apply the interface profile now
+  ansible.builtin.meta: flush_handlers
+
+# Skipped in --check, where nothing landed.
+- name: Read the interface addresses
+  ansible.builtin.command:
+    argv: [nmcli, --get-values, IP4.ADDRESS, device, show, "{{ network_interface }}"]
+  register: network_addresses
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Assert the fixed address is up
+  ansible.builtin.assert:
+    that: network_address in network_addresses.stdout.split(' | ')
+    fail_msg: >-
+      {{ network_interface }} carries {{ network_addresses.stdout }}, not
+      {{ network_address }}. Check `nmcli connection show {{ network_interface }}`.
+    quiet: true
+  when: not ansible_check_mode

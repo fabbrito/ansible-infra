@@ -1,0 +1,20 @@
+---
+# Tailscale's own apt repo; the distros ship none. Upgrades arrive through
+# unattended-upgrades (origin pattern in `os`). Raspberry Pi OS takes /debian:
+# /raspbian serves the same key and armhf .deb.
+tailscale_repo_url: >-
+  https://pkgs.tailscale.com/stable/{{
+  'ubuntu' if ansible_facts['distribution'] == 'Ubuntu' else 'debian' }}
+
+# Repo signing key (fingerprint 2596A99EAAB33821893C0A79458CA832957F5868), one file
+# for every codename. Trust anchor for the first download only: after that the
+# tailscale-archive-keyring package owns the file and apt rotates it.
+tailscale_key_sha256: 3e03dacf222698c60b8e2f990b809ca1b3e104de127767864284e6c228f1fb39
+
+# Flags for `tailscale up` beyond ours, e.g. ["--advertise-tags=tag:server"].
+# Read only on the join: changing them later does not touch a joined host.
+tailscale_up_args: []
+
+# Vault key, set in the consumer, never declared here. Required (ADR-0015); read
+# only while the host is off the tailnet.
+#   tailscale_auth_key

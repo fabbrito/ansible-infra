@@ -1,0 +1,13 @@
+---
+# A board's fixed LAN address, for a router that cannot reserve one. Needs
+# host_kind: board, network_address (README) and NetworkManager.
+#
+#   - import_playbook: fabbrito.infra.network
+#
+# Scope a run with -l.
+- name: Network
+  hosts: all
+  become: true
+  gather_facts: false
+  roles:
+    - fabbrito.infra.network

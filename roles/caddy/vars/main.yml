@@ -1,0 +1,8 @@
+---
+# The default origin cert beside the extra ones: one list for the assert and
+# the copies. A lazy var, not set_fact, so the keys never reach -v output.
+caddy_origin_certs: >-
+  {{ [{'name': 'default',
+       'cert': caddy_origin_cert | default(''),
+       'key': caddy_origin_key | default('')}]
+     + caddy_extra_certs }}

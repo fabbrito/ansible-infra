@@ -1,0 +1,6 @@
+---
+# Extra origins append to the pattern list, and a fixed reboot time renders
+# as given.
+host_kind: vm
+os_unattended_origins: ["origin=Example,codename=${distro_codename}"]
+os_unattended_reboot_time: "04:30"

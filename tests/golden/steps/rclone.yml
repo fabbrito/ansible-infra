@@ -1,0 +1,12 @@
+---
+# THE ROLE'S OWN FILE: its asserts gate the render, and its flag decides the
+# [r2crypt] stanza; a copy here could drift from the role.
+- name: Check the rclone secrets
+  ansible.builtin.include_tasks: "{{ golden_repo }}/roles/rclone/tasks/secrets.yml"
+
+# Named rclone-conf, not rclone.conf, so no scanner reads the fake keys as a leak.
+- name: Render rclone.conf
+  ansible.builtin.template:
+    src: "{{ golden_repo }}/roles/rclone/templates/rclone.conf.j2"
+    dest: "{{ golden_case_out }}/rclone-conf"
+    mode: "0600"
