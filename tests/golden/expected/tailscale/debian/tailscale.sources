@@ -1,0 +1,7 @@
+# Rendered by Ansible — do not edit on host.
+# Source: fabbrito.infra collection — roles/tailscale/templates/tailscale.sources.j2
+Types: deb
+URIs: https://pkgs.tailscale.com/stable/debian
+Suites: trixie
+Components: main
+Signed-By: /usr/share/keyrings/tailscale-archive-keyring.gpg

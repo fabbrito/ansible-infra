@@ -1,0 +1,3 @@
+---
+# Present so `ansible-doc -t role -l fabbrito.infra` lists the role.
+dependencies: []

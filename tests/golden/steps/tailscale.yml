@@ -1,0 +1,12 @@
+---
+# What roles/tailscale/tasks/main.yml renders.
+# vars/, not defaults/: render-one.yml loads only the defaults.
+- name: Load the role vars
+  ansible.builtin.include_vars:
+    file: "{{ golden_repo }}/roles/tailscale/vars/main.yml"
+
+- name: Render the Tailscale apt source
+  ansible.builtin.template:
+    src: "{{ golden_repo }}/roles/tailscale/templates/tailscale.sources.j2"
+    dest: "{{ golden_case_out }}/tailscale.sources"
+    mode: "0644"

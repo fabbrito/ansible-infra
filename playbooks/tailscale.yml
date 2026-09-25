@@ -1,0 +1,13 @@
+---
+# The tailnet, for the hosts in the consumer's `tailscale` group. Needs
+# tailscale_auth_key in the vault.
+#
+#   - import_playbook: fabbrito.infra.tailscale
+#
+# Scope a run with -l.
+- name: Tailscale
+  hosts: tailscale
+  become: true
+  gather_facts: true
+  roles:
+    - fabbrito.infra.tailscale

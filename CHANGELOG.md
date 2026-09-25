@@ -29,6 +29,9 @@ that, and the next correction is 1.0.1.
 - `network` and `playbooks/network.yml`: a board's fixed LAN address beside DHCP, through a NetworkManager keyfile.
   `network_address` is a new contract var. Refuses a vm, and a board without NetworkManager or the interface; reads back
   the address.
+- `tailscale` and `playbooks/tailscale.yml` (hosts in the `tailscale` group): Tailscale's apt repo, `/ubuntu` or
+  `/debian` by distribution, and a join with `--accept-dns=false`. `tailscale_auth_key` is asserted; reads back the host
+  on the tailnet.
 
 ### Changed
 
