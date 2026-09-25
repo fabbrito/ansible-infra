@@ -20,6 +20,9 @@ and the converge itself live.
 `preflight` refuses anything else before a role changes the host: another distribution, a release below its floor, or an
 ARMv6 board.
 
+Provider quirks live in `docs/cloud/`: on Oracle Cloud, leave out `firewall` and `fail2ban`
+(docs/cloud/oracle-cloud.md).
+
 ## Install
 
 ```yaml
