@@ -114,6 +114,7 @@ once, as root), `fabbrito.infra.update` does a serial apt upgrade with a reboot 
 `seed` is the cloud-init alternative to `bootstrap`, for a board's boot partition or a provider's user-data field: it
 renders a seed that creates `deploy_user` with `deploy_authorized_keys`, key-only, with passwordless sudo. On a `vm` the
 provider's default user stays as break-glass; on a `board` bumping `seed_generation` re-applies the seed on next boot.
+Where each provider takes it: docs/seed/where-the-seed-goes.md.
 
 ```bash
 ansible-playbook fabbrito.infra.bootstrap -e target=<host>   # -e, NOT -l
