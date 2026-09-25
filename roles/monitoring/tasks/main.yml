@@ -1,17 +1,7 @@
 ---
-# The observability stack: Beszel (hub + agent) for metrics, Dozzle for logs —
-# one compose project, loopback-bound, reached over `ssh -L` (docs/monitoring/access.md).
-# We AUTHOR the compose; the images are upstream (henrygd/beszel, amir20/dozzle).
-#
-# ADR-0001 pairing gate: the agent's KEY+TOKEN are minted by the hub's one-time
-# "Add System" UI step, unreachable before the hub runs. Hub + Dozzle need no
-# secret and come up on the first converge; the agent is rendered — and thus
-# started — only once its token is vaulted, so a box monitors nothing until you
-# pair and re-converge.
+# Beszel (metrics) + Dozzle (logs), one loopback-bound compose project. The
+# agent joins only once paired (defaults/main.yml).
 
-# Not an ADR-0001 skip: without an admin identity the hub still starts and still
-# serves, it just never creates a first user — and an admin-less Beszel hub is
-# open. Fail the converge instead (ADR-0010).
 - name: Assert the hub has an admin identity and an install dir
   ansible.builtin.assert:
     that:
@@ -25,7 +15,6 @@
       unauthenticated to anyone who reaches its port.
     quiet: true
 
-# Host state, not "docker ran": compose is what the last task drives.
 - name: Probe Docker Compose
   ansible.builtin.command: docker compose version
   register: monitoring_compose_probe
@@ -46,10 +35,7 @@
 - name: Record whether the agent is paired (its hub token exists)
   ansible.builtin.include_tasks: pairing.yml
 
-# One-directional, NOT all-or-nothing like rclone's: key-without-token is the
-# documented revoke (pull the token, the compose stops rendering the agent), so
-# only the reverse is wrong. The hub mints both at once, so a token without its
-# key means one of the pair was dropped in transit to the vault.
+# One-directional: key without token is the revoke.
 - name: Assert a paired agent also has the hub's public key
   ansible.builtin.assert:
     that: monitoring_agent_key | default('') | length > 0
@@ -70,9 +56,7 @@
     group: root
     mode: "0750"
 
-# The two secrets only; the world-readable compose interpolates them rather than
-# inlining. Non-secret config (URLs, admin email, agent public key) sits in the
-# compose from role vars, where it stays reviewable.
+# Secrets only; the world-readable compose interpolates them.
 - name: Render the .env
   ansible.builtin.template:
     src: env.j2
@@ -90,10 +74,8 @@
     group: root
     mode: "0644"
 
-# `state: present` reconciles the whole project: pull the agent's token and the
-# compose drops it, so remove_orphans tears the running agent down.
-# build: never — we run published tags, never build on the host.
-# Check mode has no daemon: the baseline docker install did not really happen.
+# remove_orphans is the revoke: unpaired, the agent leaves the compose and is
+# torn down. In --check the daemon is not really installed.
 - name: Bring up the monitoring stack
   community.docker.docker_compose_v2:
     project_src: "{{ monitoring_dir }}"
@@ -103,8 +85,7 @@
     state: present
   when: not ansible_check_mode
 
-# Postcondition: `up` returns once containers start; a crash-looping one still
-# reports ok.
+# `up` returns once containers start; a crash-looping one still reports ok.
 - name: Probe the running services
   ansible.builtin.command:
     cmd: docker compose ps --status running --services

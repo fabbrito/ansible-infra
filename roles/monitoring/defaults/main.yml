@@ -1,46 +1,32 @@
 ---
-# Where the stack lives on the box. infra_install_dir is fleet-wide API.
+# infra_install_dir is a consumer contract var.
 monitoring_dir: "{{ infra_install_dir }}/monitoring"
 
-# Pinned image tags, never `latest`: a tag names a reviewable version and fails
-# loudly at the pull if unpublished. Bump deliberately, as requirements.yml pins
-# the collections.
-# Beszel tags carry NO `v` (0.18.7); Dozzle's DO (v10.6.11). Match the registry,
-# not the GitHub release tag — a `v` mismatch fails at the pull.
+# Pinned, never `latest`. Match the registry tag, not the GitHub release:
+# Beszel's carry no `v`, Dozzle's do.
 monitoring_hub_version: "0.18.7" # henrygd/beszel
 monitoring_agent_version: "0.18.7" # henrygd/beszel-agent
 monitoring_dozzle_version: v10.6.11 # amir20/dozzle
 
-# LOOPBACK ONLY — a security boundary. Docker writes its own iptables and bypasses
-# ufw, so a 0.0.0.0 bind puts these dashboards on the public internet: the hub has
-# no auth until an admin exists, Dozzle has none at all. Both are reached over
-# `ssh -L` (docs/monitoring/access.md). Anything you put in front of them has to supply
-# the authentication they do not have.
+# LOOPBACK ONLY: Docker's published ports bypass ufw, and Dozzle has no auth.
+# Reach them over `ssh -L` (docs/monitoring/access.md); anything put in front
+# must supply the auth.
 monitoring_hub_bind: "127.0.0.1"
 monitoring_hub_port: 9090
 monitoring_dozzle_bind: "127.0.0.1"
 monitoring_dozzle_port: 9080
 
-# Only feeds the links the hub writes into emails/notifications — and for a
-# tunnelled operator localhost:<port> is exactly how you reach it.
+# Only feeds links in the hub's notifications; tunnelled, localhost is right.
 monitoring_app_url: "http://localhost:{{ monitoring_hub_port }}"
 
-# The hub's admin identity, REQUIRED on any monitoring host (asserted in tasks —
-# an empty one creates no first user and the hub sits unauthenticated). The EMAIL
-# authenticates nothing, so it belongs in plain group_vars; the PASSWORD does and
-# lives in the group vault. USER_EMAIL/USER_PASSWORD create the first user ONLY
-# when none exists, so rendering them every converge is idempotent. Prefer a
-# shared team mailbox — a person can leave.
+# Required, with monitoring_admin_password (vaulted): without them the hub
+# never creates a first user and serves unauthenticated. Applied only while no
+# user exists, so re-rendering is idempotent. Prefer a team mailbox.
 monitoring_admin_email: ""
 
-# The agent's hub credentials, minted together by the hub's one-time "Add System"
-# step (docs/monitoring/access.md). KEY is the hub's PUBLIC key — authenticates
-# nothing, so plaintext config (override in group_vars); TOKEN authenticates the
-# agent and is vaulted. No token → the agent is not rendered or started (ADR-0001);
-# hub + Dozzle still come up, so a box can join before it is paired. A token
-# WITHOUT this key fails the converge — it would start an agent that can never
-# authenticate. The reverse is fine: it is the documented revoke.
+# Agent pairing, an opt-in feature keyed on monitoring_agent_token (vaulted;
+# ADR-0015): both are minted by the hub's "Add System" step
+# (docs/monitoring/access.md), so the first converge has neither. The key is
+# public. A token without the key is asserted; a key without the token is the
+# revoke.
 monitoring_agent_key: ""
-# monitoring_agent_token and monitoring_admin_password are vaulted in the
-# consuming repo — group_vars/<monitoring group>/vault.yml, with the expected
-# keys documented in the sibling vars.yml.
