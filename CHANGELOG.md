@@ -32,6 +32,9 @@ that, and the next correction is 1.0.1.
 - `tailscale` and `playbooks/tailscale.yml` (hosts in the `tailscale` group): Tailscale's apt repo, `/ubuntu` or
   `/debian` by distribution, and a join with `--accept-dns=false`. `tailscale_auth_key` is asserted; reads back the host
   on the tailnet.
+- `seed` and `playbooks/seed.yml`: renders a cloud-init seed for one host, creating `deploy_user` with
+  `deploy_authorized_keys`. A board gets `user-data` and `meta-data` for its boot partition; a vm gets `user-data` for
+  the provider, keeping the provider's default user.
 
 ### Changed
 

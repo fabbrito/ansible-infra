@@ -1,0 +1,15 @@
+---
+# What roles/seed/tasks/main.yml renders. Fixtures set the seed_* facts the
+# role derives from inventory.
+- name: Render user-data
+  ansible.builtin.template:
+    src: "{{ golden_repo }}/roles/seed/templates/user-data.j2"
+    dest: "{{ golden_case_out }}/user-data"
+    mode: "0644"
+
+- name: Render meta-data
+  ansible.builtin.template:
+    src: "{{ golden_repo }}/roles/seed/templates/meta-data.j2"
+    dest: "{{ golden_case_out }}/meta-data"
+    mode: "0644"
+  when: seed_host_kind == 'board'

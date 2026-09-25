@@ -65,9 +65,14 @@ load-bearing, not stylistic. Scope a run with `-l <host>`, never by narrowing th
 `bootstrap` and `update` ship too: `fabbrito.infra.bootstrap` creates the unprivileged deploy user on a fresh box (run
 once, as root), `fabbrito.infra.update` does a serial apt upgrade with a reboot when required.
 
+`seed` is the cloud-init alternative to `bootstrap`, for a board's boot partition or a provider's user-data field: it
+renders a seed that creates `deploy_user` with `deploy_authorized_keys`, key-only, with passwordless sudo. On a `vm` the
+provider's default user stays as break-glass; on a `board` bumping `seed_generation` re-applies the seed on next boot.
+
 ```bash
 ansible-playbook fabbrito.infra.bootstrap -e target=<host>   # -e, NOT -l
 ansible-playbook fabbrito.infra.update -l <host-or-group>
+ansible-playbook fabbrito.infra.seed -e target=<host> -e seed_output_dir=<dir>
 ```
 
 `bootstrap` is the one play addressed by `-e target=`. Omit it and the play matches a sentinel group that exists in no

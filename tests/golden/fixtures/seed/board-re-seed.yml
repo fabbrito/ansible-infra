@@ -1,0 +1,12 @@
+---
+# A re-seeded board: generation bumped, timezone set, several keys.
+#
+# EVERY VALUE BELOW IS FAKE.
+seed_timezone: Etc/UTC
+seed_generation: 3
+seed_host_kind: board
+seed_hostname: board-b
+seed_user: operator
+seed_authorized_keys:
+  - ssh-ed25519 AAAAgolden-fixture-not-a-key operator@example
+  - ssh-rsa AAAAgolden-fixture-not-a-key-either spare@example

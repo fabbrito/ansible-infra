@@ -1,0 +1,19 @@
+#cloud-config
+# Rendered by Ansible — do not edit on host.
+# Source: fabbrito.infra collection — roles/seed/templates/user-data.j2
+#
+# A key whose module the image's cloud.cfg does not run is ignored without a
+# warning.
+hostname: vm-a
+# Without it sudo warns "unable to resolve host".
+manage_etc_hosts: true
+# `default` keeps the provider's user and its injected key: break-glass.
+users:
+  - default
+  - name: operator
+    shell: /bin/bash
+    lock_passwd: true
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - "ssh-ed25519 AAAAgolden-fixture-not-a-key operator@example"
+ssh_pwauth: false

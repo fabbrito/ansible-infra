@@ -1,0 +1,18 @@
+---
+# Renders a host's cloud-init seed on the controller: a board's boot partition,
+# or a cloud provider's user-data field.
+#
+#   ansible-playbook fabbrito.infra.seed -e target=<host> -e seed_output_dir=<dir>
+#
+# The unmatched default makes a forgotten -e target= match zero hosts.
+- name: Seed a host
+  hosts: "{{ target | default('seed_target_unspecified') }}"
+  gather_facts: false
+  vars:
+    # Inventory connection vars beat play keywords, and these belong to the
+    # host. Play vars beat inventory: every task stays local and unprivileged.
+    ansible_connection: local
+    ansible_become: false
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  roles:
+    - fabbrito.infra.seed

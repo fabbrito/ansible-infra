@@ -1,0 +1,98 @@
+---
+- name: Assert the play targets one host
+  ansible.builtin.assert:
+    that: ansible_play_hosts_all | length == 1
+    fail_msg: >-
+      target matched {{ ansible_play_hosts_all | length }} hosts. Every seed
+      lands in the same seed_output_dir, so all but one would be overwritten.
+    quiet: true
+
+- name: Assert host_kind
+  ansible.builtin.assert:
+    that: host_kind | default('') in ['board', 'vm']
+    fail_msg: >-
+      host_kind is "{{ host_kind | default('') }}"; the seed differs for a board
+      and a vm, so it needs one of them.
+    quiet: true
+
+- name: Assert the seeded account
+  ansible.builtin.assert:
+    that:
+      - deploy_user | default('') is match('^[a-z][-a-z0-9_]*$')
+      - deploy_user != 'root'
+      - deploy_authorized_keys | default('') is sequence
+      - deploy_authorized_keys is not string
+      - deploy_authorized_keys | length > 0
+    fail_msg: >-
+      deploy_user must name a non-root account and deploy_authorized_keys be a
+      non-empty list. The seed sets no password, so without keys nobody reaches
+      the host.
+    quiet: true
+
+# Templates read these, never inventory vars, so goldens can set them.
+- name: Name the host and its account
+  ansible.builtin.set_fact:
+    seed_hostname: "{{ inventory_hostname.split('.') | first }}"
+    seed_user: "{{ deploy_user }}"
+    seed_authorized_keys: "{{ deploy_authorized_keys }}"
+    seed_host_kind: "{{ host_kind }}"
+
+- name: Assert the hostname label
+  ansible.builtin.assert:
+    that:
+      - seed_hostname is match('^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$')
+      - seed_hostname is not match('^[0-9]+$')
+    fail_msg: >-
+      '{{ seed_hostname }}', the first label of {{ inventory_hostname }}, is not
+      a hostname. An inventory keyed by IP cannot name a host.
+    quiet: true
+
+- name: Assert the output directory is named
+  ansible.builtin.assert:
+    that: seed_output_dir | length > 0
+    fail_msg: >-
+      seed_output_dir is unset. Pass a local directory or a board's mounted
+      boot partition with -e seed_output_dir=<dir>.
+    quiet: true
+
+# Modules resolve a relative path against the playbook's directory, inside the
+# installed collection. The filter runs in the directory ansible-playbook
+# started in.
+- name: Resolve the output directory
+  ansible.builtin.set_fact:
+    seed_output_path: "{{ seed_output_dir | realpath }}"
+
+- name: Stat the output directory
+  ansible.builtin.stat:
+    path: "{{ seed_output_path }}"
+  register: seed_output_stat
+
+# Only when absent: chmod on an existing mounted boot partition can fail.
+- name: Create the output directory
+  ansible.builtin.file:
+    path: "{{ seed_output_path }}"
+    state: directory
+    mode: "0755"
+  when: not seed_output_stat.stat.exists
+
+- name: Render user-data
+  ansible.builtin.template:
+    src: user-data.j2
+    dest: "{{ seed_output_path }}/user-data"
+    mode: "0644"
+
+# NoCloud only: a provider serves its own meta-data.
+- name: Render meta-data
+  ansible.builtin.template:
+    src: meta-data.j2
+    dest: "{{ seed_output_path }}/meta-data"
+    mode: "0644"
+  when: seed_host_kind == 'board'
+
+- name: Report where the seed is
+  ansible.builtin.debug:
+    msg: >-
+      Seed for {{ seed_hostname }} in {{ seed_output_path }}.
+      {{ 'Copy user-data and meta-data onto the boot partition, then boot.'
+         if seed_host_kind == 'board'
+         else "Paste user-data into the provider's user-data field at create." }}

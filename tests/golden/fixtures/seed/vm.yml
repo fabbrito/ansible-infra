@@ -1,0 +1,9 @@
+---
+# A cloud vm: the provider's default user kept, no meta-data, no ssh enable.
+#
+# EVERY VALUE BELOW IS FAKE.
+seed_host_kind: vm
+seed_hostname: vm-a
+seed_user: operator
+seed_authorized_keys:
+  - ssh-ed25519 AAAAgolden-fixture-not-a-key operator@example

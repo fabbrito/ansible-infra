@@ -1,0 +1,14 @@
+---
+# The account is deploy_user with deploy_authorized_keys, the contract bootstrap
+# uses (README).
+
+# IANA zone. Empty skips the key; the image default stands.
+seed_timezone: ""
+
+# Boards only: a new value re-applies the seed on next boot, the break-glass
+# lever. A cloud provider sets its own instance-id.
+seed_generation: 1
+
+# Directory to write into, relative to where ansible-playbook runs; created when
+# absent. Asserted set: a local dir, or a board's mounted boot partition.
+seed_output_dir: ""
