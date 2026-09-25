@@ -157,7 +157,7 @@ install time.
 make deps    # install the collections the roles depend on
 make hooks   # enable the repo's git hooks — once per clone
 make fmt     # prettier + shfmt
-make check   # fmt-check + lint — must be green to commit
+make check   # every hook lane — must be green to commit
 make sanity  # ansible-test sanity — CI runs it; slow on a cold venv
 make test    # golden render tests — CI runs it
 ```

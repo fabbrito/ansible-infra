@@ -1,0 +1,932 @@
+#!/usr/bin/env bash
+#
+# githooks - one engine for commit-message grading and staged-file lanes.
+#
+# Vendored verbatim into a consumer repo as .githooks/githooks. All per-repo
+# policy lives in .githooks/hooks.conf; a diff against upstream is a bug.
+#
+#   githooks commit-msg <file>          grade a message
+#   githooks pre-commit [--fix]         lanes over the staged set
+#   githooks check [--fix] [<file>|-]   lanes over working changes, + a message
+#   githooks version                    print the version
+#
+# Exit: 0 ok, 1 rejected or a lane failed, 2 usage, config or a broken
+# environment.
+#
+# No errexit on purpose: a failing lane is data, not a reason to abort.
+set -uo pipefail
+
+VERSION='v0.3.1'
+SCHEMA=1
+
+prog=${0##*/}
+
+# Regexes live in variables: inside [[ ]] a bracket class reads as the closing
+# ]] to more than one parser, shfmt's included.
+re_group='^\[group[[:space:]]+([A-Za-z0-9_-]+)\][[:space:]]*$'
+re_subject='^([a-zA-Z]+)(\(([^)]*)\))?:[[:space:]](.*)$'
+re_trailer='^([A-Za-z][A-Za-z0-9-]*):[[:space:]]*(.*)$'
+re_person='^.+[[:space:]]<[^[:space:]@]+@[^[:space:]]+>$'
+re_token='^[^[:space:]]+$'
+
+# Git's cut line, exactly: "# ", 24 dashes, " >8 ", 24 dashes. Git ends the
+# message only at this line - not at any comment that happens to hold ">8".
+cut_line='# ------------------------ >8 ------------------------'
+
+# Bash floor. Exists for the error message, not for portability: without it a
+# 3.2 shell dies on a syntax error 300 lines from the cause.
+if ((BASH_VERSINFO[0] < 4)) ||
+	((BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4)); then
+	printf '%s: requires bash >= 4.4, found %s\n' "$prog" "$BASH_VERSION" >&2
+	exit 2
+fi
+
+# ---------------------------------------------------------------- reporting
+
+red=''
+bold=''
+reset=''
+if [[ -t 2 ]]; then
+	red=$'\033[0;31m'
+	bold=$'\033[1m'
+	reset=$'\033[0m'
+fi
+
+status=0
+scope_rejected=0
+# Rejections printed so far. A count, not $status: `check` runs lanes before
+# the message, and a lane failure must not read as a message rejection.
+rejections=0
+
+# A usage, config or environment problem - including git itself failing.
+# Never 1: none of these judged the commit, and a 1 invites --no-verify as
+# the fix when the real problem is the machine.
+gh_die() {
+	printf '%s%s: %s%s\n' "$red" "$prog" "$*" "$reset" >&2
+	exit 2
+}
+
+# what -> what to write instead. Every rejection carries both.
+gh_reject() {
+	printf '%s%s: %s%s\n' "$red" "$prog" "$1" "$reset" >&2
+	shift
+	local line
+	for line in "$@"; do
+		printf '  %s\n' "$line" >&2
+	done
+	status=1
+	rejections=$((rejections + 1))
+}
+
+gh_note() {
+	printf '%s\n' "$*" >&2
+}
+
+# A preview line, cut to fit the width a bullet is graded against.
+gh_clip() {
+	local text=$1 max=$2
+	if ((${#text} > max)); then
+		printf '%s...' "${text:0:max-3}"
+	else
+		printf '%s' "$text"
+	fi
+}
+
+# ------------------------------------------------------------------- config
+
+declare -A conf
+declare -A g_match g_scope g_require g_run g_fix
+group_names=()
+
+gh_conf_defaults() {
+	conf[schema]=$SCHEMA
+	conf[types]='feat fix refactor chore style docs build perf'
+	conf[subject_max]=72
+	conf[bullet_max]=2
+	conf[body_cols]=80
+	conf[trailer_person]='Co-Authored-By Signed-off-by Reviewed-by'
+	conf[trailer_reference]='Refs Closes Fixes'
+	conf[scope_fixed]=''
+	conf[scope_root]=''
+}
+
+# Keys whose value is a command line, taken verbatim to end of line. Every
+# other value has an inline # comment stripped.
+gh_is_command_key() {
+	[[ $1 == run || $1 == fix ]]
+}
+
+# Keys that take a line each. Every other key is written once: a second line
+# replaces, and a replaced `match` narrows a lane into silence.
+gh_accumulates() {
+	[[ $1 == run || $1 == fix || $1 == scope_root ]]
+}
+
+# Append to a newline-joined accumulator.
+gh_append() {
+	local -n ref=$1
+	if [[ -z ${ref:-} ]]; then
+		ref=$2
+	else
+		ref+=$'\n'$2
+	fi
+}
+
+gh_parse_conf() {
+	local file=$1
+	local line key value group='' lineno=0
+	# One entry per key written, keyed by group so two groups may each
+	# write their own. Group names are unique already.
+	local -A seen=()
+
+	while IFS= read -r line || [[ -n $line ]]; do
+		((lineno++))
+		line=${line%$'\r'}
+		line=${line#"${line%%[![:space:]]*}"}
+
+		[[ -z $line ]] && continue
+		[[ $line == '#'* ]] && continue
+
+		if [[ $line == '['* ]]; then
+			[[ $line =~ $re_group ]] ||
+				gh_die "$file:$lineno: expected [group <name>], got: $line"
+			group=${BASH_REMATCH[1]}
+			[[ -n ${g_scope[$group]:-} ]] &&
+				gh_die "$file:$lineno: duplicate group: $group"
+			group_names+=("$group")
+			g_match[$group]=''
+			g_scope[$group]='staged'
+			g_require[$group]='false'
+			g_run[$group]=''
+			g_fix[$group]=''
+			continue
+		fi
+
+		[[ $line == *=* ]] ||
+			gh_die "$file:$lineno: expected key = value, got: $line"
+
+		key=${line%%=*}
+		value=${line#*=}
+		key=${key%"${key##*[![:space:]]}"}
+		value=${value#"${value%%[![:space:]]*}"}
+
+		if ! gh_is_command_key "$key"; then
+			value=${value%%[[:space:]]#*}
+		fi
+		value=${value%"${value##*[![:space:]]}"}
+
+		if ! gh_accumulates "$key"; then
+			local where=$group$'\x1f'$key
+			if [[ -n ${seen[$where]:-} ]]; then
+				local dup="$file:$lineno: duplicate key: $key,"
+				dup+=" first at line ${seen[$where]}"
+				gh_die "$dup - write one $key line;" \
+					"only run, fix and scope_root accumulate"
+			fi
+			seen[$where]=$lineno
+		fi
+
+		# conf_defaults already holds every key there is, so "has a
+		# default" is the whole validator - no second list to drift.
+		if [[ -z $group ]]; then
+			case $key in
+				scope_root) gh_append "conf[scope_root]" "$value" ;;
+				*)
+					[[ -n ${conf[$key]+set} ]] ||
+						gh_die "$file:$lineno: unknown key: $key"
+					conf[$key]=$value
+					;;
+			esac
+			continue
+		fi
+
+		case $key in
+			match) g_match[$group]=$value ;;
+			scope)
+				[[ $value == staged || $value == tree ]] ||
+					gh_die "$file:$lineno: scope must be staged or tree, got: $value"
+				g_scope[$group]=$value
+				;;
+			require)
+				[[ $value == true || $value == false ]] ||
+					gh_die "$file:$lineno: require must be true or false, got: $value"
+				g_require[$group]=$value
+				;;
+			run) gh_append "g_run[$group]" "$value" ;;
+			fix) gh_append "g_fix[$group]" "$value" ;;
+			*) gh_die "$file:$lineno: unknown key in [group $group]: $key" ;;
+		esac
+	done <"$file"
+}
+
+gh_check_schema() {
+	local declared=${conf[schema]}
+	[[ $declared =~ ^[0-9]+$ ]] ||
+		gh_die "schema must be a number, got: $declared"
+	((declared == SCHEMA)) && return 0
+	local speaks="hooks.conf declares schema $declared; githooks"
+	speaks+=" $VERSION speaks schema $SCHEMA"
+	if ((declared > SCHEMA)); then
+		gh_die "$speaks - the engine is stale, re-vendor it"
+	fi
+	gh_die "$speaks - the config is stale, see the README"
+}
+
+gh_check_numbers() {
+	local key
+	for key in subject_max bullet_max body_cols; do
+		[[ ${conf[$key]} =~ ^[0-9]+$ ]] ||
+			gh_die "$key must be a number, got: ${conf[$key]}"
+	done
+}
+
+gh_load_conf() {
+	gh_conf_defaults
+	local file=${GITHOOKS_CONF:-$root/.githooks/hooks.conf}
+	[[ -f $file ]] || gh_die "no config at $file"
+	gh_parse_conf "$file"
+	gh_check_schema
+	gh_check_numbers
+}
+
+# --------------------------------------------------------------- git basics
+
+# Sets $root. Never a command substitution: `die` inside $( ) exits only that
+# subshell, and the caller carries on with an empty root.
+gh_find_root() {
+	root=$(git rev-parse --show-toplevel 2>/dev/null) ||
+		gh_die 'not inside a git repository'
+}
+
+# Mid-rebase? .git is a file in a worktree, so ask git for the real dir.
+gh_rebase_in_progress() {
+	local dir
+	dir=$(git rev-parse --git-path rebase-merge 2>/dev/null)
+	[[ -d $dir ]] && return 0
+	dir=$(git rev-parse --git-path rebase-apply 2>/dev/null)
+	[[ -d $dir ]]
+}
+
+gh_has_head() {
+	git rev-parse --verify --quiet HEAD >/dev/null 2>&1
+}
+
+# A path a lane can read: not a deletion (already filtered by git), and not a
+# symlink. Handing either to a formatter fails for the wrong reason.
+gh_keep_path() {
+	[[ -f $1 && ! -L $1 ]]
+}
+
+# Read a NUL-delimited path list from git into the named array.
+#
+# Through a temp file, not `< <(git ...)`: a process substitution throws its
+# exit status away, so a git that fails reads as "nothing changed" and the
+# gate passes. A gate that passes on error is worse than no gate.
+gh_read_paths() {
+	local -n dest=$1
+	local filter=$2
+	shift 2
+
+	local tmp path
+	tmp=$(mktemp "${TMPDIR:-/tmp}/githooks.XXXXXX") ||
+		gh_die 'cannot create a temp file'
+	if ! git "$@" >"$tmp"; then
+		rm -f "$tmp"
+		gh_die "git $1 failed"
+	fi
+
+	dest=()
+	while IFS= read -r -d '' path; do
+		if $filter; then
+			gh_keep_path "$path" && dest+=("$path")
+		else
+			dest+=("$path")
+		fi
+	done <"$tmp"
+	rm -f "$tmp"
+}
+
+# The staged set: added/copied/modified/renamed, never deleted.
+gh_read_staged() {
+	gh_read_paths files true diff --cached --name-only --diff-filter=ACMR -z
+}
+
+# Deletions, kept apart. A `staged` lane cannot take one as an argument, but
+# a `tree` lane's `match` is a trigger, not a file list, and a file leaving
+# is when its invariant is most likely broken. No `keep_path`: the path is
+# gone, so it would filter every one out.
+gh_read_deleted() {
+	gh_read_paths deleted false diff --cached --name-only --diff-filter=D -z
+}
+
+# The same for `check`, which judges the worktree against HEAD. No HEAD, no
+# deletions to find - and `git diff HEAD` would fail.
+gh_read_deleted_worktree() {
+	deleted=()
+	gh_has_head || return 0
+	gh_read_paths deleted false diff --name-only --diff-filter=D -z HEAD
+}
+
+# What `check` judges: everything the next `git add -A` would take - tracked
+# files that differ from HEAD, plus untracked ones git is not ignoring.
+# `check` answers "is what I am about to commit acceptable", and a brand-new
+# file is exactly that question. The two sets are disjoint, so no dedup.
+gh_read_worktree() {
+	local untracked=()
+
+	if gh_has_head; then
+		gh_read_paths files true diff --name-only --diff-filter=ACMR -z HEAD
+	else
+		gh_read_staged
+	fi
+
+	gh_read_paths untracked true ls-files --others --exclude-standard -z
+	files+=("${untracked[@]}")
+}
+
+# Staged paths the worktree no longer matches: modified after staging, or
+# deleted from it. A staged lane reads the worktree, so these are bytes it
+# would grade that nobody staged - while the commit still ships the staged
+# blob. No --diff-filter: a deletion is the shape most likely to slip through.
+gh_read_dirty_staged() {
+	local staged=() dirty=() path
+	gh_read_paths staged false diff --cached --name-only --diff-filter=ACMR -z
+	gh_read_paths dirty false diff --name-only -z
+	partial=()
+	for path in "${dirty[@]}"; do
+		gh_in_list "$path" "${staged[@]}" && partial+=("$path")
+	done
+}
+
+# -------------------------------------------------------------- commit-msg
+
+# Strip what git itself would strip: CR, the scissors tail, comment lines,
+# trailing whitespace, and leading/trailing blank lines.
+gh_read_message() {
+	local raw=() line
+	lines=()
+
+	if [[ $1 == '-' ]]; then
+		mapfile -t raw
+	else
+		[[ -f $1 ]] || gh_die "no such message file: $1"
+		mapfile -t raw <"$1"
+	fi
+
+	for line in "${raw[@]}"; do
+		line=${line%$'\r'}
+		[[ $line == "$cut_line" ]] && break
+		[[ $line == '#'* ]] && continue
+		lines+=("${line%"${line##*[![:space:]]}"}")
+	done
+
+	while ((${#lines[@]} > 0)) && [[ -z ${lines[0]} ]]; do
+		lines=("${lines[@]:1}")
+	done
+	while ((${#lines[@]} > 0)) && [[ -z ${lines[-1]} ]]; do
+		unset 'lines[-1]'
+	done
+}
+
+# Messages git wrote, not a person: grading them rejects work nobody typed.
+gh_is_generated() {
+	case $1 in
+		'Merge '* | 'Revert '* | 'fixup!'* | 'squash!'* | 'amend!'*) return 0 ;;
+	esac
+	return 1
+}
+
+gh_in_list() {
+	local needle=$1 item
+	shift
+	for item in "$@"; do
+		[[ $item == "$needle" ]] && return 0
+	done
+	return 1
+}
+
+# scope_fixed plus the basename of every directory a scope_root glob finds.
+# An unmatched glob is dropped, not an error: a repo can outgrow a root.
+gh_scope_list() {
+	local pattern path base
+	scopes=()
+	read -r -a scopes <<<"${conf[scope_fixed]}"
+
+	while IFS= read -r pattern; do
+		[[ -z $pattern ]] && continue
+		for path in "$root"/$pattern; do
+			[[ -e $path ]] || continue
+			base=${path%/}
+			base=${base##*/}
+			gh_in_list "$base" "${scopes[@]}" || scopes+=("$base")
+		done
+	done <<<"${conf[scope_root]}"
+}
+
+gh_print_shape() {
+	gh_note ''
+	gh_note "${bold}the shape:${reset}"
+	gh_note '  type(scope): subject'
+	gh_note ''
+	gh_note '  - bullet'
+	gh_note '  Trailer: value'
+	gh_note ''
+	gh_note "  types: ${conf[types]}"
+	if ((scope_rejected)); then
+		gh_note "  scopes: ${scopes[*]}"
+	fi
+}
+
+gh_grade_subject() {
+	local subject=$1 type parens scope text types=()
+	read -r -a types <<<"${conf[types]}"
+
+	if [[ ! $subject =~ $re_subject ]]; then
+		gh_reject 'subject is not type(scope): subject' \
+			"got:   $subject" \
+			'write: feat(hooks): add the dispatcher'
+		return
+	fi
+
+	type=${BASH_REMATCH[1]}
+	parens=${BASH_REMATCH[2]}
+	scope=${BASH_REMATCH[3]}
+	text=${BASH_REMATCH[4]}
+
+	if ! gh_in_list "$type" "${types[@]}"; then
+		gh_reject "unknown type: $type" \
+			"write: one of ${conf[types]}"
+	fi
+
+	# The capture group, not the raw line: a subject whose text carries
+	# parens - "add foo (bar)" - has no scope and is not an empty one.
+	if [[ -n $parens ]]; then
+		if [[ -z $scope ]]; then
+			gh_reject 'empty scope' \
+				'write: drop the parens, or name a scope'
+		elif ! gh_in_list "$scope" "${scopes[@]}"; then
+			scope_rejected=1
+			gh_reject "unknown scope: $scope" \
+				'write: one of the scopes listed below'
+		fi
+	fi
+
+	if [[ -z $text ]]; then
+		gh_reject 'empty subject' \
+			'write: say what changed, lowercase, no period'
+	else
+		if [[ ${text:0:1} == [A-Z] ]]; then
+			gh_reject 'subject starts with a capital' \
+				"got:   $text" \
+				"write: ${text,}"
+		fi
+		if [[ $text == *. ]]; then
+			gh_reject 'subject ends with a period' \
+				"write: ${text%.}"
+		fi
+	fi
+
+	if ((${#subject} > conf[subject_max])); then
+		gh_reject "subject is ${#subject} chars, max is ${conf[subject_max]}" \
+			'write: cut the subject, move detail into a bullet'
+	fi
+}
+
+gh_grade_body() {
+	local i=1 j k line next prose key value bullets=0 in_trailers=0
+	local persons=() refs=()
+	read -r -a persons <<<"${conf[trailer_person]}"
+	read -r -a refs <<<"${conf[trailer_reference]}"
+
+	((${#lines[@]} < 2)) && return
+
+	if [[ -n ${lines[1]} ]]; then
+		gh_reject 'body must follow a blank line' \
+			'write: one empty line between the subject and the body'
+	fi
+	i=2
+
+	for (( ; i < ${#lines[@]}; i++)); do
+		line=${lines[i]}
+
+		if [[ -z $line ]]; then
+			# One blank line before the trailer block is git's own
+			# convention - interpret-trailers writes it. Anywhere else a
+			# blank line means the body is not bullets.
+			if ((in_trailers == 0)) && [[ ${lines[i + 1]-} =~ $re_trailer ]]; then
+				continue
+			fi
+			gh_reject "blank line inside the body (line $((i + 1)))" \
+				'write: bullets and trailers only, one blank before the trailers'
+			continue
+		fi
+
+		if [[ $line =~ $re_trailer ]]; then
+			key=${BASH_REMATCH[1]}
+			value=${BASH_REMATCH[2]}
+			in_trailers=1
+
+			if gh_in_list "$key" "${persons[@]}"; then
+				[[ $value =~ $re_person ]] ||
+					gh_reject "trailer $key needs Name <email>" \
+						"got:   $value" \
+						'write: Claude Opus 5 <noreply@anthropic.com>'
+			elif gh_in_list "$key" "${refs[@]}"; then
+				[[ $value =~ $re_token ]] ||
+					gh_reject "trailer $key takes one token" \
+						"got:   $value" \
+						'write: Refs: #42'
+			else
+				gh_reject "unknown trailer: $key" \
+					"write: one of ${conf[trailer_person]} ${conf[trailer_reference]}"
+			fi
+			continue
+		fi
+
+		if ((in_trailers)); then
+			gh_reject "text after a trailer (line $((i + 1)))" \
+				'write: move the bullets above the trailers'
+			continue
+		fi
+
+		if [[ $line == '-' ]]; then
+			gh_reject "empty bullet (line $((i + 1)))" \
+				'write: - say what the bullet is for'
+			continue
+		fi
+
+		if [[ $line != '- '* ]]; then
+			# A non-bullet line after a bullet is that bullet wrapped: one
+			# point over two lines. Saying "- " here would turn one bullet
+			# into two and the count would then reject it - name the wrap.
+			if [[ ${lines[i - 1]} == '- '* ]]; then
+				for ((j = i; j + 1 < ${#lines[@]}; j++)); do
+					next=${lines[j + 1]}
+					[[ -z $next ]] && break
+					[[ $next == '-'* ]] && break
+					[[ $next =~ $re_trailer ]] && break
+				done
+				prose=${lines[i - 1]}
+				for ((k = i; k <= j; k++)); do
+					prose+=" ${lines[k]}"
+				done
+				gh_reject "bullet wraps across lines $i-$((j + 1))" \
+					"got:   $(gh_clip "$prose" $((conf[body_cols] - 7)))" \
+					'write: one bullet per line - split the point, or cut it' \
+					'       if it is a new point, start it with "- "'
+				i=$j
+				continue
+			fi
+
+			# Wrapped prose is one mistake, not one per line: bulleting
+			# each line would cut sentences where the wrap fell.
+			for ((j = i; j + 1 < ${#lines[@]}; j++)); do
+				next=${lines[j + 1]}
+				[[ -z $next ]] && break
+				[[ $next == '-'* ]] && break
+				[[ $next =~ $re_trailer ]] && break
+			done
+
+			if ((j > i)); then
+				prose=$line
+				for ((k = i + 1; k <= j; k++)); do
+					prose+=" ${lines[k]}"
+				done
+				gh_reject "body is prose, not bullets (lines\
+ $((i + 1))-$((j + 1)))" \
+					"got:   $(gh_clip "$prose" $((conf[body_cols] - 7)))" \
+					'write: - one bullet per point, rewrapped' \
+					'       never one bullet per wrapped line'
+				i=$j
+				continue
+			fi
+
+			gh_reject "body line is not a bullet (line $((i + 1)))" \
+				"got:   $line" \
+				"write: - $line"
+			continue
+		fi
+
+		((bullets++))
+		if ((${#line} > conf[body_cols])); then
+			gh_reject "bullet is ${#line} chars, max is\
+ ${conf[body_cols]} (line $((i + 1)))" \
+				'write: split it into two bullets, or cut it'
+		fi
+	done
+
+	if ((bullets > conf[bullet_max])); then
+		gh_reject "$bullets bullets, max is ${conf[bullet_max]}" \
+			'write: keep the why, drop the rest'
+	fi
+}
+
+gh_cmd_commit_msg() {
+	(($# == 1)) || gh_die 'usage: githooks commit-msg <file>'
+
+	if [[ -n ${GITHOOKS_SKIP:-} ]]; then
+		return 0
+	fi
+
+	# A rebase replays messages it did not author. Failing them makes this
+	# tool the reason you cannot rebase.
+	if gh_rebase_in_progress; then
+		return 0
+	fi
+
+	gh_grade_message "$1"
+}
+
+gh_grade_message() {
+	local before=$rejections
+	gh_read_message "$1"
+
+	if ((${#lines[@]} == 0)); then
+		gh_reject 'empty commit message' \
+			'write: feat(hooks): add the dispatcher'
+		gh_print_shape
+		return
+	fi
+
+	gh_is_generated "${lines[0]}" && return 0
+
+	gh_scope_list
+	gh_grade_subject "${lines[0]}"
+	gh_grade_body
+
+	((rejections > before)) && gh_print_shape
+	return 0
+}
+
+# -------------------------------------------------------------- dispatcher
+
+gh_path_matches() {
+	local path=$1 pattern
+	shift
+	for pattern in "$@"; do
+		# shellcheck disable=SC2254 # patterns are globs by design
+		case $path in
+			$pattern) return 0 ;;
+		esac
+	done
+	return 1
+}
+
+# Run one command line against a path set. Commands are split on whitespace:
+# no quoting, by design. Anything that needs quoting belongs in a script.
+gh_run_lane() {
+	local group=$1 line=$2 with_paths=$3
+	shift 3
+	local cmd=()
+	read -r -a cmd <<<"$line"
+
+	((${#cmd[@]} == 0)) && return 0
+
+	if ! command -v "${cmd[0]}" >/dev/null 2>&1; then
+		if ${g_require[$group]}; then
+			gh_reject "[$group] ${cmd[0]} not found" \
+				"write: install ${cmd[0]}, or set require = false"
+			return 1
+		fi
+		gh_note "${bold}skip${reset} [$group] ${cmd[0]} not found"
+		return 0
+	fi
+
+	gh_note "${bold}==>${reset} [$group] $line"
+	if $with_paths; then
+		"${cmd[@]}" "$@" || return 1
+	else
+		"${cmd[@]}" || return 1
+	fi
+	return 0
+}
+
+# One group against the current file set. Every group runs even after one
+# fails: an agent should see all of it in a single pass.
+gh_run_group() {
+	local group=$1 fix=$2
+	local patterns=() matched=() dirty=() path line
+	local scope=${g_scope[$group]}
+	local commands triggered=false
+
+	read -r -a patterns <<<"${g_match[$group]}"
+
+	commands=${g_run[$group]}
+	if $fix && [[ -n ${g_fix[$group]} ]]; then
+		commands=${g_fix[$group]}
+	fi
+
+	# A staged lane reads the worktree. Wherever the worktree is not the index
+	# for a path it would be handed, it would grade bytes nobody staged - and
+	# the commit still ships the staged blob. Checked before the match filter:
+	# a staged path deleted from the worktree leaves `files`, so `matched`
+	# would never see it.
+	if $restage && [[ $scope == staged ]] && [[ -n $commands ]]; then
+		for path in "${partial[@]}"; do
+			if ((${#patterns[@]} == 0)); then
+				dirty+=("$path")
+			else
+				gh_path_matches "$path" "${patterns[@]}" && dirty+=("$path")
+			fi
+		done
+		if ((${#dirty[@]} > 0)); then
+			gh_reject "[$group] staged content is not what the worktree holds" \
+				"${dirty[@]}" \
+				'write: git add those paths, or git stash push them, then retry'
+			return 0
+		fi
+	fi
+
+	if ((${#patterns[@]} == 0)); then
+		matched=("${files[@]}")
+	else
+		for path in "${files[@]}"; do
+			gh_path_matches "$path" "${patterns[@]}" && matched+=("$path")
+		done
+		if ((${#matched[@]} == 0)) && [[ $scope == tree ]]; then
+			for path in "${deleted[@]}"; do
+				gh_path_matches "$path" "${patterns[@]}" && triggered=true && break
+			done
+		fi
+		# `match` filters what changed; it cannot select against an empty
+		# set. Nothing changed falls through to the scope rule below.
+		((${#matched[@]} == 0)) && ! $triggered && ((${#files[@]} > 0)) && return 0
+	fi
+
+	# A staged lane takes its paths as arguments, so handing it none makes it
+	# read stdin. A tree lane runs anyway, `match` or not: its invariant does
+	# not depend on what changed, and it must not go quiet on `--amend`.
+	((${#matched[@]} == 0)) && [[ $scope != tree ]] && return 0
+
+	[[ -z $commands ]] && return 0
+
+	# A `tree` lane reads the worktree by contract, but re-staging a diverged
+	# path would stage the half nobody staged. Before the lanes: a fixer
+	# rewrites the worktree it would be compared against.
+	if $fix && $restage && [[ -n ${g_fix[$group]} ]] && ((${#matched[@]} > 0)); then
+		dirty=()
+		for path in "${matched[@]}"; do
+			gh_in_list "$path" "${partial[@]}" && dirty+=("$path")
+		done
+		if ((${#dirty[@]} > 0)); then
+			gh_reject "[$group] --fix would re-stage what the worktree changed" \
+				"${dirty[@]}" \
+				'write: git add those paths, or git stash push them, then retry'
+			return 0
+		fi
+	fi
+
+	local failed=0
+	while IFS= read -r line; do
+		[[ -z $line ]] && continue
+		if [[ $scope == staged ]]; then
+			gh_run_lane "$group" "$line" true "${matched[@]}" || failed=1
+		else
+			gh_run_lane "$group" "$line" false || failed=1
+		fi
+	done <<<"$commands"
+
+	# Only on success. No paths means a pathless tree lane, where `git add --`
+	# would print git's own "nothing specified" hint at someone who asked for
+	# nothing; and a fixer that failed halfway left something nobody staged.
+	if $fix && $restage && ((failed == 0)) && ((${#matched[@]} > 0)) &&
+		[[ -n ${g_fix[$group]} ]]; then
+		git add -- "${matched[@]}" || failed=1
+	fi
+
+	if ((failed)); then
+		# The one rejection that cannot name its replacement: the lane's
+		# own stderr carries that. Name the fixer when the group has one.
+		if ! $fix && [[ -n ${g_fix[$group]} ]]; then
+			gh_note "  write: rerun with --fix to apply [$group]'s fixer"
+		fi
+		status=1
+	fi
+	return 0
+}
+
+gh_dispatch() {
+	local fix=$1 group
+
+	for group in "${group_names[@]}"; do
+		gh_run_group "$group" "$fix"
+	done
+}
+
+gh_cmd_pre_commit() {
+	local fix=false
+
+	while (($# > 0)); do
+		case $1 in
+			--fix) fix=true ;;
+			*) gh_die 'usage: githooks pre-commit [--fix]' ;;
+		esac
+		shift
+	done
+
+	[[ -n ${GITHOOKS_SKIP:-} ]] && return 0
+
+	restage=true
+	gh_read_staged
+	gh_read_deleted
+	gh_read_dirty_staged
+	gh_dispatch "$fix"
+}
+
+gh_cmd_check() {
+	local fix=false msgfile='' positional=0
+
+	while (($# > 0)); do
+		case $1 in
+			--fix) fix=true ;;
+			-*)
+				[[ $1 == '-' ]] || gh_die 'usage: githooks check [--fix] [<file>|-]'
+				msgfile=$1
+				positional=$((positional + 1))
+				;;
+			*)
+				msgfile=$1
+				positional=$((positional + 1))
+				;;
+		esac
+		shift
+	done
+
+	((positional > 1)) && gh_die 'usage: githooks check [--fix] [<file>|-]'
+
+	# No re-staging here: these files were never staged, and staging them
+	# would commit a decision the user has not made.
+	restage=false
+	gh_read_worktree
+	gh_read_deleted_worktree
+	partial=()
+	gh_dispatch "$fix"
+
+	[[ -n $msgfile ]] && gh_grade_message "$msgfile"
+	return 0
+}
+
+# --------------------------------------------------------------------- main
+
+gh_usage() {
+	cat <<-'EOF'
+		usage: githooks <command> [args]
+
+		  commit-msg <file>          grade a commit message
+		  pre-commit [--fix]         run lanes over the staged set
+		  check [--fix] [<file>|-]   run lanes over working changes, grade a message
+		  version                    print the version
+
+		exit: 0 ok, 1 rejected or a lane failed, 2 usage, config or environment
+	EOF
+}
+
+gh_main() {
+	(($# > 0)) || {
+		gh_usage >&2
+		exit 2
+	}
+
+	local command=$1
+	shift
+
+	case $command in
+		version)
+			printf '%s %s (schema %s)\n' "$prog" "$VERSION" "$SCHEMA"
+			return 0
+			;;
+		-h | --help | help)
+			gh_usage
+			return 0
+			;;
+		commit-msg | pre-commit | check) ;;
+		*)
+			gh_usage >&2
+			exit 2
+			;;
+	esac
+
+	gh_find_root
+	# Git runs hooks from the top level; `check` may be run from anywhere, and
+	# every path git hands us is relative to the root.
+	cd "$root" || gh_die "cannot enter $root"
+	gh_load_conf
+
+	case $command in
+		commit-msg) gh_cmd_commit_msg "$@" ;;
+		pre-commit) gh_cmd_pre_commit "$@" ;;
+		check) gh_cmd_check "$@" ;;
+	esac
+
+	return $status
+}
+
+files=()
+deleted=()
+partial=()
+lines=()
+scopes=()
+restage=false
+root=''
+
+gh_main "$@"

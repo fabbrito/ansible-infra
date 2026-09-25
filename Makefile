@@ -5,7 +5,7 @@
 #   make             # show this help
 #   make deps        # install the collections the roles depend on
 #   make hooks       # point git at .githooks (once per clone)
-#   make check       # fmt-check + lint (the pre-commit gate)
+#   make check       # every hook lane over the working changes (the gate)
 #   make sanity      # ansible-test sanity (CI; slow on a cold venv)
 #   make test        # golden render tests (CI)
 #   make check-codes # sweep for plan labels (manual)
@@ -41,30 +41,30 @@ deps: ## Install/upgrade the Ansible collections the roles depend on
 
 # core.hooksPath is per-clone and git will not set it for you — a hook that
 # nobody enabled is worth nothing, so this is the one setup step besides `deps`.
-# Both hooks name this target in their own header.
+# chmod too: git runs the shims directly, and a mode bit lost to a checkout or
+# a zip download disables the whole gate silently. The engine refuses bash
+# below 4.4 itself, naming the version it found.
 .PHONY: hooks
 hooks: ## Enable the repo's git hooks (once per clone)
 	git config core.hooksPath .githooks
-	@printf 'hooks enabled — pre-commit runs "make check", commit-msg grades the subject\n'
+	@chmod +x .githooks/githooks .githooks/commit-msg .githooks/pre-commit
+	@.githooks/githooks version >/dev/null
+	@printf 'hooks enabled — skip one commit with --no-verify\n'
 
+# The gate is .githooks/hooks.conf: the lanes live there, this is a caller.
+# Adding a check means adding a lane, not a target — a file no lane matches is
+# never checked.
 .PHONY: check
-check: fmt-check lint ## fmt-check + lint (the pre-commit gate)
+check: ## Run every hook lane over the working changes (the gate)
+	.githooks/githooks check
 
 .PHONY: check-codes
 check-codes: ## Sweep for plan labels (manual, not in check)
 	./scripts/check-codes.sh
 
 .PHONY: fmt
-fmt: ## Format YAML/MD/JSON (prettier) + Bash (shfmt)
-	./scripts/fmt.sh
-
-.PHONY: fmt-check
-fmt-check: ## Verify formatting without writing (no autofix)
-	./scripts/fmt.sh --check
-
-.PHONY: lint
-lint: ## Syntax-check playbooks + ansible-lint + shellcheck + collection build
-	./scripts/lint.sh
+fmt: ## Run the same lanes, writing (prettier --write, shfmt -w); never stages
+	.githooks/githooks check --fix
 
 ##@ CI checks
 

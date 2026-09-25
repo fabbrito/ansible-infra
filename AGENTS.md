@@ -151,7 +151,7 @@ them.
 There is no unit-test suite — why static checks and not a suite is ADR-0003's. The gate here is:
 
 ```bash
-make check    # fmt-check + lint — must be green to commit
+make check    # every hook lane — must be green to commit
 make sanity   # ansible-test sanity — CI runs it; slow on a cold venv
 make test     # golden render tests — CI runs it
 ```
