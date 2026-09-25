@@ -1,0 +1,10 @@
+# Rendered by Ansible — do not edit on host.
+# Source: fabbrito.infra collection — roles/fail2ban/templates/jail.local.j2
+[DEFAULT]
+banaction = ufw
+banaction_allports = ufw
+backend = systemd
+findtime = 600
+bantime = 3600
+maxretry = 5
+ignoreip = 127.0.0.1/8 ::1

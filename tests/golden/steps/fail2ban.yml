@@ -1,0 +1,12 @@
+---
+# What roles/fail2ban/tasks/main.yml renders.
+- name: Render the fail2ban config
+  ansible.builtin.template:
+    src: "{{ golden_repo }}/roles/fail2ban/templates/{{ item }}.j2"
+    dest: "{{ golden_case_out }}/{{ item }}"
+    mode: "0644"
+  loop:
+    - fail2ban.local
+    - jail.local
+    - sshd.local
+    - recidive.local

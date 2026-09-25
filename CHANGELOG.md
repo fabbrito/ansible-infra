@@ -19,6 +19,8 @@ that, and the next correction is 1.0.1.
   config is asserted, so an earlier drop-in that overrides ours fails the converge.
 - `firewall`: refuses a host with `netfilter-persistent`. Rate-limits the ports the effective sshd config listens on,
   not a fixed 22. Reads back ufw active, deny-default and the limits.
+- `fail2ban`: refuses to run with ufw inactive, since it bans through ufw. Reads back the `sshd` and `recidive` jails as
+  loaded, which a service reporting active does not prove.
 
 ### Changed
 
