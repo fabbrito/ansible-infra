@@ -1,9 +1,64 @@
 ---
+# The userland arch, not the kernel's: they differ on a 64-bit Pi kernel with
+# a 32-bit userland, and apt installs for the userland.
+- name: Read the userland architecture
+  ansible.builtin.command: dpkg --print-architecture
+  register: docker_dpkg_arch
+  changed_when: false
+  check_mode: false
+
+- name: Assert a platform Docker publishes for
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] == 'Debian'
+      - docker_dpkg_arch.stdout in ['amd64', 'arm64', 'armhf']
+    fail_msg: >-
+      Docker's apt repo covers Debian-family amd64/arm64/armhf; this host is
+      {{ ansible_facts['distribution'] }} {{ docker_dpkg_arch.stdout }}.
+      Leave docker out of this host's role list.
+    quiet: true
+
+# Raspberry Pi OS reports as Debian and takes Docker's debian repo.
+- name: Name Docker's repo for this distribution
+  ansible.builtin.set_fact:
+    docker_apt_url: >-
+      https://download.docker.com/linux/{{
+      'ubuntu' if ansible_facts['distribution'] == 'Ubuntu' else 'debian' }}
+
+# The login is an opt-in feature keyed on the token (ADR-0015): no token, plain
+# Docker. A token without a username would fail mid-role on an undefined var.
+- name: Assert the GHCR login is complete when requested
+  ansible.builtin.assert:
+    that: >-
+      ghcr_pull_token | default('') | length == 0
+      or ghcr_login_username | default('') | length > 0
+    fail_msg: >-
+      ghcr_pull_token is set but ghcr_login_username is not — the login needs
+      both. Set the username beside the token, or unset the token for plain
+      Docker.
+    quiet: true
+
+# The user module would CREATE a missing account, silently, with no key and no
+# sudo. The account is bootstrap's to make.
+- name: Read the accounts docker_users names
+  ansible.builtin.getent:
+    database: passwd
+  check_mode: false
+
+- name: Assert every docker_users account exists
+  ansible.builtin.assert:
+    that: docker_users | difference(ansible_facts['getent_passwd'].keys()) | length == 0
+    fail_msg: >-
+      docker_users names accounts this host lacks:
+      {{ docker_users | difference(ansible_facts['getent_passwd'].keys()) | join(', ') }}.
+      Run bootstrap first, or drop them from docker_users.
+    quiet: true
+
 - name: Add Docker apt key
   ansible.builtin.shell: |
     set -o pipefail
     install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+    curl -fsSL {{ docker_apt_url }}/gpg \
       | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     chmod a+r /etc/apt/keyrings/docker.gpg
   args:
@@ -21,10 +76,10 @@
   ansible.builtin.deb822_repository:
     name: docker
     types: deb
-    uris: https://download.docker.com/linux/ubuntu
+    uris: "{{ docker_apt_url }}"
     suites: "{{ ansible_facts['distribution_release'] }}"
     components: stable
-    architectures: "{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}"
+    architectures: "{{ docker_dpkg_arch.stdout }}"
     signed_by: /etc/apt/keyrings/docker.gpg
     state: present
 
@@ -46,6 +101,27 @@
     append: true
   loop: "{{ docker_users }}"
 
+# Postcondition: apt's postinst starts the daemon, no task here does — so
+# nothing above proves it answers. The login below needs it to.
+- name: Probe the Docker daemon
+  # Exits non-zero when the client cannot reach the server.
+  ansible.builtin.command: docker version
+  register: docker_server_version
+  changed_when: false
+  failed_when: false
+  # In --check the engine above isn't really installed.
+  when: not ansible_check_mode
+
+- name: Assert the Docker daemon answers
+  ansible.builtin.assert:
+    that: docker_server_version.rc == 0
+    fail_msg: >-
+      docker is installed but the daemon does not answer:
+      {{ docker_server_version.stderr | default('') }}.
+      Check `systemctl status docker` on the host.
+    quiet: true
+  when: not ansible_check_mode
+
 - name: Login to GHCR (if ghcr_pull_token is set)
   community.docker.docker_login:
     registry_url: ghcr.io
@@ -54,8 +130,7 @@
   # In --check the engine above isn't really installed — login hits a missing daemon.
   when:
     - not ansible_check_mode
-    - ghcr_pull_token is defined
-    - ghcr_pull_token | length > 0
+    - ghcr_pull_token | default('') | length > 0
   no_log: true
 
 - name: Install docker cleanup timer

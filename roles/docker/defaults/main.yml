@@ -1,6 +1,13 @@
 ---
+# Accounts added to the docker group. They must already exist — asserted, since
+# the user module would otherwise create them keyless.
 docker_users:
   - "{{ deploy_user }}"
+
+# Private registry pulls are opt-in: set ghcr_pull_token (vaulted) and
+# ghcr_login_username to log in to ghcr.io. Unset, the role is plain Docker.
+# A token without a username is asserted. Neither is defaulted here: both are
+# the consumer's, and unprefixed for that reason.
 
 # Weekly host-wide prune: stopped containers, unused networks, and ALL unused images
 # older than docker_cleanup_until. Volumes are NEVER touched (no --volumes).
