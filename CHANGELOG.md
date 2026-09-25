@@ -30,6 +30,19 @@ that, and the next correction is 1.0.1.
 - `sshd` on a board refuses root login (`PermitRootLogin no`); a VM keeps key-only root as break-glass. Set
   `sshd_permit_root_login` to override.
 
+### Upgrading from 1.x
+
+- **Restore the package's `50unattended-upgrades` on every host 1.x converged.** 1.x overwrote it with a frozen
+  security-only origin list; 2.0 leaves it to the package, so a 1.x host never picks up an origin a later package adds.
+  Do not just delete it: dpkg never restores a deleted conffile, and without it Ubuntu upgrades nothing at all.
+
+  ```bash
+  sudo rm /etc/apt/apt.conf.d/50unattended-upgrades
+  sudo apt-get install --reinstall -o Dpkg::Options::=--force-confmiss unattended-upgrades
+  ```
+
+  `20auto-upgrades` can stay: 1.x wrote the package's own defaults there.
+
 ## 1.2.0
 
 ### Changed
