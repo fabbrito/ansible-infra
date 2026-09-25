@@ -19,9 +19,10 @@ authors:
   - Fabrício Brito (@fabbrito)
 
 description: >-
-  Baseline convergence for long-lived Ubuntu VPS hosts — OS hardening, firewall,
-  fail2ban, Docker, rclone/R2 backups, Caddy reverse proxy, and a loopback-bound
-  monitoring stack. Service roles stay in the consuming repo.
+  Composable roles for long-lived Debian-family hosts, cloud VMs and boards —
+  OS, SSH hardening, firewall, fail2ban, Docker, rclone/R2 backups, Caddy,
+  monitoring, Tailscale, and a board's network and journal. Service roles stay
+  in the consuming repo.
 
 # Both, and they do coexist — each answers a different reader. `license` is the
 # SPDX id a tool matches on (Galaxy's search, a consumer's licence audit);
