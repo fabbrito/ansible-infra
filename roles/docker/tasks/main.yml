@@ -25,8 +25,7 @@
       https://download.docker.com/linux/{{
       'ubuntu' if ansible_facts['distribution'] == 'Ubuntu' else 'debian' }}
 
-# The login is an opt-in feature keyed on the token (ADR-0015): no token, plain
-# Docker. A token without a username would fail mid-role on an undefined var.
+# Opt-in feature keyed on its token (ADR-0015).
 - name: Assert the GHCR login is complete when requested
   ansible.builtin.assert:
     that: >-
@@ -38,8 +37,7 @@
       Docker.
     quiet: true
 
-# The user module would CREATE a missing account, silently, with no key and no
-# sudo. The account is bootstrap's to make.
+# The user module would silently create a missing account, keyless.
 - name: Read the accounts docker_users names
   ansible.builtin.getent:
     database: passwd
@@ -65,8 +63,7 @@
     creates: /etc/apt/keyrings/docker.gpg
     executable: /bin/bash
 
-# Remove legacy .list from the old apt_repository module — deb822 writes
-# docker.sources; a lingering docker.list would be a duplicate-repo source.
+# Left by the old apt_repository task; beside docker.sources it duplicates the repo.
 - name: Remove legacy Docker apt .list
   ansible.builtin.file:
     path: /etc/apt/sources.list.d/docker.list
@@ -101,8 +98,7 @@
     append: true
   loop: "{{ docker_users }}"
 
-# Postcondition: apt's postinst starts the daemon, no task here does — so
-# nothing above proves it answers. The login below needs it to.
+# apt's postinst starts the daemon, not a task here, so nothing above proves it.
 - name: Probe the Docker daemon
   # Exits non-zero when the client cannot reach the server.
   ansible.builtin.command: docker version
@@ -127,7 +123,7 @@
     registry_url: ghcr.io
     username: "{{ ghcr_login_username }}"
     password: "{{ ghcr_pull_token }}"
-  # In --check the engine above isn't really installed — login hits a missing daemon.
+  # In --check the engine above isn't really installed.
   when:
     - not ansible_check_mode
     - ghcr_pull_token | default('') | length > 0

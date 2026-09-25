@@ -1,5 +1,5 @@
 ---
-# Host-wide, not per-app: the script and units live outside any app's install dir.
+# Host-wide: outside any app's install dir.
 - name: Render docker-cleanup script
   ansible.builtin.template:
     src: docker-cleanup.sh.j2
@@ -34,5 +34,5 @@
     name: docker-cleanup.timer
     enabled: true
     state: started
-  # In --check the unit files above aren't written, so systemd doesn't know the timer.
+  # In --check the units above are not written.
   when: not ansible_check_mode
