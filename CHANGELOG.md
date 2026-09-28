@@ -10,6 +10,8 @@ that, and the next correction is 1.0.1.
 
 ### Fixed
 
+- `caddy`: `--check` on a host without Caddy no longer fails: the install, and every task needing the package's user,
+  `/etc/caddy` or binary, are skipped until a real converge.
 - `docker`: `--check` on a host without Docker no longer fails: the dry run adds no apt repo, so the install and the
   docker group are skipped until a real converge.
 - `docs/seed`: DigitalOcean's user-data field is Additional Options → Startup scripts.

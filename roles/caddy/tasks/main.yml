@@ -89,6 +89,7 @@
     components: main
     signed_by: /usr/share/keyrings/caddy-stable-archive-keyring.gpg
     state: present
+  register: caddy_apt_repo
 
 # Upstream apt package (ADR-0004). Never `caddy upgrade`: the next apt upgrade
 # of caddy clobbers the self-replaced binary. Standard modules only.
@@ -98,6 +99,8 @@
     name: caddy
     state: present
     update_cache: true
+  # In check mode on a fresh host the repo was never added: no caddy to plan.
+  when: not (ansible_check_mode and caddy_apt_repo is changed)
 
 - name: Ensure certs dir
   ansible.builtin.file:
@@ -106,6 +109,8 @@
     owner: root
     group: caddy
     mode: "0750"
+  # The package brings the caddy group and /etc/caddy.
+  when: not (ansible_check_mode and caddy_apt_repo is changed)
 
 - name: Drop origin certificates
   ansible.builtin.copy:
@@ -117,7 +122,9 @@
   loop: "{{ caddy_origin_certs }}"
   loop_control:
     label: "{{ item.name }}"
-  when: item.cert | default('') | length > 0
+  when:
+    - not (ansible_check_mode and caddy_apt_repo is changed)
+    - item.cert | default('') | length > 0
   notify: Reload caddy
 
 - name: Drop origin private keys
@@ -130,7 +137,9 @@
   loop: "{{ caddy_origin_certs }}"
   loop_control:
     label: "{{ item.name }}"
-  when: item.key | default('') | length > 0
+  when:
+    - not (ansible_check_mode and caddy_apt_repo is changed)
+    - item.key | default('') | length > 0
   no_log: true
   notify: Reload caddy
 
@@ -149,6 +158,7 @@
   loop_control:
     label: "{{ item.host }}"
   changed_when: false
+  when: not (ansible_check_mode and caddy_apt_repo is changed)
 
 - name: Render Caddyfile
   ansible.builtin.template:
@@ -159,6 +169,7 @@
     mode: "0644"
     validate: "caddy validate --config %s --adapter caddyfile"
   notify: Reload caddy
+  when: not (ansible_check_mode and caddy_apt_repo is changed)
 
 - name: Ensure caddy is enabled and running
   ansible.builtin.service:
