@@ -18,7 +18,7 @@ extends:
 pre-commit:
   jobs:
     - name: ansible
-      glob: &ansible ["**/*.{yml,yaml,j2,cfg}", ".ansible-lint"]
+      glob: &ansible ["**/*.{yml,yaml,j2,cfg}", ".ansible-lint", ".config/ansible-lint/*.py"]
       file_types: &file [not symlink]
       run: scripts/lint.sh
     - name: prettier
