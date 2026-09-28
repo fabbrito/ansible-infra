@@ -10,6 +10,8 @@ that, and the next correction is 1.0.1.
 
 ### Fixed
 
+- `docker`: `--check` on a host without Docker no longer fails: the dry run adds no apt repo, so the install and the
+  docker group are skipped until a real converge.
 - `docs/seed`: DigitalOcean's user-data field is Additional Options → Startup scripts.
 
 ## 2.0.0
