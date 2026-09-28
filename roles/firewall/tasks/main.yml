@@ -99,7 +99,10 @@
   ansible.builtin.assert:
     that:
       - "'Status: active' in firewall_effective.stdout_lines"
-      - firewall_effective.stdout is search('^Default: deny \\(incoming\\)', multiline=True)
+      # Quoted by >-: a bare `: ` would make this item a mapping, not a test.
+      - >-
+        firewall_effective.stdout
+        is search('^Default: deny \\(incoming\\)', multiline=True)
       - >-
         firewall_ssh_ports | reject('in', firewall_limited) | list | length == 0
     fail_msg: >-
