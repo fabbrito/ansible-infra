@@ -1,5 +1,5 @@
 <!-- Title is the merge commit subject: type(scope): subject — lowercase, no trailing period, <= 72
-chars. The types and scopes are the gate's, in .githooks/hooks.conf.
+chars. The types and scopes are the gate's, in .config/commit-msg.conf.
 
 Write terse — cut every word the diff already says. A section with nothing to add is deleted, not
 filled. -->

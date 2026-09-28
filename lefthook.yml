@@ -1,0 +1,60 @@
+# The commit gate: repokit's templates, copied into .config/lefthook/ and owned
+# here. Message policy is .config/commit-msg.conf. The goldens and sanity are
+# not lanes - too slow to sit between you and a commit; `make test` /
+# `make sanity`.
+#
+# This repo's own jobs go below - never a name a template uses: the extended
+# job wins.
+extends:
+  - .config/lefthook/base.yml
+  - .config/lefthook/shell.yml
+
+# ansible is whole tree: a role change breaks a playbook the commit never
+# touched. Every ansible command goes through lint.sh, which guards stdio once.
+#
+# Prettier's config job checks the whole tree and only checks on commit:
+# stage_fixed re-stages staged paths only. The pattern is quoted: prettier
+# expands it, not sh.
+pre-commit:
+  jobs:
+    - name: ansible
+      glob: &ansible ["**/*.{yml,yaml,j2,cfg}", ".ansible-lint"]
+      file_types: &file [not symlink]
+      run: scripts/lint.sh
+    - name: prettier
+      glob: &docs ["**/*.md", "**/*.json", "**/*.yml", "**/*.yaml"]
+      file_types: *file
+      run: prettier --write {staged_files}
+      stage_fixed: true
+    - name: prettier-config
+      glob: &config [".prettierrc.json", ".prettierignore"]
+      run: prettier --check '**/*.{md,json,yml,yaml}'
+
+check:
+  jobs:
+    - name: ansible
+      glob: *ansible
+      file_types: *file
+      files: &changed "sh -c 'git diff --name-only --diff-filter=ACMR HEAD 2>/dev/null || git diff --cached --name-only --diff-filter=ACMR; git ls-files --others --exclude-standard'"
+      run: scripts/lint.sh
+    - name: prettier
+      glob: *docs
+      file_types: *file
+      files: *changed
+      run: prettier --check {files}
+    - name: prettier-config
+      glob: *config
+      files: *changed
+      run: prettier --check '**/*.{md,json,yml,yaml}'
+
+fix:
+  jobs:
+    - name: prettier
+      glob: *docs
+      file_types: *file
+      files: *changed
+      run: prettier --write {files}
+    - name: prettier-config
+      glob: *config
+      files: *changed
+      run: prettier --write '**/*.{md,json,yml,yaml}'

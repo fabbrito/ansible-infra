@@ -32,14 +32,17 @@ for them. Agents write roles and hand over the command; `make check`, `make test
 
 ## The commit gate
 
-Once per clone: `make deps && make hooks`. `.githooks/githooks` is a vendored engine: all policy in
-`.githooks/hooks.conf`. Bump it by copying a newer tag over it; `commit-msg` and `pre-commit` are shims and are never
-edited.
+Once per clone: `make hooks && make deps`. Lanes are lefthook's: `lefthook.yml` extends copies of `fabbrito/repokit`'s
+templates in `.config/lefthook/`, owned here; this repo's own jobs sit beside them, never under a template's job name —
+the extended one wins. Message policy is `.config/commit-msg.conf`, graded by repokit's `commit-msg-lint`.
+
+Every tool is pinned in mise — the gate's in `.config/mise/conf.d/`, ansible and prettier in `mise.toml`. Hooks and
+`make` put them on `PATH` and fail without mise. Run lanes with `make check` / `make fmt`, or `mise exec -- …`; never
+bare `lefthook run`: the `rc:` guard covers git hooks only.
 
 The gate is lanes matching paths by glob. A file no lane matches is never checked, so a new kind of file means a lane. A
-missing tool fails: a skipped lane is not a green commit. Beyond `ansible-core`: `ansible-lint`, `shellcheck`, `shfmt`,
-`npx`. The goldens and `ansible-test sanity` are not lanes — too slow to sit between you and a commit; they are
-`make test` and `make sanity`, and `make release` runs both. There is no CI.
+missing tool fails: a skipped lane is not a green commit. The goldens and `ansible-test sanity` are not lanes — too slow
+to sit between you and a commit; they are `make test` and `make sanity`, and `make release` runs both. There is no CI.
 
 ## Roles
 
@@ -114,8 +117,8 @@ A template change with no golden diff changed nothing, or has no fixture.
 ## Shell
 
 - [YSAP style](https://style.ysap.sh), 80 columns. `set -uo pipefail` with explicit checks; errexit never. `scripts/`
-  and `.githooks/` need bash 4.4+.
-- Make recipes delegate — to `scripts/` or the engine.
+  needs bash 4.4+.
+- Make recipes delegate — to `scripts/` or lefthook.
 - A script that runs `ansible*`, run by an agent, guards its stdio: `ansible*` refuses non-blocking stdout or stderr,
   which agent shells hand it. Redirect through `cat`.
 - Errexit's one exception: a script rendered onto a host as a systemd oneshot, which should fail its unit.

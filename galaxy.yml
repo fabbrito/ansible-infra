@@ -50,7 +50,7 @@ build_ignore:
   - .ansible
   - .tmp
   - .github
-  - .githooks
+  - .config
   - .gitignore
   - .ansible-lint
   - .prettierignore
@@ -61,5 +61,7 @@ build_ignore:
   - CONTEXT.md
   - docs/agents
   - Makefile
+  - lefthook.yml
+  - mise.toml
   - scripts
   - tests

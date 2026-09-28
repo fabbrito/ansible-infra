@@ -1,7 +1,9 @@
-# Delegates to scripts/ and the hook engine. No converge targets: this repo
+include .config/make/base.mk # mise's tools on PATH, `make hooks`
+.DEFAULT_GOAL := help # base.mk defines `hooks` first
+
+# Delegates to scripts/ and lefthook. No converge targets: this repo
 # reaches no host. A target's `##` comment is its help line.
 
-.DEFAULT_GOAL := help
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
@@ -23,39 +25,32 @@ export HELP_AWK
 
 .PHONY: help
 help: ## Show this help
-	@awk "$$HELP_AWK" $(firstword $(MAKEFILE_LIST))
+	@awk "$$HELP_AWK" $(MAKEFILE_LIST)
 
 ##@ Dependencies
 
-# Expected: the "not part of the configured collections paths" warning (no
-# ansible.cfg here), and an empty dir when bundled collections satisfy the pins.
+# The path is lint.sh's only one: without it galaxy counts a copy in
+# ~/.ansible as installed and skips it, and the syntax check never sees it.
 .PHONY: deps
 deps: ## Install/upgrade the Ansible collections the roles depend on
-	ansible-galaxy collection install -r requirements.yml --upgrade -p $(COLLECTIONS_DIR)/
+	ANSIBLE_COLLECTIONS_PATH=$(CURDIR)/$(COLLECTIONS_DIR) \
+		ansible-galaxy collection install -r requirements.yml --upgrade \
+		-p $(COLLECTIONS_DIR)/
 
 ##@ Local checks
 
-# core.hooksPath is per clone. chmod: a mode bit lost to a zip download
-# disables the gate silently.
-.PHONY: hooks
-hooks: ## Enable the repo's git hooks (once per clone)
-	git config core.hooksPath .githooks
-	@chmod +x .githooks/githooks .githooks/commit-msg .githooks/pre-commit
-	@.githooks/githooks version >/dev/null
-	@printf 'hooks enabled — skip one commit with --no-verify\n'
-
-# Lanes live in .githooks/hooks.conf: a new check is a lane, not a target.
+# Lanes live in lefthook.yml: a new check is a job, not a target.
 .PHONY: check
-check: ## Run every hook lane over the working changes (the gate)
-	.githooks/githooks check
+check: ## Run every lane over the working changes (the gate)
+	lefthook run check
 
 .PHONY: check-codes
 check-codes: ## Sweep for plan labels (manual, not in check)
 	./scripts/check-codes.sh
 
 .PHONY: fmt
-fmt: ## Run the same lanes, writing (prettier --write, shfmt -w); never stages
-	.githooks/githooks check --fix
+fmt: ## Run the same lanes, writing (prettier, shfmt); never stages
+	lefthook run fix
 
 ##@ Release legs
 

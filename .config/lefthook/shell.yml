@@ -1,0 +1,40 @@
+# templates/shell: copy to .config/lefthook/shell.yml, list it under
+# `extends:`. shfmt formats, shellcheck lints. Per-repo shellcheck flags (-P,
+# -e) go in .shellcheckrc: a job extends defines wins over a local one with
+# the same name.
+#
+#   pre-commit  shfmt writes and re-stages; shellcheck checks
+#   check       both read only - working changes, untracked included
+#   fix         shfmt writes, never stages
+pre-commit:
+  jobs:
+    - name: shfmt
+      glob: &shell ["**/*.sh"]
+      file_types: &file [not symlink]
+      run: shfmt -i 0 -ci -w {staged_files}
+      stage_fixed: true
+    - name: shellcheck
+      glob: *shell
+      file_types: *file
+      run: shellcheck -x {staged_files}
+
+check:
+  jobs:
+    - name: shfmt
+      glob: *shell
+      file_types: *file
+      files: &changed "sh -c 'git diff --name-only --diff-filter=ACMR HEAD 2>/dev/null || git diff --cached --name-only --diff-filter=ACMR; git ls-files --others --exclude-standard'"
+      run: shfmt -i 0 -ci -d {files}
+    - name: shellcheck
+      glob: *shell
+      file_types: *file
+      files: *changed
+      run: shellcheck -x {files}
+
+fix:
+  jobs:
+    - name: shfmt
+      glob: *shell
+      file_types: *file
+      files: *changed
+      run: shfmt -i 0 -ci -w {files}

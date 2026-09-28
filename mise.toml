@@ -1,0 +1,14 @@
+# This repo's own tools; the gate's are repokit's copies in .config/mise/conf.d/.
+# Pinned: a formatter or linter that drifts turns a green tree red with no edit.
+# A bump is a version here and `make hooks`.
+min_version = "2026.9"
+
+[tools]
+# One uv venv: ansible-lint, plus every ansible-core executable at the core it
+# lints against - two tools would resolve two cores. Floor: meta/runtime.yml.
+"pypi:ansible-lint" = { version = "26.9.0", uvx_args = "--with-executables-from ansible-core==2.21.4" }
+# The pypi backend installs through uv; pinned so uvx_args always applies.
+uv = "0.12.19"
+# Prettier is this repo's docs formatter; repokit ships none.
+node = "24.21.0"
+"npm:prettier" = "3.9.8"

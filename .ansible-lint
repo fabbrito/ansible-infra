@@ -3,3 +3,8 @@
 # not our problem to live with: this layer is converged by teams who did not
 # write it, so the surprise lands on their fleet.
 profile: production
+
+# Not Ansible: lefthook's config, whose job lines outrun yaml[line-length].
+exclude_paths:
+  - lefthook.yml
+  - .config/

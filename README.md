@@ -213,8 +213,8 @@ install time.
 ## Development
 
 ```bash
+make hooks   # the pinned tools (mise), then the git hooks — once per clone
 make deps    # install the collections the roles depend on
-make hooks   # enable the repo's git hooks — once per clone
 make fmt     # prettier + shfmt
 make check   # every hook lane — must be green to commit
 make sanity  # ansible-test sanity — a release leg; slow on a cold venv

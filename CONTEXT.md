@@ -88,9 +88,9 @@ time, not recovered from. _Avoid_: outage, bricking
 the first runs here, in two tiers: the lanes on every commit, the release legs once per tag. _Avoid_: test suite, CI
 (there is no suite; naming one oversells it)
 
-**Lane**: One group of checks in `.githooks/hooks.conf`, matched to the file kinds it grades and run by the vendored
-hook engine. A file no lane matches is never checked, so a new kind of file means a new lane. _Avoid_: hook, step (the
-hook is the engine that runs the lanes)
+**Lane**: One group of checks in `lefthook.yml`, matched to the file kinds it grades and run by lefthook. A file no lane
+matches is never checked, so a new kind of file means a new lane. _Avoid_: hook, step (the hook is the engine that runs
+the lanes)
 
 **Dry-run**: A check-mode converge against a real host, read for its diff. Not proof, because check mode lies where a
 prerequisite was never really installed — but an unexpected diff is always real. _Avoid_: simulation, preview

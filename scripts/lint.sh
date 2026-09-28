@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Ansible checks: ./scripts/lint.sh
 #
-# The `ansible` lane in .githooks/hooks.conf, as a script because a lane is exec'd
-# as written: ansible-core's check_blocking_io() exits at import on a non-blocking
+# The `ansible` job in lefthook.yml, as a script so every ansible command shares
+# one stdio guard: ansible-core's check_blocking_io() exits at import on a non-blocking
 # descriptor, there is no flag or env var, so fresh pipes through cat are the fix.
 #
 # Formatters are lanes. The golden render, ansible-test sanity and the collection
@@ -83,7 +83,7 @@ else
 	# A missing tool is a FAILURE, not a skip. This is the leg the README calls
 	# the gate; skipping it and still printing "All checks passed" is how
 	# unlinted work reaches a commit through the pre-commit hook.
-	red '  ansible-lint not installed (pip install ansible-lint)'
+	red '  ansible-lint not installed (pinned in mise.toml: make hooks)'
 	fail=$((fail + 1))
 fi
 

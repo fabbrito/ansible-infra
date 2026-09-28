@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-# Vendored from fabbrito/githooks; edit hooks.conf, not this.
-set -uo pipefail
-exec "$(dirname "$0")/githooks" pre-commit "$@"
