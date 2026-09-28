@@ -6,7 +6,7 @@
   the caddy_routes + caddy_extra_routes union once, in tasks/main.yml, so a
   security-critical selectattr() cannot silently miss the extra list.
 -#}
-{% set acme_routes = caddy_all_routes | selectattr('tls', 'equalto', 'acme') | list %}
+{% set acme_routes = caddy_all_routes | selectattr('tls', 'defined') | selectattr('tls', 'equalto', 'acme') | list %}
 {% set proxied_routes = caddy_all_routes | selectattr('proxied_by', 'defined') | list %}
 {% set redact_pattern = '^(' ~ caddy_redact_uri_prefixes | join('|') ~ ')[^/?]+' %}
 {%- macro format_filter(pad) -%}
@@ -95,7 +95,9 @@
 {% for r in caddy_all_routes %}
 
 {{ r.host }} {
-{% if r.tls == 'cert' %}
+{% if r.tls is not defined %}
+	# `http://`: plain HTTP, no certificate.
+{% elif r.tls == 'cert' %}
 {% set cert_name = r.cert | default('default') %}
 	tls {{ caddy_certs_dir }}/{{ cert_name }}.pem {{ caddy_certs_dir }}/{{ cert_name }}.key
 {% else %}
@@ -107,7 +109,7 @@
 	# pre-creates each file caddy-owned so a root-run `caddy validate` cannot
 	# claim it first.
 	log {
-		output file /var/log/caddy/{{ r.host }}.log {
+		output file /var/log/caddy/{{ r.host | regex_replace('^https?://', '') }}.log {
 			roll_size 10mb
 			roll_keep 5
 		}

@@ -1,0 +1,8 @@
+---
+# Plain HTTP: no `tls`, no email. Renders no `email`, no `tls` line, and a log
+# file named without the scheme, which would otherwise be a directory.
+caddy_routes:
+  - host: http://app.example.org
+    default_upstream: 127.0.0.1:3000
+
+caddy_extra_routes: []

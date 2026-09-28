@@ -2,8 +2,8 @@
 # One entry per vhost:
 #
 #   caddy_routes:
-#     - host: app.example.org          # bare hostname; `http://` disables ACME
-#       tls: acme                      # acme | cert — required
+#     - host: app.example.org          # bare hostname; `http://` for plain HTTP
+#       tls: acme                      # acme | cert; required, none on `http://`
 #       proxied_by: cloudflare         # optional; a key of caddy_proxy_ranges
 #       default_upstream: 127.0.0.1:3000   # catch-all; or redirect_to (301)
 #       upstreams:                     # optional; matched before the catch-all

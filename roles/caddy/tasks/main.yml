@@ -5,19 +5,20 @@
 - name: Assert every route is complete
   ansible.builtin.assert:
     that:
-      - item.tls is defined
-      - item.tls in ['acme', 'cert']
+      - (item.host is match('http://')) == (item.tls is not defined)
+      - item.tls is not defined or item.tls in ['acme', 'cert']
       - item.default_upstream is defined or item.redirect_to is defined
       - item.proxied_by is not defined or item.proxied_by in caddy_proxy_ranges
     fail_msg: >-
-      Route {{ item.host }} needs `tls: acme` or `tls: cert`, a
-      default_upstream or redirect_to, and a proxied_by (if any) naming a key of
-      caddy_proxy_ranges.
+      Route {{ item.host }} needs `tls: acme` or `tls: cert` (none on an
+      `http://` host), a default_upstream or redirect_to, and a proxied_by (if
+      any) naming a key of caddy_proxy_ranges.
     quiet: true
   loop: "{{ caddy_all_routes }}"
   loop_control:
     label: "{{ item.host }}"
-  # `tls` has no default: either guess breaks the other mode's hosts.
+  # `tls` has no default: either guess breaks the other mode's hosts. Refused
+  # on `http://`, where it would ask for an email or cert nothing uses.
 
 - name: Assert an ACME account email is set when any route uses ACME
   ansible.builtin.assert:
@@ -28,7 +29,9 @@
       Routes use `tls: acme` but caddy_acme_email is unset. Set it fleet-wide;
       it is an address, not a credential, so it needs no vault.
     quiet: true
-  when: caddy_all_routes | selectattr('tls', 'equalto', 'acme') | list | length > 0
+  when: >-
+    caddy_all_routes | selectattr('tls', 'defined')
+    | selectattr('tls', 'equalto', 'acme') | list | length > 0
   # Absent, the issuer chain silently loses ZeroSSL (ADR-0006).
 
 # Otherwise `caddy validate` fails mid-role, naming a path, not the var.
@@ -49,7 +52,7 @@
       Set caddy_origin_cert + caddy_origin_key for "default", or a
       caddy_extra_certs entry with both cert and key.
     quiet: true
-  loop: "{{ caddy_all_routes | selectattr('tls', 'equalto', 'cert') | list }}"
+  loop: "{{ caddy_all_routes | selectattr('tls', 'defined') | selectattr('tls', 'equalto', 'cert') | list }}"
   loop_control:
     label: "{{ item.host }}"
 
@@ -147,7 +150,8 @@
 # caddy then cannot write them and reloads time out forever.
 - name: Ensure per-vhost access log files exist (caddy-owned)
   ansible.builtin.file:
-    path: "/var/log/caddy/{{ item.host }}.log"
+    # Scheme stripped, as in the template: `http://` would be a directory.
+    path: "/var/log/caddy/{{ item.host | regex_replace('^https?://', '') }}.log"
     state: touch
     owner: caddy
     group: caddy

@@ -10,6 +10,9 @@ that, and the next correction is 1.0.1.
 
 ### Fixed
 
+- `caddy`: `http://` routes converge. They take no `tls`, and neither ask for `caddy_acme_email` nor render a `tls`
+  line; the access log is named without the scheme, which had made it a missing directory. `tls` on an `http://` route
+  is refused.
 - `seed`: user-data is ASCII-only, asserted after render; `deploy_authorized_keys` must be ASCII too. A pasted em dash
   reached a provider mis-encoded, and cloud-init dropped the whole seed with only a warning: no deploy user.
 - `firewall`: the read-back assert parses again. An unquoted `Default: deny` made one condition a YAML mapping, which
