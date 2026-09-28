@@ -10,6 +10,8 @@ that, and the next correction is 1.0.1.
 
 ### Fixed
 
+- `seed`: user-data is ASCII-only, asserted after render; `deploy_authorized_keys` must be ASCII too. A pasted em dash
+  reached a provider mis-encoded, and cloud-init dropped the whole seed with only a warning: no deploy user.
 - `firewall`: the read-back assert parses again. An unquoted `Default: deny` made one condition a YAML mapping, which
   ansible-core rejects, failing every converge after ufw came up.
 - `caddy`: `--check` on a host without Caddy no longer fails: the install, and every task needing the package's user,
