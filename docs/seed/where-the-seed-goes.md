@@ -26,7 +26,7 @@ creating the instance. The field is read at create time; most providers ignore a
 | AWS EC2       | Advanced details → User data                               | `aws ec2 run-instances --user-data`              |
 | Google Cloud  | —                                                          | `gcloud … --metadata-from-file user-data=<file>` |
 | Azure         | —                                                          | `az vm create --custom-data`                     |
-| DigitalOcean  | Advanced options → Add initialization scripts              | `doctl … --user-data-file`                       |
+| DigitalOcean  | Additional Options → Startup scripts                       | `doctl … --user-data-file`                       |
 | Vultr         | Additional features → Enable cloud-init user-data          | `vultr-cli … --userdata`                         |
 | Linode        | Create Linode → Add user data                              | `linode-cli … --metadata.user_data`              |
 | Oracle Cloud  | Create instance → Advanced options → Initialization script | —                                                |
