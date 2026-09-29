@@ -9,6 +9,8 @@ tailscale_repo_url: >-
 # Repo signing key (fingerprint 2596A99EAAB33821893C0A79458CA832957F5868), one file
 # for every codename. Trust anchor for the first download only: after that the
 # tailscale-archive-keyring package owns the file and apt rotates it.
+# Read only while the keyring is absent: a rotation fails a fresh host's
+# converge, so set the new hash here until a release of ours catches up.
 tailscale_key_sha256: 3e03dacf222698c60b8e2f990b809ca1b3e104de127767864284e6c228f1fb39
 
 # Flags for `tailscale up` beyond ours, e.g. ["--advertise-tags=tag:server"].
