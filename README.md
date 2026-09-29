@@ -14,7 +14,7 @@ and the converge itself live.
 | Distribution    | Releases         | Arch                | Status            |
 | --------------- | ---------------- | ------------------- | ----------------- |
 | Ubuntu          | 24.04 and later  | amd64, arm64        | Tested            |
-| Raspberry Pi OS | Bookworm, Trixie | arm64, armhf        | Tested            |
+| Raspberry Pi OS | Trixie           | arm64, armhf        | Claimed, untested |
 | Debian          | 13               | amd64               | Tested            |
 | Debian          | 12, or 13 on ARM | amd64, arm64, armhf | Claimed, untested |
 
