@@ -1,0 +1,7 @@
+---
+# Raspberry Pi OS reports as Debian: the /debian repo, for the userland arch.
+ansible_facts:
+  distribution: Debian
+  distribution_release: trixie
+docker_dpkg_arch:
+  stdout: armhf

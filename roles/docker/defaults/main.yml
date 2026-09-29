@@ -1,4 +1,10 @@
 ---
+# sha256 of Docker's apt signing key (fingerprint
+# 9DC858229FC7DD38854AE2D88D81803C0EBFCD88), one file for /ubuntu and /debian.
+# On a rotation the download fails the converge: verify the new key's
+# fingerprint, then set its hash here until a release of ours catches up.
+docker_apt_key_sha256: 1500c1f56fa9e26b9b8f42452a553675796ade0807cdce11975eb98170b3a570
+
 # Added to the docker group. Must already exist (asserted).
 docker_users:
   - "{{ deploy_user }}"

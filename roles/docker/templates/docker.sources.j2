@@ -1,0 +1,8 @@
+# Rendered by Ansible — do not edit on host.
+# Source: fabbrito.infra collection — roles/docker/templates/docker.sources.j2
+Types: deb
+URIs: {{ docker_apt_url }}
+Suites: {{ ansible_facts['distribution_release'] }}
+Components: stable
+Architectures: {{ docker_dpkg_arch.stdout }}
+Signed-By: /etc/apt/keyrings/docker.asc

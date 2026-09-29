@@ -1,0 +1,12 @@
+---
+# A cert-mode route whose default cert has no key: refused before the copies,
+# or `caddy validate` fails mid-role naming a path, not the var.
+caddy_origin_cert: unused-by-the-template
+caddy_origin_key: ""
+
+caddy_routes:
+  - host: app.example.org
+    tls: cert
+    default_upstream: 127.0.0.1:3000
+
+caddy_extra_routes: []

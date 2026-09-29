@@ -12,6 +12,9 @@
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
+# Ansible refuses non-blocking stdio; pipe through cat (AGENTS.md > Shell).
+exec </dev/null > >(cat) 2>&1
+
 update=0
 case ${1-} in
 	--update) update=1 ;;

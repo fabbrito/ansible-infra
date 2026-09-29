@@ -1,0 +1,1 @@
+Routes use `tls: acme` but caddy_acme_email is unset. Set it fleet-wide; it is an address, not a credential, so it needs no vault.

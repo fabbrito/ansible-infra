@@ -8,7 +8,6 @@ os_apt_packages:
   - jq
   - python3
   - python3-pip
-  - python3-debian # ansible.builtin.deb822_repository (docker, caddy)
   - sqlite3
 
 # Boards only: reach the board as <hostname>.local.

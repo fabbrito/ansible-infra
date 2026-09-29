@@ -19,6 +19,7 @@
 
 # `-G` where it exists (OpenSSH >= 9.3): `-T` fails while socket-activated
 # ssh.service is inactive. A `-G` config error must fail, not fall back.
+# Twin in roles/sshd: roles share no tasks (ADR-0016).
 - name: Probe for sshd -G
   ansible.builtin.command: /usr/sbin/sshd -G -f /dev/null
   register: firewall_sshd_g_probe

@@ -1,0 +1,5 @@
+---
+# Raspberry Pi OS reports as Debian and takes Docker's debian repo.
+docker_apt_url: >-
+  https://download.docker.com/linux/{{
+  'ubuntu' if ansible_facts['distribution'] == 'Ubuntu' else 'debian' }}

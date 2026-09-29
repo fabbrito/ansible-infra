@@ -38,6 +38,7 @@
 
 # `-G` where it exists (OpenSSH >= 9.3): `-T` stats /run/sshd, absent while
 # socket-activated ssh.service is inactive. Older releases are not socket-activated.
+# Twin in roles/firewall: roles share no tasks (ADR-0016).
 - name: Probe for sshd -G
   ansible.builtin.command: /usr/sbin/sshd -G -f /dev/null
   register: sshd_g_probe

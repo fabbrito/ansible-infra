@@ -18,13 +18,6 @@
       Leave docker out of this host's role list.
     quiet: true
 
-# Raspberry Pi OS reports as Debian and takes Docker's debian repo.
-- name: Name Docker's repo for this distribution
-  ansible.builtin.set_fact:
-    docker_apt_url: >-
-      https://download.docker.com/linux/{{
-      'ubuntu' if ansible_facts['distribution'] == 'Ubuntu' else 'debian' }}
-
 # Opt-in feature keyed on its token (ADR-0015).
 - name: Assert the GHCR login is complete when requested
   ansible.builtin.assert:
@@ -52,34 +45,34 @@
       Run bootstrap first, or drop them from docker_users.
     quiet: true
 
-- name: Add Docker apt key
-  ansible.builtin.shell: |
-    set -o pipefail
-    install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL {{ docker_apt_url }}/gpg \
-      | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    chmod a+r /etc/apt/keyrings/docker.gpg
-  args:
-    creates: /etc/apt/keyrings/docker.gpg
-    executable: /bin/bash
+# Pinned: a rotated key fails here, loudly, not later inside apt.
+- name: Download the Docker signing key
+  ansible.builtin.get_url:
+    url: "{{ docker_apt_url }}/gpg"
+    checksum: "sha256:{{ docker_apt_key_sha256 }}"
+    dest: /etc/apt/keyrings/docker.asc
+    owner: root
+    group: root
+    mode: "0644"
 
-# Left by the old apt_repository task; beside docker.sources it duplicates the repo.
-- name: Remove legacy Docker apt .list
+# Left by earlier releases: a .list duplicating the repo, a dearmored key
+# nothing signs with.
+- name: Remove the legacy Docker apt source and key
   ansible.builtin.file:
-    path: /etc/apt/sources.list.d/docker.list
+    path: "{{ item }}"
     state: absent
+  loop:
+    - /etc/apt/sources.list.d/docker.list
+    - /etc/apt/keyrings/docker.gpg
 
-- name: Add Docker apt repo
-  ansible.builtin.deb822_repository:
-    name: docker
-    types: deb
-    uris: "{{ docker_apt_url }}"
-    suites: "{{ ansible_facts['distribution_release'] }}"
-    components: stable
-    architectures: "{{ docker_dpkg_arch.stdout }}"
-    signed_by: /etc/apt/keyrings/docker.gpg
-    state: present
-  register: docker_apt_repo
+- name: Add the Docker repo
+  ansible.builtin.template:
+    src: docker.sources.j2
+    dest: /etc/apt/sources.list.d/docker.sources
+    owner: root
+    group: root
+    mode: "0644"
+  register: docker_apt_source
 
 # In check mode on a fresh host the repo was never added, so apt knows no
 # docker-ce to plan, and no docker group exists for the task after.
@@ -93,7 +86,7 @@
       - docker-compose-plugin
     state: present
     update_cache: true
-  when: not (ansible_check_mode and docker_apt_repo is changed)
+  when: not (ansible_check_mode and docker_apt_source is changed)
 
 - name: Add users to docker group
   ansible.builtin.user:
@@ -101,7 +94,7 @@
     groups: docker
     append: true
   loop: "{{ docker_users }}"
-  when: not (ansible_check_mode and docker_apt_repo is changed)
+  when: not (ansible_check_mode and docker_apt_source is changed)
 
 # apt's postinst starts the daemon, not a task here, so nothing above proves it.
 - name: Probe the Docker daemon

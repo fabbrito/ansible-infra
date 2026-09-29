@@ -2,12 +2,10 @@
   The tabs are deliberate: `caddy fmt` rewrites spaces to tabs, so a
   space-indented render reads as a diff against the formatter forever.
 
-  Every derivation reads caddy_all_routes and NOTHING ELSE — ADR-0008 resolves
-  the caddy_routes + caddy_extra_routes union once, in tasks/main.yml, so a
-  security-critical selectattr() cannot silently miss the extra list.
+  Every view of the routes comes from vars/main.yml and NOTHING ELSE — ADR-0008
+  resolves the caddy_routes + caddy_extra_routes union once, so a
+  security-critical selectattr() here cannot silently miss the extra list.
 -#}
-{% set acme_routes = caddy_all_routes | selectattr('tls', 'defined') | selectattr('tls', 'equalto', 'acme') | list %}
-{% set proxied_routes = caddy_all_routes | selectattr('proxied_by', 'defined') | list %}
 {% set redact_pattern = '^(' ~ caddy_redact_uri_prefixes | join('|') ~ ')[^/?]+' %}
 {%- macro format_filter(pad) -%}
 {{ pad }}format filter {
@@ -50,7 +48,7 @@
 # Rendered by Ansible — do not edit on host.
 # Source: fabbrito.infra collection — roles/caddy/templates/Caddyfile.j2
 {
-{% if acme_routes %}
+{% if caddy_acme_routes %}
 	# fabbrito.infra ADR-0006: the email admits ZeroSSL as a fallback
 	# issuer. Absent, Caddy's chain silently shrinks to Let's Encrypt alone.
 	# The role asserts it rather than render empty.
@@ -62,10 +60,10 @@
 	acme_ca {{ caddy_acme_ca }}
 {% endif %}
 {% endif %}
-{% if proxied_routes %}
-{% set provider = caddy_proxy_ranges[proxied_routes[0].proxied_by] %}
+{% if caddy_proxied_routes %}
+{% set provider = caddy_proxy_ranges[caddy_proxied_routes[0].proxied_by] %}
 	# fabbrito.infra ADR-0008: trust is DERIVED — this block renders only
-	# because a route declares `proxied_by: {{ proxied_routes[0].proxied_by }}`.
+	# because a route declares `proxied_by: {{ caddy_proxied_routes[0].proxied_by }}`.
 	# It is server-level and every vhost shares :443, so trust is all-or-nothing
 	# per host and cannot be scoped to the proxied vhost. A host nobody fronts
 	# must render NOTHING here, or anyone pointing their own zone at this host's
@@ -109,7 +107,7 @@
 	# pre-creates each file caddy-owned so a root-run `caddy validate` cannot
 	# claim it first.
 	log {
-		output file /var/log/caddy/{{ r.host | regex_replace('^https?://', '') }}.log {
+		output file {{ caddy_log_paths[r.host] }} {
 			roll_size 10mb
 			roll_keep 5
 		}

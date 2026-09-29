@@ -15,6 +15,7 @@
       and a vm, so it needs one of them.
     quiet: true
 
+# Twin in playbooks/bootstrap.yml: change both.
 - name: Assert the seeded account
   ansible.builtin.assert:
     that:

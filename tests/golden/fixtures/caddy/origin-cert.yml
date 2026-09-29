@@ -5,7 +5,11 @@
 #
 # No cert material here and none needed: the template emits PATHS under
 # caddy_certs_dir, never the blobs. Writing them is a separate task, and this
-# repo ships no key.
+# repo ships no key. Set only so the cert assert passes; not in the defaults,
+# so every fixture sorted after this one sets them too.
+caddy_origin_cert: unused-by-the-template
+caddy_origin_key: unused-by-the-template
+
 caddy_extra_certs:
   - name: other
     cert: unused-by-the-template
