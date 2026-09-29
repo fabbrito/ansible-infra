@@ -7,9 +7,6 @@ include .config/make/base.mk # mise's tools on PATH, `make hooks`
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-# lint.sh stages this collection here too: one path resolves ours and the deps.
-COLLECTIONS_DIR := .collections
-
 define HELP_AWK
 BEGIN {
 	FS = ":.*##"
@@ -29,13 +26,9 @@ help: ## Show this help
 
 ##@ Dependencies
 
-# The path is lint.sh's only one: without it galaxy counts a copy in
-# ~/.ansible as installed and skips it, and the syntax check never sees it.
 .PHONY: deps
 deps: ## Install/upgrade the Ansible collections the roles depend on
-	ANSIBLE_COLLECTIONS_PATH=$(CURDIR)/$(COLLECTIONS_DIR) \
-		ansible-galaxy collection install -r requirements.yml --upgrade \
-		-p $(COLLECTIONS_DIR)/
+	./scripts/deps.sh
 
 ##@ Local checks
 
