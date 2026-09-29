@@ -1,6 +1,7 @@
 ---
 # The route preconditions: consumer input only, no host touched. Own file so
 # the golden harness includes it, and each assert gets a fixture.
+# Unassertable here: `upstreams[].paths` must be literal (defaults/main.yml).
 - name: Assert every route is complete
   ansible.builtin.assert:
     that:

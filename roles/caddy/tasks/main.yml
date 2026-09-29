@@ -2,32 +2,34 @@
 - name: Assert the routes
   ansible.builtin.include_tasks: routes.yml
 
-# Unassertable here: `upstreams[].paths` must be literal (defaults/main.yml).
-- name: Caddy apt key
-  ansible.builtin.shell: |
-    set -o pipefail
-    curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/gpg.key \
-      | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-  args:
-    creates: /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-    executable: /bin/bash
+# Pinned: a rotated key fails here, loudly, not later inside apt.
+- name: Download the Caddy signing key
+  ansible.builtin.get_url:
+    url: https://dl.cloudsmith.io/public/caddy/stable/gpg.key
+    checksum: "sha256:{{ caddy_apt_key_sha256 }}"
+    dest: /etc/apt/keyrings/caddy.asc
+    owner: root
+    group: root
+    mode: "0644"
 
-# Left by the old apt_repository task; beside caddy.sources it duplicates the repo.
-- name: Remove legacy Caddy apt .list
+# Left by earlier releases: a .list duplicating the repo, a dearmored key
+# nothing signs with.
+- name: Remove the legacy Caddy apt source and key
   ansible.builtin.file:
-    path: /etc/apt/sources.list.d/caddy.list
+    path: "{{ item }}"
     state: absent
+  loop:
+    - /etc/apt/sources.list.d/caddy.list
+    - /usr/share/keyrings/caddy-stable-archive-keyring.gpg
 
-- name: Caddy apt repo
-  ansible.builtin.deb822_repository:
-    name: caddy
-    types: deb
-    uris: https://dl.cloudsmith.io/public/caddy/stable/deb/debian
-    suites: any-version
-    components: main
-    signed_by: /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-    state: present
-  register: caddy_apt_repo
+- name: Add the Caddy repo
+  ansible.builtin.template:
+    src: caddy.sources.j2
+    dest: /etc/apt/sources.list.d/caddy.sources
+    owner: root
+    group: root
+    mode: "0644"
+  register: caddy_apt_source
 
 # Upstream apt package (ADR-0004). Never `caddy upgrade`: the next apt upgrade
 # of caddy clobbers the self-replaced binary. Standard modules only.
@@ -38,7 +40,7 @@
     state: present
     update_cache: true
   # In check mode on a fresh host the repo was never added: no caddy to plan.
-  when: not (ansible_check_mode and caddy_apt_repo is changed)
+  when: not (ansible_check_mode and caddy_apt_source is changed)
 
 - name: Ensure certs dir
   ansible.builtin.file:
@@ -48,7 +50,7 @@
     group: caddy
     mode: "0750"
   # The package brings the caddy group and /etc/caddy.
-  when: not (ansible_check_mode and caddy_apt_repo is changed)
+  when: not (ansible_check_mode and caddy_apt_source is changed)
 
 - name: Drop origin certificates
   ansible.builtin.copy:
@@ -61,7 +63,7 @@
   loop_control:
     label: "{{ item.name }}"
   when:
-    - not (ansible_check_mode and caddy_apt_repo is changed)
+    - not (ansible_check_mode and caddy_apt_source is changed)
     - item.cert | default('') | length > 0
   notify: Reload caddy
 
@@ -76,7 +78,7 @@
   loop_control:
     label: "{{ item.name }}"
   when:
-    - not (ansible_check_mode and caddy_apt_repo is changed)
+    - not (ansible_check_mode and caddy_apt_source is changed)
     - item.key | default('') | length > 0
   no_log: true
   notify: Reload caddy
@@ -94,7 +96,7 @@
     modification_time: preserve
   loop: "{{ caddy_log_paths.values() | unique }}"
   changed_when: false
-  when: not (ansible_check_mode and caddy_apt_repo is changed)
+  when: not (ansible_check_mode and caddy_apt_source is changed)
 
 - name: Render Caddyfile
   ansible.builtin.template:
@@ -105,7 +107,7 @@
     mode: "0644"
     validate: "caddy validate --config %s --adapter caddyfile"
   notify: Reload caddy
-  when: not (ansible_check_mode and caddy_apt_repo is changed)
+  when: not (ansible_check_mode and caddy_apt_source is changed)
 
 - name: Ensure caddy is enabled and running
   ansible.builtin.service:

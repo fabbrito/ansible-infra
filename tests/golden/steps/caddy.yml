@@ -15,3 +15,9 @@
     src: "{{ golden_repo }}/roles/caddy/templates/Caddyfile.j2"
     dest: "{{ golden_case_out }}/Caddyfile"
     mode: "0644"
+
+- name: Render the Caddy apt source
+  ansible.builtin.template:
+    src: "{{ golden_repo }}/roles/caddy/templates/caddy.sources.j2"
+    dest: "{{ golden_case_out }}/caddy.sources"
+    mode: "0644"
