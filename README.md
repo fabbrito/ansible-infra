@@ -14,7 +14,8 @@ secrets and the converge itself live.
 | Distribution    | Releases        | Arch                | Status                 |
 | --------------- | --------------- | ------------------- | ---------------------- |
 | Ubuntu          | 24.04 and later | amd64, arm64        | Tested                 |
-| Raspberry Pi OS | Trixie          | arm64, armhf        | Claimed, untested      |
+| Raspberry Pi OS | Trixie          | armhf               | Tested                 |
+| Raspberry Pi OS | Trixie          | arm64               | Claimed, untested      |
 | Debian          | 13              | amd64               | Tested                 |
 | Debian          | 13              | arm64, armhf        | Claimed, untested      |
 | Debian          | 12              | amd64, arm64, armhf | Not a target, untested |
