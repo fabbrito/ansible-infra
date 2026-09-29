@@ -1,0 +1,10 @@
+# Rendered by Ansible — do not edit on host.
+# Source: fabbrito.infra collection — roles/docker/templates/docker-cleanup.service.j2
+[Unit]
+Description=Docker system prune (localhost)
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/docker-cleanup

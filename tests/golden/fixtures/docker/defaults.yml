@@ -1,3 +1,9 @@
 ---
-# Role defaults: a weekly prune of what is a week old.
-{}
+# Role defaults on Ubuntu noble amd64: the /ubuntu repo, and a weekly prune of
+# what is a week old. Facts and the arch probe are host reads, so the fixture
+# sets them.
+ansible_facts:
+  distribution: Ubuntu
+  distribution_release: noble
+docker_dpkg_arch:
+  stdout: amd64
