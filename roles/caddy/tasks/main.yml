@@ -5,19 +5,20 @@
 - name: Assert every route is complete
   ansible.builtin.assert:
     that:
-      - item.tls is defined
-      - item.tls in ['acme', 'cert']
+      - (item.host is match('http://')) == (item.tls is not defined)
+      - item.tls is not defined or item.tls in ['acme', 'cert']
       - item.default_upstream is defined or item.redirect_to is defined
       - item.proxied_by is not defined or item.proxied_by in caddy_proxy_ranges
     fail_msg: >-
-      Route {{ item.host }} needs `tls: acme` or `tls: cert`, a
-      default_upstream or redirect_to, and a proxied_by (if any) naming a key of
-      caddy_proxy_ranges.
+      Route {{ item.host }} needs `tls: acme` or `tls: cert` (none on an
+      `http://` host), a default_upstream or redirect_to, and a proxied_by (if
+      any) naming a key of caddy_proxy_ranges.
     quiet: true
   loop: "{{ caddy_all_routes }}"
   loop_control:
     label: "{{ item.host }}"
-  # `tls` has no default: either guess breaks the other mode's hosts.
+  # `tls` has no default: either guess breaks the other mode's hosts. Refused
+  # on `http://`, where it would ask for an email or cert nothing uses.
 
 - name: Assert an ACME account email is set when any route uses ACME
   ansible.builtin.assert:
@@ -28,7 +29,9 @@
       Routes use `tls: acme` but caddy_acme_email is unset. Set it fleet-wide;
       it is an address, not a credential, so it needs no vault.
     quiet: true
-  when: caddy_all_routes | selectattr('tls', 'equalto', 'acme') | list | length > 0
+  when: >-
+    caddy_all_routes | selectattr('tls', 'defined')
+    | selectattr('tls', 'equalto', 'acme') | list | length > 0
   # Absent, the issuer chain silently loses ZeroSSL (ADR-0006).
 
 # Otherwise `caddy validate` fails mid-role, naming a path, not the var.
@@ -49,7 +52,7 @@
       Set caddy_origin_cert + caddy_origin_key for "default", or a
       caddy_extra_certs entry with both cert and key.
     quiet: true
-  loop: "{{ caddy_all_routes | selectattr('tls', 'equalto', 'cert') | list }}"
+  loop: "{{ caddy_all_routes | selectattr('tls', 'defined') | selectattr('tls', 'equalto', 'cert') | list }}"
   loop_control:
     label: "{{ item.host }}"
 
@@ -89,6 +92,7 @@
     components: main
     signed_by: /usr/share/keyrings/caddy-stable-archive-keyring.gpg
     state: present
+  register: caddy_apt_repo
 
 # Upstream apt package (ADR-0004). Never `caddy upgrade`: the next apt upgrade
 # of caddy clobbers the self-replaced binary. Standard modules only.
@@ -98,6 +102,8 @@
     name: caddy
     state: present
     update_cache: true
+  # In check mode on a fresh host the repo was never added: no caddy to plan.
+  when: not (ansible_check_mode and caddy_apt_repo is changed)
 
 - name: Ensure certs dir
   ansible.builtin.file:
@@ -106,6 +112,8 @@
     owner: root
     group: caddy
     mode: "0750"
+  # The package brings the caddy group and /etc/caddy.
+  when: not (ansible_check_mode and caddy_apt_repo is changed)
 
 - name: Drop origin certificates
   ansible.builtin.copy:
@@ -117,7 +125,9 @@
   loop: "{{ caddy_origin_certs }}"
   loop_control:
     label: "{{ item.name }}"
-  when: item.cert | default('') | length > 0
+  when:
+    - not (ansible_check_mode and caddy_apt_repo is changed)
+    - item.cert | default('') | length > 0
   notify: Reload caddy
 
 - name: Drop origin private keys
@@ -130,7 +140,9 @@
   loop: "{{ caddy_origin_certs }}"
   loop_control:
     label: "{{ item.name }}"
-  when: item.key | default('') | length > 0
+  when:
+    - not (ansible_check_mode and caddy_apt_repo is changed)
+    - item.key | default('') | length > 0
   no_log: true
   notify: Reload caddy
 
@@ -138,7 +150,8 @@
 # caddy then cannot write them and reloads time out forever.
 - name: Ensure per-vhost access log files exist (caddy-owned)
   ansible.builtin.file:
-    path: "/var/log/caddy/{{ item.host }}.log"
+    # Scheme stripped, as in the template: `http://` would be a directory.
+    path: "/var/log/caddy/{{ item.host | regex_replace('^https?://', '') }}.log"
     state: touch
     owner: caddy
     group: caddy
@@ -149,6 +162,7 @@
   loop_control:
     label: "{{ item.host }}"
   changed_when: false
+  when: not (ansible_check_mode and caddy_apt_repo is changed)
 
 - name: Render Caddyfile
   ansible.builtin.template:
@@ -159,6 +173,7 @@
     mode: "0644"
     validate: "caddy validate --config %s --adapter caddyfile"
   notify: Reload caddy
+  when: not (ansible_check_mode and caddy_apt_repo is changed)
 
 - name: Ensure caddy is enabled and running
   ansible.builtin.service:

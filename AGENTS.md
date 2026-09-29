@@ -55,7 +55,8 @@ to sit between you and a commit; they are `make test` and `make sanity`, and `ma
 - Second converge reports zero changed. `--check` survives: `check_mode: false` on read-only probes, skip what a fake
   install breaks.
 - No lock-out: every rule before deny-default, sshd validated before its reload.
-- A rendered file opens with `# Rendered by Ansible — do not edit on host` and its source path.
+- A rendered file opens with `# Rendered by Ansible — do not edit on host` and its source path. A file an operator
+  pastes, like the seed, is ASCII only: `-` for `—`, since a mis-encoded byte voids the whole file.
 
 ## Comments earn their keep
 

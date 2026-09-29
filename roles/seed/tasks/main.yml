@@ -29,6 +29,16 @@
       the host.
     quiet: true
 
+# A mis-encoded byte in transit voids the whole seed; ASCII survives a paste.
+- name: Assert the keys are ASCII
+  ansible.builtin.assert:
+    that: deploy_authorized_keys | join(' ') is match('^[ -~]*$')
+    fail_msg: >-
+      deploy_authorized_keys holds a non-ASCII character, likely in a key
+      comment. Pasted into a provider's field it can void the whole seed:
+      cloud-init drops user-data it cannot parse, with only a warning.
+    quiet: true
+
 # Templates read these, never inventory vars, so goldens can set them.
 - name: Name the host and its account
   ansible.builtin.set_fact:
@@ -80,6 +90,16 @@
     src: user-data.j2
     dest: "{{ seed_output_path }}/user-data"
     mode: "0644"
+
+- name: Assert the seed is ASCII
+  ansible.builtin.assert:
+    that: >-
+      lookup('ansible.builtin.file', seed_output_path ~ '/user-data')
+      .splitlines() | reject('match', '^[ -~]*$') | list | length == 0
+    fail_msg: >-
+      {{ seed_output_path }}/user-data holds a non-ASCII character. A paste can
+      mis-encode it, and cloud-init then drops the whole seed.
+    quiet: true
 
 # NoCloud only: a provider serves its own meta-data.
 - name: Render meta-data

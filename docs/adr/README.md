@@ -23,7 +23,7 @@ make sense as the consequence of a decision recorded here.
 | [0018](0018-the-seed-creates-the-deploy-user.md)                            | A cloud-init seed creates the deploy user; on a board it is the break-glass. |
 | [0019](0019-unattended-upgrades-is-the-only-scheduled-upgrader.md)          | Unattended-upgrades is the only scheduled upgrader and rebooter.             |
 | [0020](0020-storage-is-a-runbook-and-the-journal-a-bind-mount.md)           | Storage is a runbook; the journal moves by bind mount.                       |
-| [0021](0021-tailscale-from-its-own-apt-repo.md)                             | Tailscale from its own apt repo, joined by a required key.                   |
+| [0021](0021-tailscale-from-its-own-apt-repo.md)                             | Tailscale from its own apt repo, joined by an optional key.                  |
 
 Each of these explains either a role or the collection itself — how it is gated (0003), how it validates (0014), how it
 reaches a consumer (0011), and who runs the gate now that nothing runs on a push (0013). Decisions about running a fleet

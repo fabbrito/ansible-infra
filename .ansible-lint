@@ -4,6 +4,14 @@
 # write it, so the surprise lands on their fleet.
 profile: production
 
+# This repo's rules, beside the defaults. A profile unloads every rule it does
+# not list, so each one is named in enable_list too.
+rulesdir:
+  - .config/ansible-lint/
+use_default_rules: true
+enable_list:
+  - assert-that-string
+
 # Not Ansible: lefthook's config, whose job lines outrun yaml[line-length].
 exclude_paths:
   - lefthook.yml

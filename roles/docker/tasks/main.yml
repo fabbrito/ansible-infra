@@ -79,7 +79,10 @@
     architectures: "{{ docker_dpkg_arch.stdout }}"
     signed_by: /etc/apt/keyrings/docker.gpg
     state: present
+  register: docker_apt_repo
 
+# In check mode on a fresh host the repo was never added, so apt knows no
+# docker-ce to plan, and no docker group exists for the task after.
 - name: Install Docker engine
   ansible.builtin.apt:
     name:
@@ -90,6 +93,7 @@
       - docker-compose-plugin
     state: present
     update_cache: true
+  when: not (ansible_check_mode and docker_apt_repo is changed)
 
 - name: Add users to docker group
   ansible.builtin.user:
@@ -97,6 +101,7 @@
     groups: docker
     append: true
   loop: "{{ docker_users }}"
+  when: not (ansible_check_mode and docker_apt_repo is changed)
 
 # apt's postinst starts the daemon, not a task here, so nothing above proves it.
 - name: Probe the Docker daemon

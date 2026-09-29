@@ -1,6 +1,6 @@
 ---
-# The tailnet, for the hosts in the consumer's `tailscale` group. Needs
-# tailscale_auth_key in the vault.
+# The tailnet, for the hosts in the consumer's `tailscale` group. Joins when
+# tailscale_auth_key is vaulted; unset, the operator joins by hand.
 #
 #   - import_playbook: fabbrito.infra.tailscale
 #

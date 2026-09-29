@@ -6,6 +6,35 @@ consumers pin the tag, so a change that is not released is a change nobody gets.
 A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
 that, and the next correction is 1.0.1.
 
+## 2.1.0
+
+### Changed
+
+- `tailscale`: `tailscale_auth_key` is optional. Unset, the role installs Tailscale and leaves the join to the operator;
+  set, a host off the tailnet joins, so vault a reusable key. A joined host no longer needs the key at all.
+
+### Fixed
+
+- `os`: `os_timezone` is set as its canonical zone, so an alias no longer flips. On Debian 13 a tzdata upgrade relinks
+  `UTC` to `Etc/UTC`, and every later converge flipped it back. A name that is not a zone now fails before the role
+  changes anything.
+- `os`: the swap sysctls survive a reboot. They went to `/etc/sysctl.conf`, which Debian 13 no longer reads at boot, so
+  after a reboot the kernel defaults stood and the next converge changed them back. They now live in
+  `/etc/sysctl.d/60-infra-swap.conf`; the role removes its lines from `/etc/sysctl.conf`, where Ubuntu would read them
+  after the drop-in, and reads back what the next boot applies.
+- `caddy`: `http://` routes converge. They take no `tls`, and neither ask for `caddy_acme_email` nor render a `tls`
+  line; the access log is named without the scheme, which had made it a missing directory. `tls` on an `http://` route
+  is refused.
+- `seed`: user-data is ASCII-only, asserted after render; `deploy_authorized_keys` must be ASCII too. A pasted em dash
+  reached a provider mis-encoded, and cloud-init dropped the whole seed with only a warning: no deploy user.
+- `firewall`: the read-back assert parses again. An unquoted `Default: deny` made one condition a YAML mapping, which
+  ansible-core rejects, failing every converge after ufw came up.
+- `caddy`: `--check` on a host without Caddy no longer fails: the install, and every task needing the package's user,
+  `/etc/caddy` or binary, are skipped until a real converge.
+- `docker`: `--check` on a host without Docker no longer fails: the dry run adds no apt repo, so the install and the
+  docker group are skipped until a real converge.
+- `docs/seed`: DigitalOcean's user-data field is Additional Options → Startup scripts.
+
 ## 2.0.0
 
 ### Added

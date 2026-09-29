@@ -11,11 +11,13 @@ and the converge itself live.
 
 ## Platforms
 
-| Distribution    | Releases         | Arch                | Status            |
-| --------------- | ---------------- | ------------------- | ----------------- |
-| Ubuntu          | 24.04 and later  | amd64, arm64        | Tested            |
-| Raspberry Pi OS | Bookworm, Trixie | arm64, armhf        | Tested            |
-| Debian          | 12 and later     | amd64, arm64, armhf | Claimed, untested |
+| Distribution    | Releases        | Arch                | Status                 |
+| --------------- | --------------- | ------------------- | ---------------------- |
+| Ubuntu          | 24.04 and later | amd64, arm64        | Tested                 |
+| Raspberry Pi OS | Trixie          | arm64, armhf        | Claimed, untested      |
+| Debian          | 13              | amd64               | Tested                 |
+| Debian          | 13              | arm64, armhf        | Claimed, untested      |
+| Debian          | 12              | amd64, arm64, armhf | Not a target, untested |
 
 `preflight` refuses anything else before a role changes the host: another distribution, a release below its floor, or an
 ARMv6 board.
@@ -104,7 +106,7 @@ reads the ports from the effective sshd config, and `fail2ban` bans through ufw.
 | `rclone`     | backup hosts | Pinned rclone and the R2 remote, with an optional crypt wrapper.       |
 | `caddy`      | edge hosts   | Caddy as the TLS edge for the consumer's routes.                       |
 | `monitoring` | where wanted | Beszel hub and agent, Dozzle, loopback-bound.                          |
-| `tailscale`  | where wanted | The host on a tailnet, additive to its own SSH path.                   |
+| `tailscale`  | where wanted | Tailscale, joined when keyed; additive to the host's own SSH path.     |
 | `network`    | boards       | A fixed LAN address beside DHCP, through NetworkManager.               |
 | `journal`    | boards       | The journal bind-mounted onto a storage volume.                        |
 
@@ -115,9 +117,9 @@ rather than compose.
 once, as root), `fabbrito.infra.update` does a serial apt upgrade with a reboot when required.
 
 `seed` is the cloud-init alternative to `bootstrap`, for a board's boot partition or a provider's user-data field: it
-renders a seed that creates `deploy_user` with `deploy_authorized_keys`, key-only, with passwordless sudo. On a `vm` the
-provider's default user stays as break-glass; on a `board` bumping `seed_generation` re-applies the seed on next boot.
-Where each provider takes it: docs/seed/where-the-seed-goes.md.
+renders a seed that creates `deploy_user` with `deploy_authorized_keys`, key-only, with passwordless sudo. ASCII only,
+asserted, so a paste cannot garble it. On a `vm` the provider's default user stays as break-glass; on a `board` bumping
+`seed_generation` re-applies the seed on next boot. Where each provider takes it: docs/seed/where-the-seed-goes.md.
 
 ```bash
 ansible-playbook fabbrito.infra.bootstrap -e target=<host>   # -e, NOT -l
@@ -161,6 +163,7 @@ loudly or, for an optional feature keyed on it, skips that feature — which one
 | `ghcr_login_username`                              | Required whenever the token is set — asserted.                                                                                                                                                                |
 | `rclone_crypt_password` + `rclone_crypt_password2` | No `r2crypt` wrapper is rendered and backups write to the plain remote. Both or neither — asserted. See docs/rclone/encryption.md.                                                                            |
 | `os_hostname_domain`                               | `os` does not name the box at all — the provider's name stands. Set it, and the box becomes `<inventory key>.<domain>`. Override the derivation per host with `os_hostname`; naming happens if either is set. |
+| `tailscale_auth_key`                               | `tailscale` installs and does not join: the operator runs `tailscale up`. Set, a host off the tailnet joins, so use a reusable key; a joined host, or one an operator took down, is left as it is.            |
 
 **Required once a host joins the group that needs it**
 
@@ -168,14 +171,13 @@ loudly or, for an optional feature keyed on it, skips that feature — which one
 | ------------------------------------------------------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `rclone_r2_access_key_id`, `_secret_access_key`, `_endpoint` | backup hosts     | Asserted by `rclone`.                                                                                                                                                                                                                                                                                                       |
 | `caddy_acme_email`                                           | caddy hosts      | Asserted, but only if a route uses `tls: acme`.                                                                                                                                                                                                                                                                             |
-| `caddy_routes`                                               | caddy hosts      | Defaults to `[]` — a live proxy answering nothing. Join the group in the same change that gives it routes.                                                                                                                                                                                                                  |
+| `caddy_routes`                                               | caddy hosts      | Defaults to `[]` — a live proxy answering nothing. Join the group in the same change that gives it routes. An `http://` host is plain HTTP: no `tls`, no email.                                                                                                                                                             |
 | `caddy_origin_cert` / `caddy_origin_key`                     | caddy hosts      | Asserted before anything is installed: every `tls: cert` route needs both halves of the cert it names (these for `default`, a `caddy_extra_certs` entry otherwise).                                                                                                                                                         |
 | `monitoring_admin_email` + `monitoring_admin_password`       | monitoring hosts | Asserted. Without them the hub creates no first user and answers unauthenticated.                                                                                                                                                                                                                                           |
 | `monitoring_agent_key` + `monitoring_agent_token`            | monitoring hosts | Minted together by the hub (see docs/monitoring/access.md). No token → the agent is not rendered, and hub and Dozzle still come up, so a box can join before it is paired. Token without key → asserted, since it would start an agent that can never authenticate. Key without token is fine: it is the documented revoke. |
 | `network_address`                                            | network hosts    | A board's fixed LAN address, CIDR. `network` asserts it, `host_kind: board` and NetworkManager, and keeps DHCP beside it.                                                                                                                                                                                                   |
-| `tailscale_auth_key`                                         | tailscale hosts  | Asserted. Read only while the host is off the tailnet; a host an operator took down with `tailscale down` stays down.                                                                                                                                                                                                       |
 | `storage_path`                                               | journal hosts    | The storage volume's mount path. `journal` asserts it absolute and mounted before binding `/var/log/journal` onto it; board runbook in docs/storage/persistent-usb-storage.md.                                                                                                                                              |
-| `infra_install_dir`                                          | monitoring hosts | Where the role installs the stack tree. Undefined-variable failure when `monitoring` creates its directory. A contract var, so it carries no role prefix.                                                                                                                                                                   |
+| `infra_install_dir`                                          | monitoring hosts | Where the role installs the stack tree. Asserted, with the admin pair. A contract var, so it carries no role prefix.                                                                                                                                                                                                        |
 
 Every role's own vars are documented in its `defaults/main.yml`, which is the role's public API — read it before
 overriding anything.
@@ -195,8 +197,8 @@ prefix that never occurs. Asserts check what the consumer sets; goldens check wh
 
 The half that matters most is not provable here, because this repo has no inventory and reaches no host:
 
-- a `--check --diff` dry-run against a real box, and reading the diff
-- a **second converge** reporting zero changed
+- a `--check --diff` dry-run against a real box, a fresh one included, and reading the diff
+- a **second converge** reporting zero changed, and another after a reboot: it catches what a boot discards
 
 Both belong to the consuming repo, and a version bump is not adopted until they pass there. A role that is
 changed-every-run is a bug even when the host ends up correct.

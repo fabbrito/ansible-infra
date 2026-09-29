@@ -31,8 +31,8 @@ os_swap_size: 1G
 os_swap_swappiness: 10
 os_swap_vfs_cache_pressure: 50
 
-# IANA name. os_unattended_reboot_time is read in this zone. This default is one
-# region's; set it fleet-wide.
+# IANA name; an alias (UTC) is set as its target (Etc/UTC). os_unattended_reboot_time
+# is read in this zone. This default is one region's; set it fleet-wide.
 os_timezone: America/Sao_Paulo
 
 # 3600 skips an apt-update on re-runs within the hour.

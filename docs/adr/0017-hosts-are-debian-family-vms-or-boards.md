@@ -26,8 +26,8 @@ A card flashed for another board otherwise converges silently as the wrong board
 
 ## Cost
 
-A consumer sets one more var on every host. Debian is claimed on its floor and untested. An inventory keyed by address
-must turn the hostname check off.
+A consumer sets one more var on every host. Debian is tested on one release and architecture; its floor is accepted, not
+a target, and untested. An inventory keyed by address must turn the hostname check off.
 
 ## Reverses
 

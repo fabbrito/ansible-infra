@@ -3,18 +3,18 @@
 Client-side encryption of backups using rclone's `crypt` overlay, so R2 only ever stores ciphertext. The design decision
 is [ADR-0007](../adr/0007-backups-to-r2-through-rclone.md); this is the runbook.
 
-> [!NOTE] **Nothing writes through the wrapper yet — this is the runbook for turning it on.** Services that back up
-> write to the plain `r2:` remote, because **encryption is deferred**: there is no safe escrow for the crypt passwords,
-> and a crypt remote whose passwords are lost is a backup you cannot restore. When that escrow exists, follow the setup
-> below, then point the service's `*_r2_dest` vars at `r2crypt:` and delete the old plaintext objects.
+> [!NOTE] **Escrow the crypt passwords before anything writes through the wrapper.** A crypt remote whose passwords are
+> lost is a backup you cannot restore. With the escrow in place, follow the setup below, then point the service's backup
+> destination at `r2crypt:` and delete the old plaintext objects.
 
 ## Layout
 
-One fleet-wide key pair wraps the whole `r2:backups` bucket. A service opts in by pointing its destination at `r2crypt:`
-instead of `r2:`. Same key, one escrow chore, one rotation event.
+One key pair wraps `rclone_crypt_target`: the whole `r2:backups` bucket by default, or a prefix in a project's bucket
+when its token is scoped to that bucket (docs/cloudflare/r2-hardening.md). A service opts in by pointing its destination
+at `r2crypt:` instead of `r2:`. Same key, one escrow chore, one rotation event.
 
 ```
-r2crypt:<service>/<scope>/     →  r2:backups/<service>/<scope>/<encrypted-filename>
+r2crypt:<service>/<scope>/     →  <rclone_crypt_target>/<service>/<scope>/<encrypted-filename>
 ```
 
 Directory names stay plain (`directory_name_encryption = false`), so R2 bucket lifecycle rules that key on a prefix keep
@@ -63,7 +63,7 @@ readable through `r2crypt:`:
 The rendered config is root-only, so host-side invocations need `sudo`:
 
 ```bash
-sudo rclone ls r2:backups/<service>/<scope>/   # encrypted filenames
+sudo rclone ls r2:backups/<service>/<scope>/   # encrypted filenames; r2:backups is the default target
 sudo rclone ls r2crypt:<service>/<scope>/      # plaintext filenames — proves decrypt works
 ```
 
