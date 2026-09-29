@@ -43,8 +43,9 @@ service shares the bucket rather than needing its own plus its own credentials. 
 service a credential-provisioning task, and the blast radius the threat model cares about is the project's data, not one
 box's.
 
-The `r2crypt` wrapper is the exception and is fleet-wide: it wraps a fixed `backups` bucket, so a token that reaches
-only `infra-<project>` cannot write through `r2crypt:`. See docs/rclone/encryption.md before turning encryption on.
+The `r2crypt` wrapper wraps `rclone_crypt_target`, `r2:backups` by default — a bucket a token scoped to
+`infra-<project>` cannot reach. Point it inside the project's bucket, e.g. `r2:infra-<project>/crypt`, and the same
+token writes ciphertext. See docs/rclone/encryption.md before turning encryption on.
 
 ## 2. A token per project
 
@@ -63,7 +64,15 @@ rclone_r2_secret_access_key: "<secret>"
 rclone_r2_endpoint: "https://<account_id>.r2.cloudflarestorage.com"
 ```
 
-Then re-converge `rclone` on those hosts to re-render `rclone.conf` (the consuming repo owns the invocation).
+Then re-converge `rclone` on those hosts to re-render `rclone.conf` (the consuming repo owns the invocation), and
+smoke-test inside the bucket:
+
+```bash
+ssh <deploy_user>@<host> 'sudo rclone lsf r2:infra-<project>'
+```
+
+Not `rclone lsd r2:`: listing the account's buckets needs more than a bucket-scoped token grants, so it answers 403
+`AccessDenied` for a token that works.
 
 The bucket-scoped token is also what forces the two settings in `roles/rclone` that look like mistakes — no
 `acl = private`, and `no_check_bucket = true`. Both are 403s waiting to happen otherwise;
