@@ -11,12 +11,13 @@ and the converge itself live.
 
 ## Platforms
 
-| Distribution    | Releases         | Arch                | Status            |
-| --------------- | ---------------- | ------------------- | ----------------- |
-| Ubuntu          | 24.04 and later  | amd64, arm64        | Tested            |
-| Raspberry Pi OS | Trixie           | arm64, armhf        | Claimed, untested |
-| Debian          | 13               | amd64               | Tested            |
-| Debian          | 12, or 13 on ARM | amd64, arm64, armhf | Claimed, untested |
+| Distribution    | Releases        | Arch                | Status                 |
+| --------------- | --------------- | ------------------- | ---------------------- |
+| Ubuntu          | 24.04 and later | amd64, arm64        | Tested                 |
+| Raspberry Pi OS | Trixie          | arm64, armhf        | Claimed, untested      |
+| Debian          | 13              | amd64               | Tested                 |
+| Debian          | 13              | arm64, armhf        | Claimed, untested      |
+| Debian          | 12              | amd64, arm64, armhf | Not a target, untested |
 
 `preflight` refuses anything else before a role changes the host: another distribution, a release below its floor, or an
 ARMv6 board.
