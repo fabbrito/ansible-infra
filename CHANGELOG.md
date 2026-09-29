@@ -6,6 +6,27 @@ consumers pin the tag, so a change that is not released is a change nobody gets.
 A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
 that, and the next correction is 1.0.1.
 
+## 2.3.0
+
+### Added
+
+- `journal`: `journal_location: root` keeps the journal on the root disk, for a host with no storage volume. The
+  default, `volume`, is unchanged, and an unset `storage_path` is still refused there. Switching to `root` removes the
+  bind mount. Both modes now read back that journald ends on `Storage=persistent`.
+
+### Fixed
+
+- `os`, `update` playbook: apt waits up to 600s for its lock. On a board's first boot unattended-upgrades held it past
+  the 60s default, and the converge failed.
+- `os`, `sshd`: the predecessor collection's drop-ins are removed. Its sshd hardening sorted first and silently won; its
+  NTP servers and unattended-upgrades origins added to ours.
+
+### Upgrading from the predecessor collection
+
+Its contract vars map onto `deploy_user`, `deploy_authorized_keys`, `preflight_min_major` (now per distribution) and
+`preflight_assert_hostname`; point `ansible_user` at `deploy_user`. `host_kind` is new and required. There is no
+baseline play: compose `preflight`, `os`, `sshd` and the rest (ADR-0016).
+
 ## 2.2.0
 
 ### Changed
