@@ -165,6 +165,13 @@
     name: "{{ os_timezone_real.stdout }}"
   tags: [timezone]
 
+# A predecessor collection's: its Origins-Pattern entries add to ours.
+- name: Remove the predecessor's unattended-upgrades config
+  ansible.builtin.file:
+    path: /etc/apt/apt.conf.d/52embed-unattended-upgrades
+    state: absent
+  tags: [upgrades]
+
 # Validated: a syntax error in apt.conf.d breaks every apt run, unattended ones
 # included.
 - name: Configure unattended upgrades
@@ -195,6 +202,13 @@
       changed_when: false
       failed_when: false
       check_mode: false
+
+    # A predecessor collection's: NTP= adds up across drop-ins.
+    - name: Remove the predecessor's NTP drop-in
+      ansible.builtin.file:
+        path: /etc/systemd/timesyncd.conf.d/99-embed-ntp.conf
+        state: absent
+      notify: Restart timesyncd
 
     - name: Ensure the timesyncd drop-in directory
       ansible.builtin.file:
