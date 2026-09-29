@@ -88,11 +88,20 @@
         state: present
       when: os_swap_stat.stat.exists or not ansible_check_mode
 
+    # 2.0.0 wrote these to /etc/sysctl.conf: Debian 13 never reads it at boot,
+    # and where it is read (Ubuntu's 99-sysctl.conf) it outranks our drop-in.
+    - name: Remove swap sysctls from /etc/sysctl.conf
+      ansible.builtin.lineinfile:
+        path: /etc/sysctl.conf
+        regexp: '^\s*vm\.(swappiness|vfs_cache_pressure)\s*='
+        state: absent
+
     - name: Tune swap sysctls
       ansible.posix.sysctl:
         name: "{{ item.name }}"
         value: "{{ item.value }}"
         state: present
+        sysctl_file: /etc/sysctl.d/60-infra-swap.conf
         sysctl_set: true
         reload: true
       loop:
@@ -189,13 +198,8 @@
 # Postconditions, read back from the host. Labeled lines: a probe that prints
 # nothing must not shift the others. Skipped in --check, where nothing landed.
 - name: Read the effective os state
-  ansible.builtin.shell: |
-    echo "swap=$(grep -c '^{{ os_swap_file }} ' /proc/swaps)"
-    echo "timezone=$(timedatectl show --property=Timezone --value)"
-    echo "reboot=$(apt-config dump Unattended-Upgrade::Automatic-Reboot-Time)"
-    echo "ntp=$(timedatectl show-timesync --property=SystemNTPServers --value)"
-  args:
-    executable: /bin/bash
+  ansible.builtin.script:
+    cmd: "os-effective.sh {{ os_swap_file | quote }}"
   register: os_effective_raw
   changed_when: false
   check_mode: false
@@ -205,6 +209,11 @@
   ansible.builtin.assert:
     that:
       - not os_swap_enabled | bool or os_effective.swap | int > 0
+      - >-
+        not os_swap_enabled | bool
+        or (os_effective.boot_swappiness == os_swap_swappiness | string
+            and os_effective.boot_vfs_cache_pressure
+                == os_swap_vfs_cache_pressure | string)
       - os_effective.timezone == os_timezone
       - os_unattended_reboot_time in os_effective.reboot
       - >-
@@ -212,9 +221,10 @@
         or os_effective.ntp == os_ntp_servers | join(' ')
     fail_msg: >-
       Read back from the host: {{ os_effective }}. Wanted swap
-      {{ os_swap_enabled | bool }}, timezone {{ os_timezone }}, reboot
+      {{ os_swap_enabled | bool }} (boot sysctls {{ os_swap_swappiness }}/{{
+      os_swap_vfs_cache_pressure }}), timezone {{ os_timezone }}, reboot
       {{ os_unattended_reboot_time }}, NTP "{{ os_ntp_servers | join(' ') }}".
-      A later apt.conf.d or timesyncd drop-in overrides ours.
+      A later apt.conf.d, sysctl.d or timesyncd drop-in overrides ours.
     quiet: true
   vars:
     os_effective: "{{ dict(os_effective_raw.stdout_lines | map('split', '=', 1)) }}"

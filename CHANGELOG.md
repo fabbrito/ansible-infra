@@ -10,6 +10,10 @@ that, and the next correction is 1.0.1.
 
 ### Fixed
 
+- `os`: the swap sysctls survive a reboot. They went to `/etc/sysctl.conf`, which Debian 13 no longer reads at boot, so
+  after a reboot the kernel defaults stood and the next converge changed them back. They now live in
+  `/etc/sysctl.d/60-infra-swap.conf`; the role removes its lines from `/etc/sysctl.conf`, where Ubuntu would read them
+  after the drop-in, and reads back what the next boot applies.
 - `caddy`: `http://` routes converge. They take no `tls`, and neither ask for `caddy_acme_email` nor render a `tls`
   line; the access log is named without the scheme, which had made it a missing directory. `tls` on an `http://` route
   is refused.
