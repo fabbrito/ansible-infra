@@ -5,9 +5,9 @@ an Ansible collection.
 
 It installs and keeps converged the parts of a host no host is interesting for: OS settings and unattended upgrades, SSH
 hardening, a deny-by-default firewall, fail2ban, Docker with a pruning timer, rclone against Cloudflare R2, Caddy as the
-TLS edge, a loopback-bound metrics/logs stack, and, for boards, a fixed LAN address and the journal on a storage volume.
-**Service roles do not live here** — they stay in the repo that owns the service, which is also where inventory, secrets
-and the converge itself live.
+TLS edge, a loopback-bound metrics/logs stack, and, for boards, a fixed LAN address and a journal that survives a
+reboot. **Service roles do not live here** — they stay in the repo that owns the service, which is also where inventory,
+secrets and the converge itself live.
 
 ## Platforms
 
@@ -108,7 +108,7 @@ reads the ports from the effective sshd config, and `fail2ban` bans through ufw.
 | `monitoring` | where wanted | Beszel hub and agent, Dozzle, loopback-bound.                          |
 | `tailscale`  | where wanted | Tailscale, joined when keyed; additive to the host's own SSH path.     |
 | `network`    | boards       | A fixed LAN address beside DHCP, through NetworkManager.               |
-| `journal`    | boards       | The journal bind-mounted onto a storage volume.                        |
+| `journal`    | boards       | A persistent journal: on a storage volume, or on the root disk.        |
 
 `journal`, `network`, `seed` and `tailscale` ship a playbook each (`fabbrito.infra.<role>`) for consumers that import
 rather than compose.
@@ -176,7 +176,7 @@ loudly or, for an optional feature keyed on it, skips that feature — which one
 | `monitoring_admin_email` + `monitoring_admin_password`       | monitoring hosts | Asserted. Without them the hub creates no first user and answers unauthenticated.                                                                                                                                                                                                                                           |
 | `monitoring_agent_key` + `monitoring_agent_token`            | monitoring hosts | Minted together by the hub (see docs/monitoring/access.md). No token → the agent is not rendered, and hub and Dozzle still come up, so a box can join before it is paired. Token without key → asserted, since it would start an agent that can never authenticate. Key without token is fine: it is the documented revoke. |
 | `network_address`                                            | network hosts    | A board's fixed LAN address, CIDR. `network` asserts it, `host_kind: board` and NetworkManager, and keeps DHCP beside it.                                                                                                                                                                                                   |
-| `storage_path`                                               | journal hosts    | The storage volume's mount path. `journal` asserts it absolute and mounted before binding `/var/log/journal` onto it; board runbook in docs/storage/persistent-usb-storage.md.                                                                                                                                              |
+| `storage_path`                                               | journal hosts    | The storage volume's mount path. `journal` asserts it absolute and mounted before binding `/var/log/journal` onto it; board runbook in docs/storage/persistent-usb-storage.md. Not read with `journal_location: root`.                                                                                                      |
 | `infra_install_dir`                                          | monitoring hosts | Where the role installs the stack tree. Asserted, with the admin pair. A contract var, so it carries no role prefix.                                                                                                                                                                                                        |
 
 Every role's own vars are documented in its `defaults/main.yml`, which is the role's public API — read it before

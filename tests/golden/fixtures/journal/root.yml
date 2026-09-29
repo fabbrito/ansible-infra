@@ -1,0 +1,4 @@
+---
+# Root mode: no volume, no mount unit, and storage_path not needed.
+journal_location: root
+storage_path: ""

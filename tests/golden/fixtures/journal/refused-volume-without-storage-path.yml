@@ -1,0 +1,4 @@
+---
+# Volume mode, the default, still refuses an unset storage_path: it never
+# falls back to the root disk (ADR-0020).
+storage_path: ""

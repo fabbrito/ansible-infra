@@ -1,5 +1,9 @@
 ---
-# journald always persists to /var/log/journal, so moving it onto the storage volume
-# is a bind mount, not a config line. storage_path is a contract var (README),
-# asserted absolute and mounted; journal_dir is relative to it.
+# `volume`: bind-mounted onto the storage volume at storage_path (contract var,
+# README), asserted mounted. `root`: the root disk, for a host with no volume;
+# removes a previous bind mount. Named, never inferred from an unset
+# storage_path (ADR-0020).
+journal_location: volume
+
+# Volume mode only: the directory under storage_path the journal lives in.
 journal_dir: journal

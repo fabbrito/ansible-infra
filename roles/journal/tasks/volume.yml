@@ -1,0 +1,75 @@
+---
+# The probe reads, so it runs in check mode too. `findmnt` resolves the mount a
+# path lands on; on an unmounted path that is /, and the assert below catches it.
+- name: Probe the storage volume
+  ansible.builtin.command:
+    argv: [findmnt, --noheadings, --output, TARGET, --target, "{{ storage_path }}"]
+  register: journal_volume
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# Absence is unsafe here: an unguarded path takes the journal back onto the
+# card, silently, and only fills it.
+- name: Assert the volume is mounted
+  ansible.builtin.assert:
+    that:
+      - journal_volume.rc == 0
+      - journal_volume.stdout | trim == storage_path
+    fail_msg: >-
+      {{ storage_path }} is not a mount point. Attach the storage volume
+      (docs/storage/persistent-usb-storage.md on a board) before moving the journal onto it.
+    quiet: true
+
+# Immutable while the volume is absent, so this fails loudly there instead of
+# creating the directory on the root disk.
+- name: Create the journal directory on the storage volume
+  ansible.builtin.file:
+    path: "{{ storage_path }}/{{ journal_dir }}"
+    state: directory
+    owner: root
+    group: systemd-journal
+    mode: "2755"
+
+- name: Move the journal onto the storage volume
+  ansible.builtin.template:
+    src: var-log-journal.mount.j2
+    dest: /etc/systemd/system/var-log-journal.mount
+    owner: root
+    group: root
+    mode: "0644"
+  notify: [Remount the journal, Apply the journal location]
+
+- name: Persist the journal
+  ansible.builtin.include_tasks: persistent.yml
+
+# Same device, not the unit's state: an active mount keeps an old `What=`.
+# Skipped in --check, where nothing landed.
+- name: Read the device under the journal
+  ansible.builtin.command:
+    argv: [findmnt, --noheadings, --output, "MAJ:MIN", --mountpoint, /var/log/journal]
+  register: journal_device
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Read the device under the volume
+  ansible.builtin.command:
+    argv: [findmnt, --noheadings, --output, "MAJ:MIN", --mountpoint, "{{ storage_path }}"]
+  register: journal_volume_device
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Assert the journal is mounted from the volume
+  ansible.builtin.assert:
+    that:
+      - journal_device.rc == 0
+      - journal_device.stdout == journal_volume_device.stdout
+    fail_msg: >-
+      /var/log/journal is not bind-mounted from {{ storage_path }}. Check
+      `systemctl status var-log-journal.mount`.
+    quiet: true
+  when: not ansible_check_mode

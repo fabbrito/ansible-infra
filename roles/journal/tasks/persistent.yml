@@ -1,0 +1,54 @@
+---
+# Both modes, after the mode's own setup and before its read-back.
+- name: Ensure the journal directory
+  ansible.builtin.file:
+    path: /var/log/journal
+    state: directory
+    owner: root
+    group: systemd-journal
+    mode: "2755"
+
+- name: Ensure the journald drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# 50 sorts after Raspberry Pi OS's 40-rpi-volatile-storage.conf, which keeps
+# the journal in memory.
+- name: Keep the journal on disk
+  ansible.builtin.template:
+    src: 50-persistent.conf.j2
+    dest: /etc/systemd/journald.conf.d/50-persistent.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Apply the journal location
+
+- name: Apply the journal location now
+  ansible.builtin.meta: flush_handlers
+
+# Skipped in --check, where nothing landed.
+- name: Read the effective journald config
+  ansible.builtin.command:
+    argv: [systemd-analyze, cat-config, systemd/journald.conf]
+  register: journal_config
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+# The last Storage= read wins: a drop-in sorting after ours overrides it.
+- name: Assert the journal persists
+  ansible.builtin.assert:
+    that: >-
+      journal_config.stdout_lines | select('match', '^\\s*Storage\\s*=')
+      | map('regex_replace', '\\s', '') | list | last | default('')
+      == 'Storage=persistent'
+    fail_msg: >-
+      journald does not end on Storage=persistent: a drop-in sorting after
+      50-persistent.conf in /etc/systemd/journald.conf.d overrides it. Check
+      `systemd-analyze cat-config systemd/journald.conf`.
+    quiet: true
+  when: not ansible_check_mode

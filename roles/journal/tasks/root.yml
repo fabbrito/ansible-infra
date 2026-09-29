@@ -1,0 +1,48 @@
+---
+# From volume mode, the unit would keep binding the volume.
+- name: Stat the journal bind-mount unit
+  ansible.builtin.stat:
+    path: /etc/systemd/system/var-log-journal.mount
+  register: journal_mount_unit
+
+# journald back to /run first: unmounting under its open files fails busy.
+# Inline, not the handler: it must precede the stop below.
+- name: Relinquish the journal on the volume
+  ansible.builtin.command: journalctl --relinquish-var
+  changed_when: true
+  when: journal_mount_unit.stat.exists and not ansible_check_mode
+
+- name: Unmount and disable the journal bind mount
+  ansible.builtin.systemd_service:
+    name: var-log-journal.mount
+    state: stopped
+    enabled: false
+  when: journal_mount_unit.stat.exists
+
+- name: Remove the journal bind-mount unit
+  ansible.builtin.file:
+    path: /etc/systemd/system/var-log-journal.mount
+    state: absent
+  notify: Apply the journal location
+
+- name: Persist the journal
+  ansible.builtin.include_tasks: persistent.yml
+
+# findmnt exits 1 on no match. Skipped in --check, where nothing landed.
+- name: Read the device under the journal
+  ansible.builtin.command:
+    argv: [findmnt, --noheadings, --output, "MAJ:MIN", --mountpoint, /var/log/journal]
+  register: journal_device
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Assert the journal is on the root disk
+  ansible.builtin.assert:
+    that: journal_device.rc == 1
+    fail_msg: >-
+      Something is still mounted on /var/log/journal. Check `findmnt
+      /var/log/journal` and `systemctl list-units --type=mount`.
+    quiet: true
+  when: not ansible_check_mode
