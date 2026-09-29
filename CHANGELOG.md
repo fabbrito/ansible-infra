@@ -10,6 +10,9 @@ that, and the next correction is 1.0.1.
 
 ### Fixed
 
+- `os`: `os_timezone` is set as its canonical zone, so an alias no longer flips. On Debian 13 a tzdata upgrade relinks
+  `UTC` to `Etc/UTC`, and every later converge flipped it back. A name that is not a zone now fails before the role
+  changes anything.
 - `os`: the swap sysctls survive a reboot. They went to `/etc/sysctl.conf`, which Debian 13 no longer reads at boot, so
   after a reboot the kernel defaults stood and the next converge changed them back. They now live in
   `/etc/sysctl.d/60-infra-swap.conf`; the role removes its lines from `/etc/sysctl.conf`, where Ubuntu would read them
