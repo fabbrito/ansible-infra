@@ -24,16 +24,16 @@ assert that passed.
 ```
 golden/
   render.yml            # the play: find fixtures, loop, render. One run, not one per fixture
-  render-one.yml        # per fixture: load defaults, load fixture, render
+  render-one.yml        # per fixture: load defaults, fixture, role vars; render or record FAILED
   steps/<role>.yml      # what to render for that role, and any pre-render derivation
   fixtures/<role>/<case>.yml
-  expected/<role>/<case>/<file>
+  expected/<role>/<case>/<file>   # or FAILED: the message an assert refused it with
 ```
 
 **Adding a case** is one fixture file plus `make golden-update`. Adding a _role_ is a `fixtures/<role>/` directory and a
 `steps/<role>.yml`; nothing else changes.
 
-Three rules the layout does not enforce:
+Four rules the layout does not enforce:
 
 - **Fixtures do not isolate themselves.** `render-one.yml` re-reads the role's `defaults/main.yml` before each fixture,
   and that re-read is the only thing clearing the previous fixture's values. A var the defaults do **not** declare — a
@@ -41,10 +41,13 @@ Three rules the layout does not enforce:
   after it. So every fixture that cares about such a var sets it explicitly, including to empty:
   `monitoring/unpaired.yml` sets `monitoring_agent_token: ""` for exactly this reason, and without it that case would
   quietly become a second copy of `paired`.
-- **`steps/` includes the role's own task file where a derivation is security-critical**, rather than restating it.
-  `steps/caddy.yml` includes `roles/caddy/tasks/routes.yml` and `steps/monitoring.yml` includes
-  `roles/monitoring/tasks/pairing.yml`. Both are one `set_fact` that would be trivial to copy, and both are the exact
-  derivation an ADR exists to protect — a copy drifts from the role silently.
+- **The harness reads the role's own derivations and asserts, never a restatement.** `render-one.yml` loads the role's
+  `vars/main.yml`, so lazy derivations there (caddy's route views) resolve as on a host. A derivation that has to be a
+  task sits in its own file that `steps/` includes: `roles/caddy/tasks/routes.yml` (the route asserts) and
+  `roles/monitoring/tasks/pairing.yml`. A copy drifts from the role silently.
+- **A refused fixture pins its refusal.** A task failing in `steps/` writes its message to `FAILED` instead of aborting
+  the run, so an assert gets a fixture like any template branch: name it `refused-<what>.yml`. The same mechanism turns
+  a fixture that should render but fails into a `FAILED` in the diff — read it.
 - **Every value in a fixture is fake, and looks it.** The roles read real secrets from a consumer's vault; this repo has
   none and must never acquire one. Where a template renders a secret, the fixture supplies something no one could
   mistake for live (`golden-fixture-not-a-token`) and the expectation is named so no scanner reads it as a leak —

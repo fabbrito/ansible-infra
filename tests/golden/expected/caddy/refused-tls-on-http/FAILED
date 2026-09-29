@@ -1,0 +1,1 @@
+Route http://app.example.org needs `tls: acme` or `tls: cert` (none on an `http://` host), a default_upstream or redirect_to, and a proxied_by (if any) naming a key of caddy_proxy_ranges.

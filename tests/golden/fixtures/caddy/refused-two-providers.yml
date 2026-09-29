@@ -1,0 +1,27 @@
+---
+# Two `proxied_by` providers on one host: refused. Trust is server-level, and
+# the client-IP header list cannot union (ADR-0008). The second provider lives
+# in caddy_extra_routes, so the refusal also proves the views read the union.
+caddy_acme_email: ops@example.org
+caddy_origin_cert: ""
+caddy_origin_key: ""
+
+caddy_proxy_ranges:
+  cloudflare:
+    client_ip_headers: [CF-Connecting-IP]
+    ranges: [192.0.2.0/24]
+  other:
+    client_ip_headers: [X-Other-Client-IP]
+    ranges: [198.51.100.0/24]
+
+caddy_routes:
+  - host: one.example.org
+    tls: acme
+    proxied_by: cloudflare
+    default_upstream: 127.0.0.1:3000
+
+caddy_extra_routes:
+  - host: two.example.org
+    tls: acme
+    proxied_by: other
+    default_upstream: 127.0.0.1:3001

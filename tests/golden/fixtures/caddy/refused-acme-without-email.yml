@@ -1,0 +1,12 @@
+---
+# An ACME route with no account email: refused, or the issuer chain silently
+# loses ZeroSSL (ADR-0006).
+caddy_origin_cert: ""
+caddy_origin_key: ""
+
+caddy_routes:
+  - host: app.example.org
+    tls: acme
+    default_upstream: 127.0.0.1:3000
+
+caddy_extra_routes: []

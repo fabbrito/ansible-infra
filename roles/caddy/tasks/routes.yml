@@ -1,7 +1,56 @@
 ---
-# Everything reads caddy_all_routes, never caddy_routes: a filter that forgets
-# the extras drops a proxied route's trust block silently (ADR-0008).
-# Own file so the golden harness includes it rather than restating it.
-- name: Resolve the effective route list
-  ansible.builtin.set_fact:
-    caddy_all_routes: "{{ caddy_routes + caddy_extra_routes }}"
+# The route preconditions: consumer input only, no host touched. Own file so
+# the golden harness includes it, and each assert gets a fixture.
+- name: Assert every route is complete
+  ansible.builtin.assert:
+    that:
+      - (item.host is match('http://')) == (item.tls is not defined)
+      - item.tls is not defined or item.tls in ['acme', 'cert']
+      - item.default_upstream is defined or item.redirect_to is defined
+      - item.proxied_by is not defined or item.proxied_by in caddy_proxy_ranges
+    fail_msg: >-
+      Route {{ item.host }} needs `tls: acme` or `tls: cert` (none on an
+      `http://` host), a default_upstream or redirect_to, and a proxied_by (if
+      any) naming a key of caddy_proxy_ranges.
+    quiet: true
+  loop: "{{ caddy_all_routes }}"
+  loop_control:
+    label: "{{ item.host }}"
+  # `tls` has no default: either guess breaks the other mode's hosts. Refused
+  # on `http://`, where it would ask for an email or cert nothing uses.
+
+- name: Assert an ACME account email is set when any route uses ACME
+  ansible.builtin.assert:
+    that:
+      - caddy_acme_email is defined
+      - caddy_acme_email | length > 0
+    fail_msg: >-
+      Routes use `tls: acme` but caddy_acme_email is unset. Set it fleet-wide;
+      it is an address, not a credential, so it needs no vault.
+    quiet: true
+  when: caddy_acme_routes | length > 0
+  # Absent, the issuer chain silently loses ZeroSSL (ADR-0006).
+
+# Otherwise `caddy validate` fails mid-role, naming a path, not the var.
+- name: Assert every cert-mode route has its origin cert and key
+  ansible.builtin.assert:
+    that: item.cert | default('default') in caddy_available_certs
+    fail_msg: >-
+      Route {{ item.host }} uses `tls: cert` with cert
+      "{{ item.cert | default('default') }}", but that cert or its key is unset.
+      Set caddy_origin_cert + caddy_origin_key for "default", or a
+      caddy_extra_certs entry with both cert and key.
+    quiet: true
+  loop: "{{ caddy_cert_routes }}"
+  loop_control:
+    label: "{{ item.host }}"
+
+- name: Assert at most one proxy provider fronts this host
+  ansible.builtin.assert:
+    that:
+      - caddy_proxied_routes | map(attribute='proxied_by') | unique | list | length <= 1
+    fail_msg: >-
+      Routes name more than one `proxied_by` provider. Trust is server-level in
+      Caddy and every vhost shares :443, so one host can trust one provider.
+    quiet: true
+  # Ranges could union; client_ip_headers cannot.

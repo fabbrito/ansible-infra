@@ -1,0 +1,1 @@
+Route app.example.org uses `tls: cert` with cert "default", but that cert or its key is unset. Set caddy_origin_cert + caddy_origin_key for "default", or a caddy_extra_certs entry with both cert and key.

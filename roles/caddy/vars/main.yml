@@ -6,3 +6,31 @@ caddy_origin_certs: >-
        'cert': caddy_origin_cert | default(''),
        'key': caddy_origin_key | default('')}]
      + caddy_extra_certs }}
+
+# Names only, so the assert's message can list them without the keys.
+caddy_available_certs: >-
+  {{ caddy_origin_certs
+     | selectattr('cert', 'defined') | selectattr('cert')
+     | selectattr('key', 'defined') | selectattr('key')
+     | map(attribute='name') | list }}
+
+# The effective route list and every view of it, defined once: tasks and
+# template read these, never a filter of their own. Everything reads
+# caddy_all_routes, never caddy_routes: a filter that forgets the extras drops a
+# proxied route's trust block silently (ADR-0008). Lazy, so no task order can
+# read one before it is resolved.
+caddy_all_routes: "{{ caddy_routes + caddy_extra_routes }}"
+
+# By TLS mode. No `tls` is plain HTTP; tasks/routes.yml ties that to the
+# `http://` scheme, so nothing else tests the scheme.
+caddy_https_routes: "{{ caddy_all_routes | selectattr('tls', 'defined') | list }}"
+caddy_acme_routes: "{{ caddy_https_routes | selectattr('tls', 'equalto', 'acme') | list }}"
+caddy_cert_routes: "{{ caddy_https_routes | selectattr('tls', 'equalto', 'cert') | list }}"
+
+caddy_proxied_routes: "{{ caddy_all_routes | selectattr('proxied_by', 'defined') | list }}"
+
+# Host to access log. Scheme stripped: `http://` would make it a directory.
+caddy_log_paths: >-
+  {{ dict(caddy_all_routes | map(attribute='host')
+     | zip(caddy_all_routes | map(attribute='host')
+       | map('regex_replace', '^(https?://)?(.*)$', '/var/log/caddy/\2.log'))) }}

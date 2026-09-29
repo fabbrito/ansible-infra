@@ -1,0 +1,12 @@
+---
+# `tls` on an `http://` host: refused, since it would ask for an email or cert
+# nothing uses. The one place the scheme is tied to the TLS mode.
+caddy_origin_cert: ""
+caddy_origin_key: ""
+
+caddy_routes:
+  - host: http://app.example.org
+    tls: acme
+    default_upstream: 127.0.0.1:3000
+
+caddy_extra_routes: []
