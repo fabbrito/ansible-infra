@@ -150,10 +150,10 @@ loudly or, for an optional feature keyed on it, skips that feature — which one
 
 **Required by `bootstrap`**
 
-| Var                      | Where                  | What it buys                                                                                                                                                                                                                   |
-| ------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `deploy_authorized_keys` | `group_vars/all/vault` | The pubkeys authorized for `deploy_user`. Unset or empty → `bootstrap` refuses before it creates anything. Empty is why it asserts: the list installs no key, yet the play would still grant passwordless sudo and exit green. |
-| `deploy_user`            | `group_vars/all`       | Asserted here too — `bootstrap` creates this account, so it cannot be defaulted.                                                                                                                                               |
+| Var                      | Where            | What it buys                                                                                                                                                                                                                                                 |
+| ------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `deploy_authorized_keys` | `group_vars/all` | The pubkeys authorized for `deploy_user`; public, so vault is optional. Unset or empty → `bootstrap` refuses before it creates anything. Empty is why it asserts: the list installs no key, yet the play would still grant passwordless sudo and exit green. |
+| `deploy_user`            | `group_vars/all` | Asserted here too — `bootstrap` creates this account, so it cannot be defaulted.                                                                                                                                                                             |
 
 **Optional — absent, the feature it keys is off**
 
