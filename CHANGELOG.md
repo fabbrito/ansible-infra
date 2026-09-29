@@ -6,6 +6,17 @@ consumers pin the tag, so a change that is not released is a change nobody gets.
 A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
 that, and the next correction is 1.0.1.
 
+## Unreleased
+
+### Changed
+
+- `os`: `python3-debian` leaves `os_apt_packages`; no role needs it now. A host that has it keeps it. A consumer role on
+  `ansible.builtin.deb822_repository` installs it itself.
+- `docker`, `caddy`: the apt signing key is pinned by sha256 (`docker_apt_key_sha256`, `caddy_apt_key_sha256`) and the
+  repo is a file the role writes, so a fresh host survives `--check` without `python3-debian`. The key moves to
+  `/etc/apt/keyrings/<name>.asc`; the old dearmored key is removed. On a vendor key rotation the converge fails at the
+  download: verify the new fingerprint, set the hash, converge.
+
 ## 2.1.0
 
 ### Changed
