@@ -134,7 +134,8 @@
       when: os_swap_stat.stat.exists or not ansible_check_mode
 
 # No upgrade here: unattended-upgrades owns upgrades and reboots, and
-# playbooks/update.yml is the explicit catch-up.
+# playbooks/update.yml is the explicit catch-up. lock_timeout: on a board's
+# first boot unattended-upgrades holds the lock past apt's 60s default.
 - name: Install base packages
   ansible.builtin.apt:
     name: >-
@@ -143,17 +144,20 @@
     state: present
     update_cache: true
     cache_valid_time: "{{ os_apt_cache_valid_time }}"
+    lock_timeout: 600
   tags: [apt]
 
 # Separate tasks: apt ignores autoclean when packages are named.
 - name: Remove unneeded packages
   ansible.builtin.apt:
     autoremove: true
+    lock_timeout: 600
   tags: [apt]
 
 - name: Clean obsolete package files
   ansible.builtin.apt:
     autoclean: true
+    lock_timeout: 600
   tags: [apt]
 
 - name: Set system timezone
