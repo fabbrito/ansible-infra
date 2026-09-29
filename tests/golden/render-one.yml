@@ -26,11 +26,33 @@
   ansible.builtin.include_vars:
     file: "{{ golden_fixture }}"
 
+# The role's derivations, lazy, so they resolve against this fixture.
+- name: Load the role vars
+  ansible.builtin.include_vars:
+    file: "{{ golden_repo }}/roles/{{ golden_role }}/vars/main.yml"
+  when: (golden_repo ~ '/roles/' ~ golden_role ~ '/vars/main.yml') is file
+
 - name: Ensure the output directory
   ansible.builtin.file:
     path: "{{ golden_case_out }}"
     state: directory
     mode: "0755"
 
+# A fixture an assert refuses renders its message as FAILED: the refusal and
+# what the operator reads are both pinned, and a fixture that should render
+# but fails shows up in the diff as FAILED, not as a crashed run.
 - name: Render the role's templates
-  ansible.builtin.include_tasks: "steps/{{ golden_role }}.yml"
+  block:
+    - name: Run the role's steps
+      ansible.builtin.include_tasks: "steps/{{ golden_role }}.yml"
+  rescue:
+    # A looped assert says only "One or more items failed"; each failed item
+    # carries its own message.
+    - name: Record the refusal
+      ansible.builtin.copy:
+        content: "{{ (ansible_failed_result.results | default([])
+          | selectattr('failed', 'defined') | selectattr('failed')
+          | map(attribute='msg') | list
+          or [ansible_failed_result.msg]) | join('\n') }}\n"
+        dest: "{{ golden_case_out }}/FAILED"
+        mode: "0644"
