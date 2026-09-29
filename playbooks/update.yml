@@ -18,6 +18,8 @@
         # Overrides os_apt_cache_valid_time: an upgrade wants a fresh cache, not
         # whatever a converge left behind within the hour.
         cache_valid_time: 0
+        # unattended-upgrades may hold the lock past apt's 60s default.
+        lock_timeout: 600
 
     - name: Check if reboot is required
       ansible.builtin.stat:

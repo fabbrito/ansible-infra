@@ -1,0 +1,1 @@
+storage_path is required: the storage volume's mount path, absolute and without a trailing slash (docs/storage/persistent-usb-storage.md on a board). With no volume, set journal_location to root.

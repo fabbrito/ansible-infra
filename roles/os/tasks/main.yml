@@ -134,7 +134,8 @@
       when: os_swap_stat.stat.exists or not ansible_check_mode
 
 # No upgrade here: unattended-upgrades owns upgrades and reboots, and
-# playbooks/update.yml is the explicit catch-up.
+# playbooks/update.yml is the explicit catch-up. lock_timeout: on a board's
+# first boot unattended-upgrades holds the lock past apt's 60s default.
 - name: Install base packages
   ansible.builtin.apt:
     name: >-
@@ -143,23 +144,33 @@
     state: present
     update_cache: true
     cache_valid_time: "{{ os_apt_cache_valid_time }}"
+    lock_timeout: 600
   tags: [apt]
 
 # Separate tasks: apt ignores autoclean when packages are named.
 - name: Remove unneeded packages
   ansible.builtin.apt:
     autoremove: true
+    lock_timeout: 600
   tags: [apt]
 
 - name: Clean obsolete package files
   ansible.builtin.apt:
     autoclean: true
+    lock_timeout: 600
   tags: [apt]
 
 - name: Set system timezone
   community.general.timezone:
     name: "{{ os_timezone_real.stdout }}"
   tags: [timezone]
+
+# A predecessor collection's: its Origins-Pattern entries add to ours.
+- name: Remove the predecessor's unattended-upgrades config
+  ansible.builtin.file:
+    path: /etc/apt/apt.conf.d/52embed-unattended-upgrades
+    state: absent
+  tags: [upgrades]
 
 # Validated: a syntax error in apt.conf.d breaks every apt run, unattended ones
 # included.
@@ -191,6 +202,13 @@
       changed_when: false
       failed_when: false
       check_mode: false
+
+    # A predecessor collection's: NTP= adds up across drop-ins.
+    - name: Remove the predecessor's NTP drop-in
+      ansible.builtin.file:
+        path: /etc/systemd/timesyncd.conf.d/99-embed-ntp.conf
+        state: absent
+      notify: Restart timesyncd
 
     - name: Ensure the timesyncd drop-in directory
       ansible.builtin.file:

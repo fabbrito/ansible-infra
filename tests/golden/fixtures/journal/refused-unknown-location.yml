@@ -1,0 +1,4 @@
+---
+# A mode outside volume | root is refused, not read as either.
+journal_location: card
+storage_path: /srv/data

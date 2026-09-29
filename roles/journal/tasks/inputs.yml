@@ -1,0 +1,31 @@
+---
+# Input only, no host: tests/golden runs it too.
+- name: Assert journal_location
+  ansible.builtin.assert:
+    that: journal_location in ['volume', 'root']
+    fail_msg: >-
+      journal_location is "{{ journal_location }}" (needs volume or root).
+    quiet: true
+
+- name: Assert storage_path
+  ansible.builtin.assert:
+    that: storage_path | default('') is match('^/.*[^/]$')
+    fail_msg: >-
+      storage_path is required: the storage volume's mount path, absolute and
+      without a trailing slash (docs/storage/persistent-usb-storage.md on a
+      board). With no volume, set journal_location to root.
+    quiet: true
+  when: journal_location == 'volume'
+
+# Relative and without `..`, or the journal lands off the volume.
+- name: Assert journal_dir
+  ansible.builtin.assert:
+    that:
+      - journal_dir is match('^[^/].*$')
+      - journal_dir is not match('.*/$')
+      - "'..' not in journal_dir.split('/')"
+    fail_msg: >-
+      journal_dir must be a relative path under storage_path, without a
+      trailing slash or `..`.
+    quiet: true
+  when: journal_location == 'volume'
