@@ -19,7 +19,8 @@ overwrite ours or strip sudo from the user: skip it.
 ## VM
 
 `user-data` only: the provider serves its own `meta-data`. Paste the file into the provider's user-data field when
-creating the instance. The field is read at create time; most providers ignore an edit after that.
+creating the instance. The field is read at create time; most providers ignore an edit after that. Where the provider
+has a CLI, its file flag skips the clipboard altogether.
 
 | Provider      | Console                                                    | CLI                                              |
 | ------------- | ---------------------------------------------------------- | ------------------------------------------------ |
