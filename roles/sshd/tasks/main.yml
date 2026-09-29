@@ -61,6 +61,14 @@
     validate: /usr/sbin/sshd {{ sshd_test_flag }} -f %s
   notify: Reload sshd
 
+# A predecessor collection's: it sorts first, so its values win. Removed after
+# ours lands, so sshd is never left with neither.
+- name: Remove the predecessor's hardening drop-in
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d/10-embed-hardening.conf
+    state: absent
+  notify: Reload sshd
+
 # Before the reload: a reload onto a broken drop-in locks us out (ADR-0002),
 # and a failure here aborts with the handler unrun.
 - name: Read the effective sshd config
