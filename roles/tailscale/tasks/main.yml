@@ -1,12 +1,4 @@
 ---
-- name: Assert tailscale_auth_key
-  ansible.builtin.assert:
-    that: tailscale_auth_key | default('') | length > 0
-    fail_msg: >-
-      tailscale_auth_key is unset. Vault it, or leave tailscale out of this
-      host's role list.
-    quiet: true
-
 - name: Probe the Tailscale signing key
   ansible.builtin.stat:
     path: "{{ tailscale_keyring }}"
@@ -57,6 +49,7 @@
   failed_when: false
   check_mode: false
 
+# The join is an optional feature keyed on its secret (ADR-0015, ADR-0021).
 # Running is joined; Stopped is an operator's `tailscale down`, which a
 # converge does not undo. DNS stays the host's: resolving through the tailnet
 # would make it a door the host cannot do without. no_log: the key is in argv.
@@ -69,6 +62,17 @@
   no_log: true
   when:
     - not ansible_check_mode
+    - tailscale_keyed
+    - tailscale_backend_state not in ['Running', 'Stopped']
+
+- name: Report a host left for the operator to join
+  ansible.builtin.debug:
+    msg: >-
+      tailscale is installed but not joined ({{ tailscale_backend_state |
+      default('no state', true) }}) and tailscale_auth_key is unset. Run `sudo
+      tailscale up --accept-dns=false` on the host, or vault a reusable key.
+  when:
+    - not tailscale_keyed
     - tailscale_backend_state not in ['Running', 'Stopped']
 
 # Skipped in --check, where nothing landed.
@@ -80,11 +84,15 @@
   check_mode: false
   when: not ansible_check_mode
 
-- name: Assert the host is on the tailnet
+# Keyed: on the tailnet. Unkeyed: tailscaled answers, joined or not.
+- name: Assert the tailnet state
   ansible.builtin.assert:
-    that: tailscale_backend_state in ['Running', 'Stopped']
+    that:
+      - tailscale_backend_state | length > 0
+      - not tailscale_keyed or tailscale_backend_state in ['Running', 'Stopped']
     fail_msg: >-
       tailscale reports {{ tailscale_backend_state | default('nothing', true) }}.
-      NeedsLogin after a join means an expired or spent tailscale_auth_key.
+      Nothing means tailscaled does not answer; NeedsLogin after a join means
+      an expired or spent tailscale_auth_key.
     quiet: true
   when: not ansible_check_mode

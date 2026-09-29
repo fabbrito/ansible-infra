@@ -3,6 +3,9 @@
 # later replaces.
 tailscale_keyring: /usr/share/keyrings/tailscale-archive-keyring.gpg
 
+# The join is keyed on its secret: unset, the operator joins by hand.
+tailscale_keyed: "{{ tailscale_auth_key | default('') | length > 0 }}"
+
 # Lazy: read from whichever tailnet probe ran last.
 tailscale_backend_state: >-
   {{ (tailscale_status.stdout | default('{}', true) | from_json).BackendState

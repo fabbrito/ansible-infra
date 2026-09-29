@@ -6,7 +6,12 @@ consumers pin the tag, so a change that is not released is a change nobody gets.
 A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
 that, and the next correction is 1.0.1.
 
-## 2.0.1
+## 2.1.0
+
+### Changed
+
+- `tailscale`: `tailscale_auth_key` is optional. Unset, the role installs Tailscale and leaves the join to the operator;
+  set, a host off the tailnet joins, so vault a reusable key. A joined host no longer needs the key at all.
 
 ### Fixed
 

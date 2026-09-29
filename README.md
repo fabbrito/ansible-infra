@@ -106,7 +106,7 @@ reads the ports from the effective sshd config, and `fail2ban` bans through ufw.
 | `rclone`     | backup hosts | Pinned rclone and the R2 remote, with an optional crypt wrapper.       |
 | `caddy`      | edge hosts   | Caddy as the TLS edge for the consumer's routes.                       |
 | `monitoring` | where wanted | Beszel hub and agent, Dozzle, loopback-bound.                          |
-| `tailscale`  | where wanted | The host on a tailnet, additive to its own SSH path.                   |
+| `tailscale`  | where wanted | Tailscale, joined when keyed; additive to the host's own SSH path.     |
 | `network`    | boards       | A fixed LAN address beside DHCP, through NetworkManager.               |
 | `journal`    | boards       | The journal bind-mounted onto a storage volume.                        |
 
@@ -163,6 +163,7 @@ loudly or, for an optional feature keyed on it, skips that feature — which one
 | `ghcr_login_username`                              | Required whenever the token is set — asserted.                                                                                                                                                                |
 | `rclone_crypt_password` + `rclone_crypt_password2` | No `r2crypt` wrapper is rendered and backups write to the plain remote. Both or neither — asserted. See docs/rclone/encryption.md.                                                                            |
 | `os_hostname_domain`                               | `os` does not name the box at all — the provider's name stands. Set it, and the box becomes `<inventory key>.<domain>`. Override the derivation per host with `os_hostname`; naming happens if either is set. |
+| `tailscale_auth_key`                               | `tailscale` installs and does not join: the operator runs `tailscale up`. Set, a host off the tailnet joins, so use a reusable key; a joined host, or one an operator took down, is left as it is.            |
 
 **Required once a host joins the group that needs it**
 
@@ -175,7 +176,6 @@ loudly or, for an optional feature keyed on it, skips that feature — which one
 | `monitoring_admin_email` + `monitoring_admin_password`       | monitoring hosts | Asserted. Without them the hub creates no first user and answers unauthenticated.                                                                                                                                                                                                                                           |
 | `monitoring_agent_key` + `monitoring_agent_token`            | monitoring hosts | Minted together by the hub (see docs/monitoring/access.md). No token → the agent is not rendered, and hub and Dozzle still come up, so a box can join before it is paired. Token without key → asserted, since it would start an agent that can never authenticate. Key without token is fine: it is the documented revoke. |
 | `network_address`                                            | network hosts    | A board's fixed LAN address, CIDR. `network` asserts it, `host_kind: board` and NetworkManager, and keeps DHCP beside it.                                                                                                                                                                                                   |
-| `tailscale_auth_key`                                         | tailscale hosts  | Asserted on every run, though read only while the host is off the tailnet; a host an operator took down with `tailscale down` stays down.                                                                                                                                                                                   |
 | `storage_path`                                               | journal hosts    | The storage volume's mount path. `journal` asserts it absolute and mounted before binding `/var/log/journal` onto it; board runbook in docs/storage/persistent-usb-storage.md.                                                                                                                                              |
 | `infra_install_dir`                                          | monitoring hosts | Where the role installs the stack tree. Asserted, with the admin pair. A contract var, so it carries no role prefix.                                                                                                                                                                                                        |
 
