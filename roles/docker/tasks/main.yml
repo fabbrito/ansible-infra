@@ -25,7 +25,7 @@
       ghcr_pull_token | default('') | length == 0
       or ghcr_login_username | default('') | length > 0
     fail_msg: >-
-      ghcr_pull_token is set but ghcr_login_username is not — the login needs
+      ghcr_pull_token is set but ghcr_login_username is not - the login needs
       both. Set the username beside the token, or unset the token for plain
       Docker.
     quiet: true

@@ -27,7 +27,7 @@ refuse() {
 }
 
 tag=$(git describe --tags --exact-match HEAD 2>/dev/null) ||
-	die 'HEAD carries no tag — make release first'
+	die 'HEAD carries no tag - make release first'
 [[ $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "$tag is not a release tag"
 [[ $(git branch --show-current) == master ]] || refuse 'not on master'
 [[ -z $(git status --porcelain) ]] || refuse 'tree not clean'

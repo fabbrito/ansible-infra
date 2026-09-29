@@ -7,7 +7,7 @@
 - name: Assert the routes
   ansible.builtin.include_tasks: "{{ golden_repo }}/roles/caddy/tasks/routes.yml"
 
-# No `validate:`. `caddy validate` is not the gate here — it accepts the trust
+# No `validate:`. `caddy validate` is not the gate here - it accepts the trust
 # block that should not exist, the clamped body cap, and the redaction filter
 # that redacts nothing. Pinning the bytes is the only check that catches those.
 - name: Render the Caddyfile

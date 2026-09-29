@@ -35,5 +35,5 @@ is gone with it.
 
 ## Reverses
 
-Move the reconnect path off SSH — a console, or an agent that dials out — and the ordering rule stops being a safety
+Move the reconnect path off SSH - a console, or an agent that dials out - and the ordering rule stops being a safety
 requirement.

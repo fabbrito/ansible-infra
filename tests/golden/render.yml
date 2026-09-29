@@ -1,6 +1,6 @@
 ---
 # Renders every fixture through the real templates, into golden_out. Comparing
-# the result against tests/golden/expected/ is scripts/golden.sh's job — this
+# the result against tests/golden/expected/ is scripts/golden.sh's job - this
 # play only produces bytes.
 #
 # ONE play looping every fixture, not one run per fixture: ansible-playbook's
@@ -9,7 +9,7 @@
 #
 # It has to be Ansible rather than bare Jinja2: the templates use Ansible's own
 # filters (`flatten`), so rendering outside the templar would mean reimplementing
-# them — and a harness that reimplements the thing under test proves nothing.
+# them - and a harness that reimplements the thing under test proves nothing.
 - name: Render golden fixtures
   hosts: localhost
   connection: local
@@ -24,7 +24,7 @@
         path: "{{ golden_out }}"
         state: absent
       # Otherwise a fixture deleted from the tree leaves its output behind and
-      # the diff still matches — a test that passes because it compared a stale
+      # the diff still matches - a test that passes because it compared a stale
       # artefact against a stale expectation.
 
     - name: Collect fixtures

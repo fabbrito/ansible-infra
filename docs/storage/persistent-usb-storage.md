@@ -1,7 +1,7 @@
 # Persistent USB storage
 
 Attach a USB stick so it mounts at the same path on every boot, in any port, and so its absence is loud. Application
-state — databases, files, logs — goes on the stick; the SD card keeps the OS.
+state - databases, files, logs - goes on the stick; the SD card keeps the OS.
 
 This is a one-time manual step per stick. The collection neither formats nor mounts storage.
 

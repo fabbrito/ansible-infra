@@ -25,13 +25,13 @@ has a CLI, its file flag skips the clipboard altogether.
 | Provider      | Console                                                    | CLI                                              |
 | ------------- | ---------------------------------------------------------- | ------------------------------------------------ |
 | AWS EC2       | Advanced details → User data                               | `aws ec2 run-instances --user-data`              |
-| Google Cloud  | —                                                          | `gcloud … --metadata-from-file user-data=<file>` |
-| Azure         | —                                                          | `az vm create --custom-data`                     |
+| Google Cloud  | -                                                          | `gcloud … --metadata-from-file user-data=<file>` |
+| Azure         | -                                                          | `az vm create --custom-data`                     |
 | DigitalOcean  | Additional Options → Startup scripts                       | `doctl … --user-data-file`                       |
 | Vultr         | Additional features → Enable cloud-init user-data          | `vultr-cli … --userdata`                         |
 | Linode        | Create Linode → Add user data                              | `linode-cli … --metadata.user_data`              |
-| Oracle Cloud  | Create instance → Advanced options → Initialization script | —                                                |
-| Hetzner Cloud | Create server → Cloud config                               | —                                                |
+| Oracle Cloud  | Create instance → Advanced options → Initialization script | -                                                |
+| Hetzner Cloud | Create server → Cloud config                               | -                                                |
 
 Source: Tailscale's [cloud-init guide](https://tailscale.com/docs/install/with-cloud-init), which lists the same fields.
 Consoles move; if a label is gone, search the provider's docs for "user data" or "cloud-init".

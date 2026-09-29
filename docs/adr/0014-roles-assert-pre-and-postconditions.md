@@ -17,7 +17,7 @@ Assert what the role needs before it acts, and what it promised after.
   the logic, and the copy will drift.
 
 The mechanics: assert rather than fail, quiet, related conditions bundled into one, and a message that reads as a
-runbook — naming the variable or the state, its value, the consequence, and the fix, never a path into the consumer's
+runbook - naming the variable or the state, its value, the consequence, and the fix, never a path into the consumer's
 inventory.
 
 ## Why

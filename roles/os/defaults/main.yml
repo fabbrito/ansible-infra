@@ -14,7 +14,7 @@ os_apt_packages:
 os_board_packages:
   - avahi-daemon
 
-# Name the box in a zone YOU own — never a client's or the provider's. Set
+# Name the box in a zone YOU own - never a client's or the provider's. Set
 # fleet-wide, and the box becomes <inventory key>.<domain>.
 os_hostname_domain: ""
 

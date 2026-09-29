@@ -11,7 +11,7 @@ authors:
   - Fabrício Brito (@fabbrito)
 
 description: >-
-  Composable roles for long-lived Debian-family hosts, cloud VMs and boards —
+  Composable roles for long-lived Debian-family hosts, cloud VMs and boards -
   OS, SSH hardening, firewall, fail2ban, Docker, rclone/R2 backups, Caddy,
   monitoring, Tailscale, and a board's network and journal. Service roles stay
   in the consuming repo.

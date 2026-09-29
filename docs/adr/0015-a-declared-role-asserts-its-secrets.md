@@ -19,7 +19,7 @@ The earlier skip existed because one fixed playbook ran every role on every host
 before any credential existed. Skipping was the only way to avoid that.
 
 Consumers list roles themselves now, and listing a role states intent. A host that lists the backup role and converges
-without credentials has no backups and no error — precisely the silent failure the assert rules exist to prevent. The
+without credentials has no backups and no error - precisely the silent failure the assert rules exist to prevent. The
 earlier rule also accepted that a misspelled key looked like an absent one. That cost made sense only while skipping was
 forced.
 

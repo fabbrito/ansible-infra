@@ -2,9 +2,9 @@
 
 The `monitoring` role stands up an observability stack on any host the consumer assigns it to:
 
-- **Beszel** — host + per-container metrics, history, and threshold alerts (hub + agent, talking over a shared unix
+- **Beszel** - host + per-container metrics, history, and threshold alerts (hub + agent, talking over a shared unix
   socket on the same box).
-- **Dozzle** — a real-time container log viewer, the fast path to _which_ worker loop is firing when one pegs a core.
+- **Dozzle** - a real-time container log viewer, the fast path to _which_ worker loop is firing when one pegs a core.
 
 Neither is exposed publicly. Both bind to loopback and are reached over an SSH tunnel: anything put in front of them has
 to supply the authentication they do not have. Everything below is _why_ and _in what order_; the role is the source of
@@ -23,13 +23,13 @@ Then, in a browser on your machine:
 - Beszel hub → <http://localhost:9090>
 - Dozzle → <http://localhost:9080>
 
-(Ports are role defaults — `monitoring_hub_port` / `monitoring_dozzle_port`.)
+(Ports are role defaults - `monitoring_hub_port` / `monitoring_dozzle_port`.)
 
-## First converge — what comes up
+## First converge - what comes up
 
 The hub and Dozzle need no secret, so they start on the first converge. The agent does **not**: it needs a key and token
 that only the running hub can mint, so it stays down until you pair it. This is the
-[ADR-0015](../adr/0015-a-declared-role-asserts-its-secrets.md) pattern — a box joins the group and monitors nothing
+[ADR-0015](../adr/0015-a-declared-role-asserts-its-secrets.md) pattern - a box joins the group and monitors nothing
 until its secrets exist, rather than failing the play.
 
 `monitoring_admin_email` and `monitoring_admin_password` are the exception: both are **asserted**, so the role refuses
@@ -56,7 +56,7 @@ state. Set them and the hub creates the admin on first boot (`USER_EMAIL` / `USE
 
 ## Rotating or revoking
 
-- **Token** — delete the system in the hub UI and re-add it, then update the vault and the `monitoring_agent_key` and
+- **Token** - delete the system in the hub UI and re-add it, then update the vault and the `monitoring_agent_key` and
   re-converge.
 - **Pulling the token** from the vault removes the agent on the next converge (the compose no longer renders it;
   `remove_orphans` tears it down). The hub and Dozzle stay up.

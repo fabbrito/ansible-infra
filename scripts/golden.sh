@@ -4,7 +4,7 @@
 #   ./scripts/golden.sh --update   # accept the current render as the expectation
 #
 # What this buys that `make check` cannot: ansible-lint and `caddy validate` accept
-# configs wrong in ways only the BYTES show — a trust block on a host nothing fronts,
+# configs wrong in ways only the BYTES show - a trust block on a host nothing fronts,
 # a body cap clamped by a matcher-less default, a redaction filter naming a prefix
 # that never occurs. Asserts check the consumer's input; goldens our output.
 #
@@ -42,14 +42,14 @@ fi
 if ((update)); then
 	rm -rf "$expected" && mkdir -p "$expected" || exit 1
 	cp -a "$actual"/. "$expected"/ || exit 1
-	green '  updated tests/golden/expected — READ THE DIFF BEFORE COMMITTING'
+	green '  updated tests/golden/expected - READ THE DIFF BEFORE COMMITTING'
 	exit 0
 fi
 
 # A missing expected/ must not read as "nothing to compare, therefore fine":
 # diff against a nonexistent directory is an error here, not a pass.
 if [[ ! -d $expected ]]; then
-	red "  FAIL no $expected — run ./scripts/golden.sh --update and review it"
+	red "  FAIL no $expected - run ./scripts/golden.sh --update and review it"
 	exit 1
 fi
 

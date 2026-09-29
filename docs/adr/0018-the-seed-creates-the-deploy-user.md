@@ -11,7 +11,7 @@ bump its generation, boot, and cloud-init applies it again.
 
 The seed is deterministic: the same inventory renders the same bytes, and a board's instance identity is its name plus
 the generation. A hand-made seed is as valid as ours if the host ends in the same state; the converge asserts the
-outcome — cloud-init finished, key-only SSH — and never reads the seed back.
+outcome - cloud-init finished, key-only SSH - and never reads the seed back.
 
 ## Why
 
@@ -28,5 +28,5 @@ so changing it later changes nothing on a running VM.
 
 ## Reverses
 
-Drop the seed and bootstrap every host over the provider's root key — which a board does not have — or disable
+Drop the seed and bootstrap every host over the provider's root key - which a board does not have - or disable
 cloud-init after first boot and give up the board's way back.

@@ -1,6 +1,6 @@
 ---
-# `tls: cert` in both its forms — the default cert and a named one from
-# caddy_extra_certs — plus a redirect vhost, which is the branch that renders no
+# `tls: cert` in both its forms - the default cert and a named one from
+# caddy_extra_certs - plus a redirect vhost, which is the branch that renders no
 # proxy and no body cap at all.
 #
 # No cert material here and none needed: the template emits PATHS under

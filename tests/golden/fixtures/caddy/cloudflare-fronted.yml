@@ -1,5 +1,5 @@
 ---
-# The trust block and the two redaction filters — the branches `caddy validate`
+# The trust block and the two redaction filters - the branches `caddy validate`
 # accepts either way, so a golden is the only thing that can hold them.
 #
 # THE PROXIED ROUTE IS IN caddy_extra_routes ON PURPOSE. ADR-0008's union exists
@@ -10,7 +10,7 @@
 caddy_acme_email: ops@example.org
 
 # Both filters (default logger and per-vhost access log) compile from this one
-# list — ADR-0009. A prefix that renders on one logger and not the other writes
+# list - ADR-0009. A prefix that renders on one logger and not the other writes
 # the credential to the journal while the access log looks clean.
 caddy_redact_uri_prefixes:
   - /webhooks/settlement/

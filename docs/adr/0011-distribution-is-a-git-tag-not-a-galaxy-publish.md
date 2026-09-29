@@ -18,7 +18,7 @@ installs, and resolves it transitively, with that collection's own Galaxy depend
 sourcing composes.
 
 What publishing would add is version ranges, discoverability by search, and a shorter install form. None is wanted. This
-layer is handed over with a URL, and a range would let a consumer drift onto a version nobody chose — the exact thing
+layer is handed over with a URL, and a range would let a consumer drift onto a version nobody chose - the exact thing
 the pin exists to prevent.
 
 ## Cost
@@ -28,7 +28,7 @@ already makes adopting a version a deliberate act.
 
 **A tag can be repointed; a published version cannot.** That freedom was used twice before this repository went public
 and is now spent. A published tag is frozen by policy rather than by a registry, and the next correction is a new
-version — the same discipline, enforced by us instead of by the registry.
+version - the same discipline, enforced by us instead of by the registry.
 
 **Each install re-clones** from the forge where a registry would serve a cached artifact. Negligible at this size, and a
 consumer's dependency step already pays the same cost for its other collections.
@@ -38,6 +38,6 @@ acting as a validation gate whose rules the local gate does not model.
 
 ## Reverses
 
-Third parties we do not talk to starting to consume it — a stranger handed a URL is fine, a stranger who must discover
+Third parties we do not talk to starting to consume it - a stranger handed a URL is fine, a stranger who must discover
 it is not. Or version ranges becoming wanted, which reverses the exact-pin doctrine first and is a packaging change
 second, never the other way round. Or a second collection of ours depending on this one, with both wanted by name.

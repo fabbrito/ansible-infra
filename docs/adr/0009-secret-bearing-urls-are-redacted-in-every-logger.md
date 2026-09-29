@@ -5,14 +5,14 @@
 ## Chosen
 
 A URI that carries its credential in the path is **redacted, never suppressed**, and the same redaction is rendered into
-every logger the edge configures — including the default one behind the site's log block.
+every logger the edge configures - including the default one behind the site's log block.
 
 ## Why
 
 The path **is** the secret: there is no header, cookie or body it could have hidden in. The access log is retained
 across rotations, so the credential is written to disk in plaintext and kept.
 
-Suppressing the line is airtight — a line never written cannot leak — and it blinds you: no status, no latency, no
+Suppressing the line is airtight - a line never written cannot leak - and it blinds you: no status, no latency, no
 client IP, no evidence when a caller says it delivered and you say it did not. On a route that moves money or grants
 access, that blindness is itself a risk. Redaction keeps all of it and removes only the URI.
 
@@ -33,7 +33,7 @@ setting a per-route flag.
 people copy from, and a copied path list redacts nothing while looking like it does. Whoever authors it verifies it
 against a real request.
 
-**A filter that matches nothing fails open.** No error, no changed output — indistinguishable from one that works, so a
+**A filter that matches nothing fails open.** No error, no changed output - indistinguishable from one that works, so a
 wrong or stale pattern writes the credential to disk. So does a misspelled field name, and that one is nastier: field
 paths are not validated, so the plausible spelling validates clean and does nothing. Every field name here is
 load-bearing and none of them are checked.

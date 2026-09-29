@@ -1,5 +1,5 @@
-# Rendered by Ansible — do not edit on host.
-# Source: fabbrito.infra collection — roles/caddy/templates/Caddyfile.j2
+# Rendered by Ansible - do not edit on host.
+# Source: fabbrito.infra collection - roles/caddy/templates/Caddyfile.j2
 {
 	# fabbrito.infra ADR-0006: the email admits ZeroSSL as a fallback
 	# issuer. Absent, Caddy's chain silently shrinks to Let's Encrypt alone.
@@ -30,7 +30,7 @@ app.example.org {
 		max_size 25MiB
 	}
 	# THE NEGATED MATCHER IS LOAD-BEARING. Measured on caddy 2.8.0: request_body
-	# handlers COMPOSE — each wraps the body reader, so the SMALLEST limit wins
+	# handlers COMPOSE - each wraps the body reader, so the SMALLEST limit wins
 	# and source order changes nothing. A bare matcher-less `request_body` clamps
 	# every cap above to 1MB, validates clean, and 413s an upload
 	# the app accepts.

@@ -2,7 +2,7 @@
   The tabs are deliberate: `caddy fmt` rewrites spaces to tabs, so a
   space-indented render reads as a diff against the formatter forever.
 
-  Every view of the routes comes from vars/main.yml and NOTHING ELSE — ADR-0008
+  Every view of the routes comes from vars/main.yml and NOTHING ELSE - ADR-0008
   resolves the caddy_routes + caddy_extra_routes union once, so a
   security-critical selectattr() here cannot silently miss the extra list.
 -#}
@@ -17,7 +17,7 @@
 {#
   The proxy block gets NO schema field, least of all the header_up lines.
 
-  ADR-0008: `header_up` REPLACES — a header we do NOT set is one we forward
+  ADR-0008: `header_up` REPLACES - a header we do NOT set is one we forward
   verbatim from the client, so every client-IP header carries {client_ip},
   including CF-Connecting-IP on a host with no Cloudflare. Drop one and a client
   supplies it instead: anything upstream that keys on client IP then buckets the
@@ -45,8 +45,8 @@
 {{ pad }}	}
 {{ pad }}}
 {%- endmacro -%}
-# Rendered by Ansible — do not edit on host.
-# Source: fabbrito.infra collection — roles/caddy/templates/Caddyfile.j2
+# Rendered by Ansible - do not edit on host.
+# Source: fabbrito.infra collection - roles/caddy/templates/Caddyfile.j2
 {
 {% if caddy_acme_routes %}
 	# fabbrito.infra ADR-0006: the email admits ZeroSSL as a fallback
@@ -62,7 +62,7 @@
 {% endif %}
 {% if caddy_proxied_routes %}
 {% set provider = caddy_proxy_ranges[caddy_proxied_routes[0].proxied_by] %}
-	# fabbrito.infra ADR-0008: trust is DERIVED — this block renders only
+	# fabbrito.infra ADR-0008: trust is DERIVED - this block renders only
 	# because a route declares `proxied_by: {{ caddy_proxied_routes[0].proxied_by }}`.
 	# It is server-level and every vhost shares :443, so trust is all-or-nothing
 	# per host and cannot be scoped to the proxied vhost. A host nobody fronts
@@ -78,7 +78,7 @@
 	}
 {% endif %}
 {% if caddy_redact_uri_prefixes %}
-	# fabbrito.infra ADR-0009, filter 1 of 2 — the DEFAULT logger. Not
+	# fabbrito.infra ADR-0009, filter 1 of 2 - the DEFAULT logger. Not
 	# redundant with the per-site `log` block below: Caddy's ERROR logger carries
 	# the same request>uri to stderr => journald, and neither that block nor
 	# `log_skip` touches it. Without this, any 5xx on a secret-bearing URL writes
@@ -89,7 +89,7 @@
 {% endif %}
 }
 {# The blank line separating vhosts leads each route rather than trailing it, so
-   the file ends at the last `}` — `caddy fmt` strips a trailing blank line. -#}
+   the file ends at the last `}` - `caddy fmt` strips a trailing blank line. -#}
 {% for r in caddy_all_routes %}
 
 {{ r.host }} {
@@ -112,7 +112,7 @@
 			roll_keep 5
 		}
 {% if caddy_redact_uri_prefixes %}
-		# fabbrito.infra ADR-0009, filter 2 of 2 — the ACCESS log. Redact, never
+		# fabbrito.infra ADR-0009, filter 2 of 2 - the ACCESS log. Redact, never
 		# suppress: `log_skip` would drop status, latency and client_ip too, and a
 		# secret-bearing route is the one you most need those for in an incident.
 {{ format_filter('\t\t') }}
@@ -131,7 +131,7 @@
 {% endfor %}
 {% if overridden_paths %}
 	# THE NEGATED MATCHER IS LOAD-BEARING. Measured on caddy 2.8.0: request_body
-	# handlers COMPOSE — each wraps the body reader, so the SMALLEST limit wins
+	# handlers COMPOSE - each wraps the body reader, so the SMALLEST limit wins
 	# and source order changes nothing. A bare matcher-less `request_body` clamps
 	# every cap above to {{ caddy_max_body }}, validates clean, and 413s an upload
 	# the app accepts.

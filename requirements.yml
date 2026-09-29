@@ -1,5 +1,5 @@
 # Development-time install for linting this repo. galaxy.yml's `dependencies:` is
-# the SHIPPED truth; the two lists must agree — change both or neither. The core
+# the SHIPPED truth; the two lists must agree - change both or neither. The core
 # floor is meta/runtime.yml's, and scripts/lint.sh enforces it.
 collections:
   # Bump bounds explicitly when adopting a new major: a deprecation should surface

@@ -12,7 +12,7 @@ The TLS mode of a route follows who holds the DNS zone.
   The certificate must be publicly trusted, and it comes from an ACME issuer (ADR-0006).
 
 A new name is judged by one question with an unambiguous answer: whose zone is it? Gaining or losing a zone is then a
-configuration change, not a code change — which is the point of making ownership the rule rather than enumerating names.
+configuration change, not a code change - which is the point of making ownership the rule rather than enumerating names.
 
 ## Why
 
@@ -29,7 +29,7 @@ Both modes are permanent. Neither is dead code or a transition state to be clean
 both. A host serving one third-party-owned name exercises the ACME path only, so the Cloudflare path is unexercised
 there and that host converging does not prove it.
 
-TLS mode is a per-route property, so the route schema must carry it — and must keep two names for one service cheap. Two
+TLS mode is a per-route property, so the route schema must carry it - and must keep two names for one service cheap. Two
 names can land on opposite sides of this rule and need different modes, so they cannot share one site block. No fleet
 has needed it yet; nothing in the schema may make it impossible.
 

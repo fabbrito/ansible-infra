@@ -1,6 +1,6 @@
 ---
 # The baseline, and the one fixture that exists for what it must NOT render: a host
-# nobody fronts, no secret-bearing path — no `servers` trust block, no redaction
+# nobody fronts, no secret-bearing path - no `servers` trust block, no redaction
 # filter, no `acme_ca`. ADR-0008's failure mode is a trust block where nothing fronts
 # the host, invisible unless a fixture pins the empty case.
 #

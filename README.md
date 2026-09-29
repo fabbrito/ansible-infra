@@ -1,12 +1,12 @@
 # fabbrito.infra
 
-Composable roles that converge long-lived Debian-family hosts — cloud VMs and single-board computers, x86 and ARM — as
+Composable roles that converge long-lived Debian-family hosts - cloud VMs and single-board computers, x86 and ARM - as
 an Ansible collection.
 
 It installs and keeps converged the parts of a host no host is interesting for: OS settings and unattended upgrades, SSH
 hardening, a deny-by-default firewall, fail2ban, Docker with a pruning timer, rclone against Cloudflare R2, Caddy as the
 TLS edge, a loopback-bound metrics/logs stack, and, for boards, a fixed LAN address and a journal that survives a
-reboot. **Service roles do not live here** — they stay in the repo that owns the service, which is also where inventory,
+reboot. **Service roles do not live here** - they stay in the repo that owns the service, which is also where inventory,
 secrets and the converge itself live.
 
 ## Platforms
@@ -33,10 +33,10 @@ Provider quirks live in `docs/cloud/`: on Oracle Cloud, leave out `firewall` and
 collections:
   - name: git+https://github.com/fabbrito/ansible-infra.git
     type: git
-    version: v1.2.3 # a tag, never a branch — see Versioning
+    version: v1.2.3 # a tag, never a branch - see Versioning
 ```
 
-The repo is public, so `https` needs no credential — which is what makes this installable from a CI runner without
+The repo is public, so `https` needs no credential - which is what makes this installable from a CI runner without
 handing it a deploy key. `git+ssh://git@github.com/…` still works if you would rather the fetch go over your existing
 key.
 
@@ -56,7 +56,7 @@ ansible-galaxy collection install -r requirements.yml
 `collections_path` **replaces** the default search list rather than extending it, so `~/.ansible/collections` and
 `/usr/share/ansible/collections` drop out. For a controller that declares every collection in its own `requirements.yml`
 that is the point: what resolves is what you pinned, not whatever the operator happens to have at home. It also makes
-the install path implicit — pass `-p` instead and `ansible-galaxy` will warn that the target is outside the configured
+the install path implicit - pass `-p` instead and `ansible-galaxy` will warn that the target is outside the configured
 paths, which is the warning worth not ignoring.
 
 ## Use
@@ -93,7 +93,7 @@ paths, which is the warning worth not ignoring.
 ```
 
 There is no fixed baseline: the consumer composes the roles each group runs, and every role asserts what it needs from
-the host and its vars. Keep the order `preflight`, `os`, `sshd`, `firewall`, `fail2ban`, then the rest — `firewall`
+the host and its vars. Keep the order `preflight`, `os`, `sshd`, `firewall`, `fail2ban`, then the rest - `firewall`
 reads the ports from the effective sshd config, and `fail2ban` bans through ufw. Scope a run with `-l <host>`.
 
 | Role         | Hosts        | What it converges                                                      |
@@ -129,7 +129,7 @@ ansible-playbook fabbrito.infra.seed -e target=<host> -e seed_output_dir=<dir>
 ```
 
 `bootstrap` is the one play addressed by `-e target=`. Omit it and the play matches a sentinel group that exists in no
-inventory: zero hosts, a host-pattern warning, and **exit 0** — a green run that created nothing. That is deliberate, so
+inventory: zero hosts, a host-pattern warning, and **exit 0** - a green run that created nothing. That is deliberate, so
 a forgotten flag cannot fan user-creation and sudoers writes across the whole fleet, but it only protects you if you
 know the flag is there.
 
@@ -140,7 +140,7 @@ a conditional inside a role.
 
 A collection cannot ship `group_vars`, so the vars that cross roles are a contract rather than a default. Set them in
 the consuming repo's inventory. Nothing here is optional-by-accident: where a value is absent the role either fails
-loudly or, for an optional feature keyed on it, skips that feature — which one is stated below.
+loudly or, for an optional feature keyed on it, skips that feature - which one is stated below.
 
 **Required to converge anything**
 
@@ -154,16 +154,16 @@ loudly or, for an optional feature keyed on it, skips that feature — which one
 | Var                      | Where            | What it buys                                                                                                                                                                                                                                                 |
 | ------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `deploy_authorized_keys` | `group_vars/all` | The pubkeys authorized for `deploy_user`; public, so vault is optional. Unset or empty → `bootstrap` refuses before it creates anything. Empty is why it asserts: the list installs no key, yet the play would still grant passwordless sudo and exit green. |
-| `deploy_user`            | `group_vars/all` | Asserted here too — `bootstrap` creates this account, so it cannot be defaulted.                                                                                                                                                                             |
+| `deploy_user`            | `group_vars/all` | Asserted here too - `bootstrap` creates this account, so it cannot be defaulted.                                                                                                                                                                             |
 
-**Optional — absent, the feature it keys is off**
+**Optional - absent, the feature it keys is off**
 
 | Var                                                | Effect when absent                                                                                                                                                                                            |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ghcr_pull_token`                                  | `docker` is plain Docker, with no registry login.                                                                                                                                                             |
-| `ghcr_login_username`                              | Required whenever the token is set — asserted.                                                                                                                                                                |
-| `rclone_crypt_password` + `rclone_crypt_password2` | No `r2crypt` wrapper is rendered and backups write to the plain remote. Both or neither — asserted. See docs/rclone/encryption.md.                                                                            |
-| `os_hostname_domain`                               | `os` does not name the box at all — the provider's name stands. Set it, and the box becomes `<inventory key>.<domain>`. Override the derivation per host with `os_hostname`; naming happens if either is set. |
+| `ghcr_login_username`                              | Required whenever the token is set - asserted.                                                                                                                                                                |
+| `rclone_crypt_password` + `rclone_crypt_password2` | No `r2crypt` wrapper is rendered and backups write to the plain remote. Both or neither - asserted. See docs/rclone/encryption.md.                                                                            |
+| `os_hostname_domain`                               | `os` does not name the box at all - the provider's name stands. Set it, and the box becomes `<inventory key>.<domain>`. Override the derivation per host with `os_hostname`; naming happens if either is set. |
 | `tailscale_auth_key`                               | `tailscale` installs and does not join: the operator runs `tailscale up`. Set, a host off the tailnet joins, so use a reusable key; a joined host, or one an operator took down, is left as it is.            |
 
 **Required once a host joins the group that needs it**
@@ -172,7 +172,7 @@ loudly or, for an optional feature keyed on it, skips that feature — which one
 | ------------------------------------------------------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `rclone_r2_access_key_id`, `_secret_access_key`, `_endpoint` | backup hosts     | Asserted by `rclone`.                                                                                                                                                                                                                                                                                                       |
 | `caddy_acme_email`                                           | caddy hosts      | Asserted, but only if a route uses `tls: acme`.                                                                                                                                                                                                                                                                             |
-| `caddy_routes`                                               | caddy hosts      | Defaults to `[]` — a live proxy answering nothing. Join the group in the same change that gives it routes. An `http://` host is plain HTTP: no `tls`, no email.                                                                                                                                                             |
+| `caddy_routes`                                               | caddy hosts      | Defaults to `[]` - a live proxy answering nothing. Join the group in the same change that gives it routes. An `http://` host is plain HTTP: no `tls`, no email.                                                                                                                                                             |
 | `caddy_origin_cert` / `caddy_origin_key`                     | caddy hosts      | Asserted before anything is installed: every `tls: cert` route needs both halves of the cert it names (these for `default`, a `caddy_extra_certs` entry otherwise).                                                                                                                                                         |
 | `monitoring_admin_email` + `monitoring_admin_password`       | monitoring hosts | Asserted. Without them the hub creates no first user and answers unauthenticated.                                                                                                                                                                                                                                           |
 | `monitoring_agent_key` + `monitoring_agent_token`            | monitoring hosts | Minted together by the hub (see docs/monitoring/access.md). No token → the agent is not rendered, and hub and Dozzle still come up, so a box can join before it is paired. Token without key → asserted, since it would start an agent that can never authenticate. Key without token is fine: it is the documented revoke. |
@@ -180,19 +180,19 @@ loudly or, for an optional feature keyed on it, skips that feature — which one
 | `storage_path`                                               | journal hosts    | The storage volume's mount path. `journal` asserts it absolute and mounted before binding `/var/log/journal` onto it; board runbook in docs/storage/persistent-usb-storage.md. Not read with `journal_location: root`.                                                                                                      |
 | `infra_install_dir`                                          | monitoring hosts | Where the role installs the stack tree. Asserted, with the admin pair. A contract var, so it carries no role prefix.                                                                                                                                                                                                        |
 
-Every role's own vars are documented in its `defaults/main.yml`, which is the role's public API — read it before
+Every role's own vars are documented in its `defaults/main.yml`, which is the role's public API - read it before
 overriding anything.
 
 ## Where the gate lives
 
-This repo can only prove the static half, and it splits by cost. `make check` is the fast leg — formatting, playbook
-syntax, `ansible-lint` at the **production** profile and `shellcheck` — and the pre-commit hook runs it on every commit.
+This repo can only prove the static half, and it splits by cost. `make check` is the fast leg - formatting, playbook
+syntax, `ansible-lint` at the **production** profile and `shellcheck` - and the pre-commit hook runs it on every commit.
 `make sanity` is `ansible-test sanity`; it builds a venv per supported Python on first run, so it stays out of `check`.
 `make test` renders the templates against checked-in fixtures and diffs the bytes. There is no CI (ADR-0013):
 `make release` runs `sanity`, `test` and the collection build before it tags.
 
 That last one exists because linting and validating both stop short of the same thing. `ansible-lint` reads the tasks
-and `caddy validate` reads the syntax; neither can see a config that is _valid_ and says the wrong thing — a proxy-trust
+and `caddy validate` reads the syntax; neither can see a config that is _valid_ and says the wrong thing - a proxy-trust
 block on a host nothing fronts, a body cap silently clamped by a matcher-less default, a redaction filter naming a
 prefix that never occurs. Asserts check what the consumer sets; goldens check what we emit.
 
@@ -216,12 +216,12 @@ install time.
 ## Development
 
 ```bash
-make hooks   # the pinned tools (mise), then the git hooks — once per clone
+make hooks   # the pinned tools (mise), then the git hooks - once per clone
 make deps    # install the collections the roles depend on
 make fmt     # prettier + shfmt
-make check   # every hook lane — must be green to commit
-make sanity  # ansible-test sanity — a release leg; slow on a cold venv
-make test    # golden render tests — a release leg
+make check   # every hook lane - must be green to commit
+make sanity  # ansible-test sanity - a release leg; slow on a cold venv
+make test    # golden render tests - a release leg
 make release VERSION=x.y.z  # stamp, gate on every leg, tag; DRY_RUN=1 to rehearse
 ```
 
@@ -229,7 +229,7 @@ How to work in this repo, for people and agents alike: `AGENTS.md`.
 
 ## Security
 
-Report a vulnerability privately — see [SECURITY.md](SECURITY.md) for the channel and for what counts as one here.
+Report a vulnerability privately - see [SECURITY.md](SECURITY.md) for the channel and for what counts as one here.
 
 ## License
 

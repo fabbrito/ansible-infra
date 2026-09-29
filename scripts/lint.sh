@@ -47,7 +47,7 @@ fi
 green "  ok  $cur_core"
 
 # The playbooks name their roles by FQCN, and ansible resolves those only through a
-# collections path — the repo root BEING the collection root is not enough. Stage a
+# collections path - the repo root BEING the collection root is not enough. Stage a
 # symlink at <path>/ansible_collections/<ns>/<name> so a syntax-check resolves
 # fabbrito.infra.* against the working tree, uncommitted edits included. `make deps`
 # installs the third-party collections into the same tree.

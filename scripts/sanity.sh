@@ -39,7 +39,7 @@ status=$?
 # ansible-test enumerates through git: without .git every target is skipped,
 # and it exits 0.
 if printf '%s' "$out" | grep -q 'All targets skipped'; then
-	red '  FAIL every target skipped — the staged copy has no .git to enumerate'
+	red '  FAIL every target skipped - the staged copy has no .git to enumerate'
 	exit 1
 fi
 

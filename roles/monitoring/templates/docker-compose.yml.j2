@@ -1,5 +1,5 @@
-# Rendered by Ansible — do not edit on host.
-# Source: fabbrito.infra collection — roles/monitoring/templates/docker-compose.yml.j2
+# Rendered by Ansible - do not edit on host.
+# Source: fabbrito.infra collection - roles/monitoring/templates/docker-compose.yml.j2
 #
 # Observability stack: Beszel (hub + agent) for metrics, Dozzle for logs. One
 # compose project, loopback-bound, reached over `ssh -L`
@@ -10,7 +10,7 @@ name: monitoring
 
 services:
   # ── Beszel hub ───────────────────────────────────────────────────────────────
-  # Web UI + embedded PocketBase datastore. LOOPBACK ONLY — docker bypasses ufw,
+  # Web UI + embedded PocketBase datastore. LOOPBACK ONLY - docker bypasses ufw,
   # so a 0.0.0.0 bind publishes an ops dashboard that has no auth until its first
   # admin exists. Shares a socket volume with the agent: on one box they talk over
   # the socket, never a TCP port.
@@ -35,7 +35,7 @@ services:
   # interfaces and disks; docker socket READ-ONLY for per-container stats; system
   # D-Bus socket READ-ONLY so host systemd units surface too (needs systemd 243+;
   # Ubuntu clears it). Rendered only once paired (fabbrito.infra ADR-0015):
-  # KEY + TOKEN come from the hub's one-time "Add System" step — KEY public,
+  # KEY + TOKEN come from the hub's one-time "Add System" step - KEY public,
   # TOKEN the secret from .env.
   beszel-agent:
     image: henrygd/beszel-agent:{{ monitoring_agent_version }}
@@ -54,7 +54,7 @@ services:
 {% endif %}
 
   # ── Dozzle ───────────────────────────────────────────────────────────────────
-  # Real-time container log viewer. Loopback-bound, same boundary as the hub — it
+  # Real-time container log viewer. Loopback-bound, same boundary as the hub - it
   # has NO auth of its own at all. docker socket READ-ONLY: it only reads logs.
   dozzle:
     image: amir20/dozzle:{{ monitoring_dozzle_version }}

@@ -13,7 +13,7 @@ docker_users:
 # Unset, plain Docker. Consumer contract vars, so unprefixed and undefaulted.
 
 # Weekly prune: stopped containers, unused networks, images older than
-# docker_cleanup_until — never volumes. The hour must clear every backup window,
+# docker_cleanup_until - never volumes. The hour must clear every backup window,
 # smear included: ours derives Sun 05:00, so re-derive it when a backup timer
 # moves.
 docker_cleanup_until: 168h

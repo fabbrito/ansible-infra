@@ -1,7 +1,7 @@
 ---
 # The negated matcher, which is the branch that validates clean while being
-# wrong. request_body handlers COMPOSE — the smallest limit wins wherever two
-# apply — so a bare matcher-less default silently clamps every override below to
+# wrong. request_body handlers COMPOSE - the smallest limit wins wherever two
+# apply - so a bare matcher-less default silently clamps every override below to
 # caddy_max_body. Both configs pass `caddy validate`; only the render differs.
 #
 # The golden therefore has to pin `@body_default not path <every overridden

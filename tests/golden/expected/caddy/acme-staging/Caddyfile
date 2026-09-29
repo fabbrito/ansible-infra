@@ -1,5 +1,5 @@
-# Rendered by Ansible — do not edit on host.
-# Source: fabbrito.infra collection — roles/caddy/templates/Caddyfile.j2
+# Rendered by Ansible - do not edit on host.
+# Source: fabbrito.infra collection - roles/caddy/templates/Caddyfile.j2
 {
 	# fabbrito.infra ADR-0006: the email admits ZeroSSL as a fallback
 	# issuer. Absent, Caddy's chain silently shrinks to Let's Encrypt alone.

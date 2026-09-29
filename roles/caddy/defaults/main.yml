@@ -19,7 +19,7 @@
 # `paths` is the whole safety property once another upstream owns the
 # catch-all: a missed public prefix (webhooks, signed links, health) gets the
 # wrong app's 200. `/api/*` does not match `/api`; list both. Paths must be
-# LITERAL — Ansible renders Jinja before the role sees it, so only the
+# LITERAL - Ansible renders Jinja before the role sees it, so only the
 # consuming repo, reading its YAML raw, can check this.
 caddy_routes: []
 
@@ -78,7 +78,7 @@ caddy_acme_email: ""
 # CA and drops the fallback (ADR-0006); persisted, it serves an untrusted cert.
 caddy_acme_ca: ""
 
-# Cloudflare origin cert for `tls: cert` routes naming no `cert:` — set
+# Cloudflare origin cert for `tls: cert` routes naming no `cert:` - set
 # caddy_origin_cert + caddy_origin_key (vaulted), group-level: one wildcard
 # per zone. Extra zones go per host in caddy_extra_certs; both halves of
 # whatever a route names are asserted.

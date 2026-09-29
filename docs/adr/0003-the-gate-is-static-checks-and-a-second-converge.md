@@ -6,9 +6,9 @@
 
 Five gates, in increasing order of truthfulness, and no unit suite.
 
-- **The commit gate** — static, touches no host: formatting of the docs, shell and Ansible trees, shellcheck, the
+- **The commit gate** - static, touches no host: formatting of the docs, shell and Ansible trees, shellcheck, the
   ansible-core floor, playbook syntax, and lint at the production profile. Every commit leaves it green.
-- **Sanity, the goldens and the collection build** — static, and the first two read the rendered bytes. Sanity runs the
+- **Sanity, the goldens and the collection build** - static, and the first two read the rendered bytes. Sanity runs the
   checks core ships; goldens push fixtures through the real templates and diff the result against checked-in
   expectations, one fixture per decision. All are release legs, out of the commit hook on cost: a cold sanity run builds
   a virtualenv per supported Python.

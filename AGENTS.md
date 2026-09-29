@@ -4,17 +4,17 @@ Ansible collection: composable roles for long-lived Debian-family hosts, cloud V
 gets is `README.md`; vocabulary is `CONTEXT.md`; settled decisions are `docs/adr/`. The collection owns no inventory,
 vault or host.
 
-**Write terse.** Sacrifice grammar for concision — prose, comments, commits, this file.
+**Write terse.** Sacrifice grammar for concision - prose, comments, commits, this file.
 
 ## Defer
 
 Defer building until a consumer needs it; revise decisions as issues surface.
 
-Exempt from deferral — decide before the code lands. The test is reversibility cost, not importance:
+Exempt from deferral - decide before the code lands. The test is reversibility cost, not importance:
 
-- the contract — unprefixed vars, role names, defaults a consumer relies on
+- the contract - unprefixed vars, role names, defaults a consumer relies on
 - anything a converge leaves on a host that a later release must read or remove
-- the path between Ansible and SSH — firewall and sshd order
+- the path between Ansible and SSH - firewall and sshd order
 
 ## Hosts are the consumer's to run
 
@@ -33,15 +33,15 @@ for them. Agents write roles and hand over the command; `make check`, `make test
 ## The commit gate
 
 Once per clone: `make hooks && make deps`. Lanes are lefthook's: `lefthook.yml` extends copies of `fabbrito/repokit`'s
-templates in `.config/lefthook/`, owned here; this repo's own jobs sit beside them, never under a template's job name —
+templates in `.config/lefthook/`, owned here; this repo's own jobs sit beside them, never under a template's job name -
 the extended one wins. Message policy is `.config/commit-msg.conf`, graded by repokit's `commit-msg-lint`.
 
-Every tool is pinned in mise — the gate's in `.config/mise/conf.d/`, ansible and prettier in `mise.toml`. Hooks and
+Every tool is pinned in mise - the gate's in `.config/mise/conf.d/`, ansible and prettier in `mise.toml`. Hooks and
 `make` put them on `PATH` and fail without mise. Run lanes with `make check` / `make fmt`, or `mise exec -- …`; never
 bare `lefthook run`: the `rc:` guard covers git hooks only.
 
 The gate is lanes matching paths by glob. A file no lane matches is never checked, so a new kind of file means a lane. A
-missing tool fails: a skipped lane is not a green commit. The goldens and `ansible-test sanity` are not lanes — too slow
+missing tool fails: a skipped lane is not a green commit. The goldens and `ansible-test sanity` are not lanes - too slow
 to sit between you and a commit; they are `make test` and `make sanity`, and `make release` runs both. There is no CI.
 
 ## Roles
@@ -55,8 +55,8 @@ to sit between you and a commit; they are `make test` and `make sanity`, and `ma
 - Second converge reports zero changed. `--check` survives: `check_mode: false` on read-only probes, skip what a fake
   install breaks.
 - No lock-out: every rule before deny-default, sshd validated before its reload.
-- A rendered file opens with `# Rendered by Ansible — do not edit on host` and its source path. A file an operator
-  pastes, like the seed, is ASCII only: `-` for `—`, since a mis-encoded byte voids the whole file.
+- A rendered file opens with `# Rendered by Ansible - do not edit on host` and its source path. A file an operator
+  pastes, like the seed, is ASCII only: `-`, never an em dash, since a mis-encoded byte voids the whole file.
 
 ## Comments earn their keep
 
@@ -70,16 +70,16 @@ level that holds the knowledge.
 
 | Where           | Holds                                                                          |
 | --------------- | ------------------------------------------------------------------------------ |
-| `README.md`     | the consumer contract — roles, vars, platforms, how to compose                 |
-| `AGENTS.md`     | how to work here — the process an agent follows, never facts about the roles   |
+| `README.md`     | the consumer contract - roles, vars, platforms, how to compose                 |
+| `AGENTS.md`     | how to work here - the process an agent follows, never facts about the roles   |
 | `CONTEXT.md`    | domain vocabulary                                                              |
 | `docs/<topic>/` | runbooks for operators of fleets we do not run                                 |
-| `docs/agents/`  | how the engineering skills read this repo — issue tracker, labels, domain docs |
+| `docs/agents/`  | how the engineering skills read this repo - issue tracker, labels, domain docs |
 
-A settled decision the collection still lives under a year from now goes to `docs/adr/` — `## Chosen`, `## Why`,
+A settled decision the collection still lives under a year from now goes to `docs/adr/` - `## Chosen`, `## Why`,
 `## Cost`, `## Reverses`, no paths or symbols.
 
-Contradicting a row is allowed. Doing it quietly is not — name the line, and say which of the two you would change.
+Contradicting a row is allowed. Doing it quietly is not - name the line, and say which of the two you would change.
 
 **AGENTS.md is not a knowledge base.** The test: a rule that survives the roles being rewritten is process, and stays. A
 rule that stops being true when a role changes was a comment all along.
@@ -89,7 +89,7 @@ passing.
 
 ## The hidden contract
 
-`.tmp/` holds plan-internal material — plans, handoffs, session scratch — and may go stale. `docs/`, the README and
+`.tmp/` holds plan-internal material - plans, handoffs, session scratch - and may go stale. `docs/`, the README and
 commits never mention it.
 
 The build ships everything `galaxy.yml`'s `build_ignore` does not name, into a consumer's tree, where their agents read
@@ -99,7 +99,7 @@ it. A new authoring doc or tool path joins `build_ignore` in the same commit.
 
 | Where          | Mechanism                                                                  |
 | -------------- | -------------------------------------------------------------------------- |
-| Consumer input | **assert** before the role changes anything — fail loud, name the var      |
+| Consumer input | **assert** before the role changes anything - fail loud, name the var      |
 | Host state     | **assert** a postcondition read back from the host                         |
 | Our output     | golden: a fixture per template branch, `make golden-update`, read the diff |
 | The specific   | a fixture for the exact bug, once found                                    |
@@ -111,7 +111,7 @@ A template change with no golden diff changed nothing, or has no fixture.
 - `make release VERSION=x.y.z` stamps `galaxy.yml`, gates on every leg and tags; `make publish` pushes and cuts the
   release. `DRY_RUN=1` on both.
 - `galaxy.yml` version, `CHANGELOG.md` heading and the tag move together: write the CHANGELOG first.
-- Contract change — new required var, unsafe default, renamed role: major, under "Changed". A var only a new opt-in role
+- Contract change - new required var, unsafe default, renamed role: major, under "Changed". A var only a new opt-in role
   reads: minor, under "Added".
 - Collection deps: `galaxy.yml` and `requirements.yml` together. Core floor: `meta/runtime.yml` and `scripts/lint.sh`.
 
@@ -119,7 +119,7 @@ A template change with no golden diff changed nothing, or has no fixture.
 
 - [YSAP style](https://style.ysap.sh), 80 columns. `set -uo pipefail` with explicit checks; errexit never. `scripts/`
   needs bash 4.4+.
-- Make recipes delegate — to `scripts/` or lefthook.
+- Make recipes delegate - to `scripts/` or lefthook.
 - A script that runs `ansible*`, run by an agent, guards its stdio: `ansible*` refuses non-blocking stdout or stderr,
   which agent shells hand it. Redirect through `cat`.
 - Errexit's one exception: a script rendered onto a host as a systemd oneshot, which should fail its unit.
@@ -129,9 +129,9 @@ A template change with no golden diff changed nothing, or has no fixture.
 - Never a red tree: every commit passes `make check`.
 - `type(scope): subject`, scope a role or a cross-cutting name from `git log`. Subject-only by default; cut every word
   the diff already says.
-- AI co-authored: `Co-Authored-By:` naming the model. Never a session link — history is permanent.
+- AI co-authored: `Co-Authored-By:` naming the model. Never a session link - history is permanent.
 
 ## Agent skills
 
 - **Issue tracker:** GitHub issues, via `gh`. `docs/agents/issue-tracker.md`.
-- **Domain docs:** single-context — one `CONTEXT.md`, one `docs/adr/`. `docs/agents/domain.md`.
+- **Domain docs:** single-context - one `CONTEXT.md`, one `docs/adr/`. `docs/agents/domain.md`.

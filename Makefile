@@ -69,7 +69,7 @@ build-check: ## Build the collection and inspect what the tarball ships
 
 # The whole release gate, there being no CI. Commit and tag stay local.
 .PHONY: release
-release: ## Stamp, gate, commit and tag — VERSION=x.y.z [DRY_RUN=1]
+release: ## Stamp, gate, commit and tag - VERSION=x.y.z [DRY_RUN=1]
 	./scripts/release.sh $(if $(DRY_RUN),--dry-run) $(VERSION)
 
 .PHONY: publish

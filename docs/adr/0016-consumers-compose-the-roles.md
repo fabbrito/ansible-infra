@@ -11,11 +11,11 @@ the plays, and a role that needs an earlier one's work asserts the host state th
 ## Why
 
 One collection now serves cloud VMs and boards, x86 and ARM, with and without backups, an edge or a tailnet. A fixed set
-forces every role onto every host, and every role then has to skip quietly wherever it does not belong — the silent
+forces every role onto every host, and every role then has to skip quietly wherever it does not belong - the silent
 failure the assert rules exist to prevent. Listing a role is a choice, and a choice can state its needs.
 
-Meta dependencies lost because they hide the order a converge's safety rests on — the firewall reading the effective
-sshd config, fail2ban banning through an active firewall — and re-run the depended-on role wherever it is pulled in. An
+Meta dependencies lost because they hide the order a converge's safety rests on - the firewall reading the effective
+sshd config, fail2ban banning through an active firewall - and re-run the depended-on role wherever it is pulled in. An
 assert on host state says the same thing, fails naming the role to add, and costs nothing when the order is right.
 
 ## Cost

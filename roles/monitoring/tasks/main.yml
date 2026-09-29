@@ -41,7 +41,7 @@
     that: monitoring_agent_key | default('') | length > 0
     fail_msg: >-
       monitoring_agent_token is set but monitoring_agent_key is empty. The hub's
-      one-time "Add System" step mints them together — the KEY authenticates
+      one-time "Add System" step mints them together - the KEY authenticates
       nothing and belongs in plain group_vars, the TOKEN belongs in the group
       vault. Half the pair starts an agent that can never authenticate, on a
       converge that reports success.

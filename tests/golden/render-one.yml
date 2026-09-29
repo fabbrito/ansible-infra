@@ -1,7 +1,7 @@
 ---
 # One fixture. Included per file by render.yml, which owns the loop.
 
-# fixtures/<role>/<case>.yml — the directory names the role, so adding a role to
+# fixtures/<role>/<case>.yml - the directory names the role, so adding a role to
 # the harness is a directory plus a steps file, never an edit here.
 - name: Identify the fixture
   ansible.builtin.set_fact:
@@ -15,7 +15,7 @@
 # Defaults FIRST, fixture second, and the order is the point twice over. It
 # makes a changed default show up as a golden diff, which is most of why these
 # exist. And because both land at the same precedence, re-reading the defaults
-# each iteration is what clears a var the PREVIOUS fixture set — so every var a
+# each iteration is what clears a var the PREVIOUS fixture set - so every var a
 # fixture may set has to be declared in the role's defaults, or it leaks into
 # every fixture sorted after it.
 - name: Load the role defaults

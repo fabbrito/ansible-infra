@@ -39,7 +39,7 @@ refuse() {
 [[ $(git branch --show-current) == master ]] || refuse 'not on master'
 [[ -z $(git status --porcelain) ]] || refuse 'tree not clean'
 if git rev-parse --quiet --verify "refs/tags/$tag" >/dev/null; then
-	refuse "$tag exists — a release is never moved, cut the next patch"
+	refuse "$tag exists - a release is never moved, cut the next patch"
 fi
 if git remote get-url origin >/dev/null 2>&1; then
 	git fetch --quiet origin master || die 'cannot fetch origin'
@@ -48,13 +48,13 @@ if git remote get-url origin >/dev/null 2>&1; then
 	# A tag absent here may be on origin; publish would collide.
 	git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null
 	case $? in
-		0) refuse "$tag is on origin — never move a release" ;;
+		0) refuse "$tag is on origin - never move a release" ;;
 		2) ;;
 		*) die 'cannot list tags on origin' ;;
 	esac
 fi
 grep -q "^## $version\$" CHANGELOG.md ||
-	refuse "CHANGELOG.md has no '## $version' section — write it first"
+	refuse "CHANGELOG.md has no '## $version' section - write it first"
 
 if $dry; then
 	printf 'release: would stamp %s, gate, commit, tag\n' "$tag"
@@ -74,7 +74,7 @@ for leg in 'make check' 'make test' 'make sanity' \
 	"./scripts/tag-check.sh $tag"; do
 	if ! $leg; then
 		unstamp
-		die "$leg failed — nothing committed"
+		die "$leg failed - nothing committed"
 	fi
 done
 
@@ -84,9 +84,9 @@ git add galaxy.yml || die 'cannot stage the stamp'
 if ! git commit -qm "$subject"; then
 	git reset -q galaxy.yml
 	unstamp
-	die 'commit failed — nothing committed'
+	die 'commit failed - nothing committed'
 fi
 git tag -a "$tag" -m "$tag" ||
-	die "committed, but tagging failed — finish it: git tag -a $tag -m $tag"
+	die "committed, but tagging failed - finish it: git tag -a $tag -m $tag"
 
-printf 'release: %s tagged — make publish sends it up\n' "$tag"
+printf 'release: %s tagged - make publish sends it up\n' "$tag"
