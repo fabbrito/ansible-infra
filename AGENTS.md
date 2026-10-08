@@ -34,7 +34,7 @@ for them. Agents write roles and hand over the command; `make check`, `make test
 
 Once per clone: `make hooks && make deps`. Lanes are lefthook's: `lefthook.yml` extends copies of `fabbrito/repokit`'s
 templates in `.config/lefthook/`, owned here; this repo's own jobs sit beside them, never under a template's job name -
-the extended one wins. Message policy is `.config/commit-msg.conf`, graded by repokit's `commit-msg-lint`.
+the extended one wins. Message policy is `.config/commitlint.config.mjs`, graded by commitlint.
 
 Every tool is pinned in mise - the gate's in `.config/mise/conf.d/`, ansible and prettier in `mise.toml`. Hooks and
 `make` put them on `PATH` and fail without mise. Run lanes with `make check` / `make fmt`, or `mise exec -- …`; never

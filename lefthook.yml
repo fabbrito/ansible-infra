@@ -1,5 +1,5 @@
 # The commit gate: repokit's templates, copied into .config/lefthook/ and owned
-# here. Message policy is .config/commit-msg.conf. The goldens and sanity are
+# here. Message policy is .config/commitlint.config.mjs. The goldens and sanity are
 # not lanes - too slow to sit between you and a commit; `make test` /
 # `make sanity`.
 #

@@ -1,5 +1,5 @@
 # templates/base: copy to .config/lefthook/base.yml and list it first under
-# `extends:`. The grader, lefthook's own settings, and a gate on its config -
+# `extends:`. commitlint, lefthook's own settings, and a gate on its config -
 # `lefthook run` ignores an unknown key, `validate` does not.
 min_version: "2.1"
 glob_matcher: doublestar # `**/*.sh` matches the root too
@@ -7,8 +7,8 @@ rc: .config/lefthook-rc.sh # mise's tools on PATH, or the hook fails
 
 commit-msg:
   jobs:
-    - name: commit-msg-lint
-      run: commit-msg-lint {1}
+    - name: commitlint
+      run: commitlint --strict -g .config/commitlint.config.mjs --edit {1}
 
 pre-commit:
   jobs:

@@ -2,7 +2,7 @@
 # these, never whatever apt left on PATH. A bump is a version here and
 # `make hooks`.
 [tools]
-lefthook = "2.1.15"
-# The grader is one bare, platform-free file: without asset_pattern, mise's
-# platform matching finds no linux-x64 asset and refuses it.
-"github:fabbrito/repokit" = { version = "0.1.1", asset_pattern = "commit-msg-lint" }
+lefthook = "2.1.17"
+# commitlint and the config-conventional it bundles: no package.json needed.
+node = "26.11.1"
+"npm:@commitlint/cli" = "21.2.3"
