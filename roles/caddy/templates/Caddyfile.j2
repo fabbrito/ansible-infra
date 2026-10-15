@@ -118,6 +118,11 @@
 {{ format_filter('\t\t') }}
 {% endif %}
 	}
+{% if r.hsts is defined %}
+	# Opt-in per route (see defaults): only an origin serving a browser app
+	# should commit the browser to TLS for the max-age ahead.
+	header Strict-Transport-Security "max-age={{ r.hsts }}" always
+{% endif %}
 {% if r.redirect_to is defined %}
 	redir {{ r.redirect_to }}{uri} 301
 {% else %}

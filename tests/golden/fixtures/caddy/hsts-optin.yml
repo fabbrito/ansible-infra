@@ -1,0 +1,18 @@
+---
+# The per-route HSTS opt-in, pinned at both edges: a route that declares it
+# renders the header, the one beside it renders NOTHING - the opt-in must not
+# leak into a vhost that did not ask (an API origin committed to TLS by its
+# neighbor's policy is a decision nobody made). Both shapes sit on ACME hosts
+# so no cert noise rides into the golden.
+caddy_acme_email: ops@example.org
+
+caddy_routes:
+  - host: app.example.org
+    tls: acme
+    default_upstream: 127.0.0.1:3000
+    hsts: 31536000
+  - host: api.example.org
+    tls: acme
+    default_upstream: 127.0.0.1:3001
+
+caddy_extra_routes: []
