@@ -220,7 +220,7 @@ make hooks   # the pinned tools (mise), then the git hooks - once per clone
 make deps    # install the collections the roles depend on
 make upgrade # bump the mise pins; then make hooks
 make fmt     # prettier + shfmt
-make check   # every hook lane - must be green to commit
+make check   # every lane over the whole tree - must be green to commit
 make sanity  # ansible-test sanity - a release leg; slow on a cold venv
 make test    # golden render tests - a release leg
 make release VERSION=x.y.z  # stamp, gate on every leg, tag; DRY_RUN=1 to rehearse

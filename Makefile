@@ -40,16 +40,16 @@ upgrade: ## Bump every pinned tool to its latest, then make hooks
 
 # Lanes live in lefthook.yml: a new check is a job, not a target.
 .PHONY: check
-check: ## Run every lane over the working changes (the gate)
-	lefthook run check
+check: ## Run every lane over the whole tree (the gate)
+	lefthook run check --all-files
 
 .PHONY: check-codes
 check-codes: ## Sweep for plan labels (manual, not in check)
 	./scripts/check-codes.sh
 
 .PHONY: fmt
-fmt: ## Run the same lanes, writing (prettier, shfmt); never stages
-	lefthook run fix
+fmt: ## Run the same lanes over the whole tree, writing; never stages
+	lefthook run fix --all-files
 
 ##@ Release legs
 
