@@ -6,6 +6,13 @@ consumers pin the tag, so a change that is not released is a change nobody gets.
 A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
 that, and the next correction is 1.0.1.
 
+## 2.3.1
+
+### Fixed
+
+- `firewall`: `--check` on a host without ufw no longer fails. The dry run only plans the install, so the rules and the
+  deny-default flip wait for a real converge instead of calling a binary that is not there.
+
 ## 2.3.0
 
 ### Added
