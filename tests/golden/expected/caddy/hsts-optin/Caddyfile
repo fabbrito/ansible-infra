@@ -1,0 +1,71 @@
+# Rendered by Ansible - do not edit on host.
+# Source: fabbrito.infra collection - roles/caddy/templates/Caddyfile.j2
+{
+	# fabbrito.infra ADR-0006: the email admits ZeroSSL as a fallback
+	# issuer. Absent, Caddy's chain silently shrinks to Let's Encrypt alone.
+	# The role asserts it rather than render empty.
+	email ops@example.org
+}
+
+app.example.org {
+	# No `tls` line: automatic HTTPS over HTTP-01 (fabbrito.infra ADR-0006).
+	# Emitting one unconditionally, at a default.pem no ACME host writes,
+	# stopped an ACME-only host converging at all.
+	# The debian package owns /var/log/caddy as caddy:caddy; tasks/main.yml
+	# pre-creates each file caddy-owned so a root-run `caddy validate` cannot
+	# claim it first.
+	log {
+		output file /var/log/caddy/app.example.org.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+	}
+	# Opt-in per route (see defaults): only an origin serving a browser app
+	# should commit the browser to TLS for the max-age ahead.
+	header Strict-Transport-Security "max-age=31536000" always
+	encode zstd gzip
+	request_body {
+		max_size 1MB
+	}
+	reverse_proxy 127.0.0.1:3000 {
+		header_up Host {host}
+		header_up X-Real-IP {client_ip}
+		header_up X-Forwarded-For {client_ip}
+		header_up CF-Connecting-IP {client_ip}
+		transport http {
+			dial_timeout 10s
+			read_timeout 60s
+			write_timeout 60s
+		}
+	}
+}
+
+api.example.org {
+	# No `tls` line: automatic HTTPS over HTTP-01 (fabbrito.infra ADR-0006).
+	# Emitting one unconditionally, at a default.pem no ACME host writes,
+	# stopped an ACME-only host converging at all.
+	# The debian package owns /var/log/caddy as caddy:caddy; tasks/main.yml
+	# pre-creates each file caddy-owned so a root-run `caddy validate` cannot
+	# claim it first.
+	log {
+		output file /var/log/caddy/api.example.org.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+	}
+	encode zstd gzip
+	request_body {
+		max_size 1MB
+	}
+	reverse_proxy 127.0.0.1:3001 {
+		header_up Host {host}
+		header_up X-Real-IP {client_ip}
+		header_up X-Forwarded-For {client_ip}
+		header_up CF-Connecting-IP {client_ip}
+		transport http {
+			dial_timeout 10s
+			read_timeout 60s
+			write_timeout 60s
+		}
+	}
+}

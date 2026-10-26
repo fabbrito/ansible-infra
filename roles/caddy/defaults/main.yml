@@ -11,6 +11,11 @@
 #       max_body_paths:                # optional; overrides caddy_max_body
 #         - { paths: [/api/v1/*], max: 25MiB }
 #       cert: other                    # optional; a caddy_extra_certs name
+#       hsts: 31536000                 # optional; seconds, renders the
+#                                      # Strict-Transport-Security max-age for
+#                                      # this vhost. Opt-in per route: a browser
+#                                      # app with cookie sessions wants it, a
+#                                      # bare API origin may not commit to it.
 #
 # `tls` and `proxied_by` stay two fields: a proxied name can still answer
 # HTTP-01, and fusing them drops the trust block for that case (ADR-0005,
