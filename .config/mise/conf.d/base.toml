@@ -2,7 +2,7 @@
 # these, never whatever apt left on PATH. A bump is a version here and
 # `make hooks`.
 [tools]
-lefthook = "2.1.17"
+lefthook = "2.2.2"
 # commitlint and the config-conventional it bundles: no package.json needed.
-node = "26.11.1"
-"npm:@commitlint/cli" = "21.2.3"
+node = "26.12.1"
+"npm:@commitlint/cli" = "21.2.4"
