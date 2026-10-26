@@ -27,11 +27,20 @@ red() { printf '\033[0;31m%s\033[0m\n' "$*"; }
 green() { printf '\033[0;32m%s\033[0m\n' "$*"; }
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 
+# mise's pins, not whatever PATH resolves first: run by hand, this script
+# otherwise calls ~/.local/bin's ansible, another core than the one the gate
+# lints against. `make check` already has them first, so the cost is a lookup.
+if ! ansible_bin=$(mise which ansible) ||
+	! playbook_bin=$(mise which ansible-playbook); then
+	red '  mise has no ansible - mise install, or make hooks'
+	exit 1
+fi
+
 # Enforce the ansible-core floor from meta/runtime.yml. An unparseable version
 # cannot prove the floor, so it is fatal. It guards every later leg: linting
 # roles against a core that cannot run them proves nothing.
 bold '==> ansible-core floor'
-cur_core=$(ansible --version |
+cur_core=$("$ansible_bin" --version |
 	awk 'NR == 1 { gsub(/[^0-9.]/, "", $NF); print $NF }')
 if [[ -z $cur_core ]]; then
 	red '  ansible not found, or its --version output did not parse'
@@ -60,25 +69,25 @@ bold ''
 bold '==> Syntax check'
 for pb in "$playbooks_dir"/*.yml; do
 	[[ -f $pb ]] || continue
-	if ansible-playbook --syntax-check "$pb" >/dev/null 2>&1; then
+	if "$playbook_bin" --syntax-check "$pb" >/dev/null 2>&1; then
 		green "  ok  $pb"
 		pass=$((pass + 1))
 	else
 		red "  FAIL $pb"
-		ansible-playbook --syntax-check "$pb"
+		"$playbook_bin" --syntax-check "$pb"
 		fail=$((fail + 1))
 	fi
 done
 
 bold ''
 bold '==> ansible-lint'
-if command -v ansible-lint >/dev/null 2>&1; then
+if lint_bin=$(mise which ansible-lint) && [[ -x $lint_bin ]]; then
 	# The whole tree, not just playbooks/: here the roles are the product, and the
 	# galaxy rules only fire when galaxy.yml is in scope. Dropping
 	# ANSIBLE_COLLECTIONS_PATH makes this the check that galaxy.yml's SHIPPED
 	# dependency list resolves, not requirements.yml's copy; ansible-lint stages
 	# its own copy and warns on two installs if ours stays exported.
-	env -u ANSIBLE_COLLECTIONS_PATH ansible-lint . || fail=$((fail + 1))
+	env -u ANSIBLE_COLLECTIONS_PATH "$lint_bin" . || fail=$((fail + 1))
 else
 	# A missing tool is a FAILURE, not a skip. This is the leg the README calls
 	# the gate; skipping it and still printing "All checks passed" is how
