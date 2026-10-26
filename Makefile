@@ -30,6 +30,12 @@ help: ## Show this help
 deps: ## Install/upgrade the Ansible collections the roles depend on
 	./scripts/deps.sh
 
+# Hooks pin the tools, so a bump is a version there and `make hooks` after it.
+.PHONY: upgrade
+upgrade: ## Bump every pinned tool to its latest, then make hooks
+	mise upgrade --bump --local
+	@echo 'now: make hooks'
+
 ##@ Local checks
 
 # Lanes live in lefthook.yml: a new check is a job, not a target.
