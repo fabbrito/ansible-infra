@@ -39,6 +39,16 @@ pypi_latest() {
 	curl -fsS "https://pypi.org/pypi/$1/json" | jq -r .info.version
 }
 
+github_latest() {
+	curl -fsS "https://api.github.com/repos/$1/releases/latest" |
+		jq -r .tag_name
+}
+
+# A project whose registry tag carries no `v`, unlike its release tag.
+github_nov_latest() {
+	github_latest "$1" | sed 's/^v//'
+}
+
 # The v3 collection endpoint redirects; -L is the API, not a nicety.
 galaxy_latest() {
 	curl -fsSL "https://galaxy.ansible.com/api/v3/plugin/ansible/content/\
@@ -95,6 +105,14 @@ while IFS=$'\t' read -r kind label file script target xfile xscript; do
 		galaxy)
 			hint "$label" "$(pin "$script" "$file")" \
 				"$(galaxy_latest "$target")"
+			;;
+		github)
+			hint "$label" "$(pin "$script" "$file")" \
+				"$(github_latest "$target")"
+			;;
+		github-nov)
+			hint "$label" "$(pin "$script" "$file")" \
+				"$(github_nov_latest "$target")"
 			;;
 		# The floor must not outrun the core the gate runs; only a violation
 		# speaks, or every run would report the same gap.
