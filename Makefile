@@ -30,11 +30,17 @@ help: ## Show this help
 deps: ## Install/upgrade the Ansible collections the roles depend on
 	./scripts/deps.sh
 
-# Hooks pin the tools, so a bump is a version there and `make hooks` after it.
+# mise and dprint bump themselves; the hand pins in .config/upgrade-pins.tsv
+# only hint. APPLY=1 is the only way to write, and a typo is refused rather
+# than read as yes.
+APPLY ?=
+ifneq ($(filter-out 1,$(APPLY)),)
+$(error APPLY is 1 or unset, got '$(APPLY)')
+endif
+
 .PHONY: upgrade
-upgrade: ## Bump every pinned tool to its latest, then make hooks
-	mise upgrade --bump --local
-	@echo 'now: make hooks'
+upgrade: ## Preview pin bumps; APPLY=1 bumps, formats and gates
+	scripts/upgrade-tooling.sh $(if $(APPLY),apply)
 
 ##@ Local checks
 

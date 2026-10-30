@@ -1,0 +1,8 @@
+pypi	ansible-core (uvx)	mise.toml	s/.*ansible-core==([0-9.]+).*/\1/p	ansible-core	-	-
+galaxy	community.docker	requirements.yml	/- name: community\.docker/{n;s/.*version: ">=([0-9.]+).*/\1/p;q}	community/docker	-	-
+galaxy	community.general	requirements.yml	/- name: community\.general/{n;s/.*version: ">=([0-9.]+).*/\1/p;q}	community/general	-	-
+galaxy	ansible.posix	requirements.yml	/- name: ansible\.posix/{n;s/.*version: ">=([0-9.]+).*/\1/p;q}	ansible/posix	-	-
+floor	ansible-core floor	meta/runtime.yml	s/.*requires_ansible: ">=([0-9.]+)".*/\1/p	-	mise.toml	s/.*ansible-core==([0-9.]+).*/\1/p
+same	community.docker range	requirements.yml	/- name: community\.docker/{n;s/.*version: "([^"]+)".*/\1/p;q}	-	galaxy.yml	s/^[[:space:]]*community\.docker: "([^"]+)".*/\1/p
+same	community.general range	requirements.yml	/- name: community\.general/{n;s/.*version: "([^"]+)".*/\1/p;q}	-	galaxy.yml	s/^[[:space:]]*community\.general: "([^"]+)".*/\1/p
+same	ansible.posix range	requirements.yml	/- name: ansible\.posix/{n;s/.*version: "([^"]+)".*/\1/p;q}	-	galaxy.yml	s/^[[:space:]]*ansible\.posix: "([^"]+)".*/\1/p
