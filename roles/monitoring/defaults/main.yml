@@ -4,9 +4,9 @@ monitoring_dir: "{{ infra_install_dir }}/monitoring"
 
 # Pinned, never `latest`. Match the registry tag, not the GitHub release:
 # Beszel's carry no `v`, Dozzle's do.
-monitoring_hub_version: "0.18.7" # henrygd/beszel
-monitoring_agent_version: "0.18.7" # henrygd/beszel-agent
-monitoring_dozzle_version: v10.6.11 # amir20/dozzle
+monitoring_hub_version: "0.21.1" # henrygd/beszel
+monitoring_agent_version: "0.21.1" # henrygd/beszel-agent
+monitoring_dozzle_version: v11.4.0 # amir20/dozzle
 
 # LOOPBACK ONLY: Docker's published ports bypass ufw, and Dozzle has no auth.
 # Reach them over `ssh -L` (docs/monitoring/access.md); anything put in front

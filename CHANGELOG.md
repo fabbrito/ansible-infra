@@ -6,6 +6,13 @@ consumers pin the tag, so a change that is not released is a change nobody gets.
 A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
 that, and the next correction is 1.0.1.
 
+## Unreleased
+
+### Changed
+
+- `rclone`: the pinned `.deb` table moves to v1.75.2, hashes taken from the signed `SHA256SUMS`.
+- `monitoring`: Beszel hub and agent to 0.21.1, Dozzle to v11.4.0.
+
 ## 2.3.1
 
 ### Fixed
