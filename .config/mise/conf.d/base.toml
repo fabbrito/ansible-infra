@@ -4,5 +4,5 @@
 [tools]
 lefthook = "2.2.2"
 # commitlint and the config-conventional it bundles: no package.json needed.
-node = "26.12.1"
+node = "26.13.0"
 "npm:@commitlint/cli" = "21.2.4"
