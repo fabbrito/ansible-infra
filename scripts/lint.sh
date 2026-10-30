@@ -19,7 +19,6 @@ cd "$(dirname "$0")/.." || exit 1
 exec </dev/null > >(cat) 2>&1
 
 playbooks_dir='playbooks'
-min_core='2.18'
 pass=0
 fail=0
 
@@ -36,10 +35,18 @@ if ! ansible_bin=$(mise which ansible) ||
 	exit 1
 fi
 
-# Enforce the ansible-core floor from meta/runtime.yml. An unparseable version
-# cannot prove the floor, so it is fatal. It guards every later leg: linting
-# roles against a core that cannot run them proves nothing.
+# Enforce the ansible-core floor from meta/runtime.yml, one literal there and
+# none here: a copy drifts, and the copy is what a consumer's install ignores.
+# An unparseable floor cannot be proven, so it is fatal. It guards every later
+# leg: linting roles against a core that cannot run them proves nothing.
 bold '==> ansible-core floor'
+min_core=$(sed -nE \
+	's/.*requires_ansible: ">=([0-9.]+)".*/\1/p' meta/runtime.yml)
+if [[ -z $min_core ]]; then
+	red '  meta/runtime.yml has no requires_ansible floor'
+	exit 1
+fi
+
 cur_core=$("$ansible_bin" --version |
 	awk 'NR == 1 { gsub(/[^0-9.]/, "", $NF); print $NF }')
 if [[ -z $cur_core ]]; then
