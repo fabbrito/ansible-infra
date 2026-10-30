@@ -2,7 +2,6 @@
 # here. Message policy is .config/commitlint.config.mjs. The goldens and sanity are
 # not lanes - too slow to sit between you and a commit; `make test` /
 # `make sanity`.
-#
 # This repo's own jobs go below - never a name a template uses: the extended
 # job wins.
 extends:
@@ -12,18 +11,9 @@ extends:
 
 # ansible is whole tree: a role change breaks a playbook the commit never
 # touched. Every ansible command goes through lint.sh, which guards stdio once.
-#
 pre-commit:
   jobs:
     - name: ansible
       glob: &ansible ["**/*.{yml,yaml,j2,cfg}", ".ansible-lint", ".config/ansible-lint/*.py"]
       file_types: &file [not symlink]
-      run: scripts/lint.sh
-
-check:
-  jobs:
-    - name: ansible
-      glob: *ansible
-      file_types: *file
-      files: &changed "sh -c 'git diff --name-only --diff-filter=ACMR HEAD 2>/dev/null || git diff --cached --name-only --diff-filter=ACMR; git ls-files --others --exclude-standard'"
       run: scripts/lint.sh

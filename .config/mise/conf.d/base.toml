@@ -1,6 +1,6 @@
 # templates/base: copy to .config/mise/conf.d/base.toml. Hooks and make run
 # these, never whatever apt left on PATH. A bump is a version here and
-# `make hooks`.
+# `make deps`.
 [tools]
 lefthook = "2.2.2"
 # commitlint and the config-conventional it bundles: no package.json needed.

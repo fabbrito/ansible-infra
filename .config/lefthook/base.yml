@@ -1,6 +1,6 @@
-# templates/base: copy to .config/lefthook/base.yml and list it first under
-# `extends:`. commitlint, lefthook's own settings, and a gate on its config -
-# `lefthook run` ignores an unknown key, `validate` does not.
+# templates/base: copy to .config/lefthook/base.yml, first under `extends:`.
+# commitlint, lefthook's settings, and a gate on each: `validate` refuses an
+# unknown key that `lefthook run` ignores, make-phony a target left unphony.
 min_version: "2.1"
 glob_matcher: doublestar # `**/*.sh` matches the root too
 rc: .config/lefthook-rc.sh # mise's tools on PATH, or the hook fails
@@ -15,8 +15,7 @@ pre-commit:
     - name: lefthook-validate
       glob: ["lefthook.yml", "lefthook-local.yml", ".config/lefthook/*.yml"]
       run: lefthook validate
-
-check:
-  jobs:
-    - name: lefthook-validate
-      run: lefthook validate
+    # Not handed paths: make reads every include, so the Makefile is one unit.
+    - name: make-phony
+      glob: ["Makefile", "**/*.mk"]
+      run: .config/make-phony.sh

@@ -17,7 +17,7 @@ export ANSIBLE_COLLECTIONS_PATH="$PWD/.collections"
 # lints against the pin, and a collection installed by another core is a
 # resolution nobody checked.
 if ! galaxy=$(mise which ansible-galaxy) || [[ ! -x $galaxy ]]; then
-	printf 'deps: mise has no ansible-galaxy - run make hooks\n' >&2
+	printf 'deps: mise has no ansible-galaxy - run make deps\n' >&2
 	exit 1
 fi
 

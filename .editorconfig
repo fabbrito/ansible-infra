@@ -1,0 +1,5 @@
+root = true
+
+# Vendored collections: not ours to format or lint.
+[.collections/**]
+ignore = true

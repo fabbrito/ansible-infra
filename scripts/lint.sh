@@ -31,7 +31,7 @@ bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 # lints against. `make check` already has them first, so the cost is a lookup.
 if ! ansible_bin=$(mise which ansible) ||
 	! playbook_bin=$(mise which ansible-playbook); then
-	red '  mise has no ansible - mise install, or make hooks'
+	red '  mise has no ansible - mise install, or make deps'
 	exit 1
 fi
 
@@ -99,7 +99,7 @@ else
 	# A missing tool is a FAILURE, not a skip. This is the leg the README calls
 	# the gate; skipping it and still printing "All checks passed" is how
 	# unlinted work reaches a commit through the pre-commit hook.
-	red '  ansible-lint not installed (pinned in mise.toml: make hooks)'
+	red '  ansible-lint not installed (pinned in mise.toml: make deps)'
 	fail=$((fail + 1))
 fi
 

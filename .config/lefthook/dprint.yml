@@ -16,27 +16,3 @@ pre-commit:
     - name: dprint-config
       glob: &config ["dprint.json"]
       run: dprint check --allow-no-files
-
-check:
-  jobs:
-    - name: dprint
-      glob: *format
-      file_types: *file
-      files: &changed "sh -c 'git diff --name-only --diff-filter=ACMR HEAD 2>/dev/null || git diff --cached --name-only --diff-filter=ACMR; git ls-files --others --exclude-standard'"
-      run: dprint check --allow-no-files {files}
-    - name: dprint-config
-      glob: *config
-      files: *changed
-      run: dprint check --allow-no-files
-
-fix:
-  jobs:
-    - name: dprint
-      glob: *format
-      file_types: *file
-      files: *changed
-      run: dprint fmt --allow-no-files {files}
-    - name: dprint-config
-      glob: *config
-      files: *changed
-      run: dprint fmt --allow-no-files

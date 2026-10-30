@@ -53,6 +53,7 @@ build_ignore:
   - .config
   - .gitignore
   - .ansible-lint
+  - .editorconfig
   - dprint.json
   - AGENTS.md
   - CLAUDE.md
