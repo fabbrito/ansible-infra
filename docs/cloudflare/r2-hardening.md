@@ -74,8 +74,8 @@ ssh <deploy_user>@<host> 'sudo rclone lsf r2:infra-<project>'
 Not `rclone lsd r2:`: listing the account's buckets needs more than a bucket-scoped token grants, so it answers 403
 `AccessDenied` for a token that works.
 
-The bucket-scoped token is also what forces the two settings in `roles/rclone` that look like mistakes - no
-`acl = private`, and `no_check_bucket = true`. Both are 403s waiting to happen otherwise;
+The bucket-scoped token is also what forces the two settings in `roles/rclone` that look like mistakes - no `acl =
+private`, and `no_check_bucket = true`. Both are 403s waiting to happen otherwise;
 [ADR-0007](../adr/0007-backups-to-r2-through-rclone.md) explains why.
 
 ## 3. Bucket Lock

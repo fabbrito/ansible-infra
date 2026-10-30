@@ -1,11 +1,10 @@
-include .config/make/base.mk # mise's tools on PATH, `make hooks`
-.DEFAULT_GOAL := help # base.mk defines `hooks` first
+include .config/make/base.mk # mise's tools on PATH; first, so every recipe's
+include .config/make/dprint.mk
+include .config/make/shell.mk
+.DEFAULT_GOAL := help # base.mk defines `deps` first
 
 # Delegates to scripts/ and lefthook. No converge targets: this repo
 # reaches no host. A target's `##` comment is its help line.
-
-SHELL := /bin/bash
-.SHELLFLAGS := -eu -o pipefail -c
 
 define HELP_AWK
 BEGIN {
@@ -26,30 +25,35 @@ help: ## Show this help
 
 ##@ Dependencies
 
-.PHONY: deps
-deps: ## Install/upgrade the Ansible collections the roles depend on
+# Appended to base.mk's deps, after the pinned tools. No `##`: the help line
+# is base.mk's, and a second one would list deps twice.
+deps::
 	./scripts/deps.sh
 
-# Hooks pin the tools, so a bump is a version there and `make hooks` after it.
+# mise and dprint bump themselves; the hand pins in .config/upgrade-pins.tsv
+# only hint. APPLY=1 is the only way to write, and a typo is refused rather
+# than read as yes.
+APPLY ?=
+ifneq ($(filter-out 1,$(APPLY)),)
+$(error APPLY is 1 or unset, got '$(APPLY)')
+endif
+
 .PHONY: upgrade
-upgrade: ## Bump every pinned tool to its latest, then make hooks
-	mise upgrade --bump --local
-	@echo 'now: make hooks'
+upgrade: ## Preview pin bumps; APPLY=1 bumps, formats and gates
+	scripts/upgrade-tooling.sh $(if $(APPLY),apply)
 
 ##@ Local checks
 
-# Lanes live in lefthook.yml: a new check is a job, not a target.
-.PHONY: check
-check: ## Run every lane over the whole tree (the gate)
-	lefthook run check --all-files
+# The gate is make's: base.mk's check:: and each template's, then this
+# repo's ansible lane. Plain commands, not `lefthook run`: a hook is for git.
+# fmt has no ansible lane - ansible-lint never runs with --fix.
+check::
+	./scripts/lint.sh
 
 .PHONY: check-codes
 check-codes: ## Sweep for plan labels (manual, not in check)
 	./scripts/check-codes.sh
 
-.PHONY: fmt
-fmt: ## Run the same lanes over the whole tree, writing; never stages
-	lefthook run fix --all-files
 
 ##@ Release legs
 

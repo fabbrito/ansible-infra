@@ -1,0 +1,3 @@
+# templates/dprint: copy to .config/mise/conf.d/dprint.toml.
+[tools]
+dprint = "0.64.3"

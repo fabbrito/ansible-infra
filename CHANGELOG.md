@@ -6,6 +6,13 @@ consumers pin the tag, so a change that is not released is a change nobody gets.
 A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
 that, and the next correction is 1.0.1.
 
+## Unreleased
+
+### Changed
+
+- `rclone`: the pinned `.deb` table moves to v1.75.2, hashes taken from the signed `SHA256SUMS`.
+- `monitoring`: Beszel hub and agent to 0.21.1, Dozzle to v11.4.0.
+
 ## 2.3.1
 
 ### Fixed
@@ -118,9 +125,9 @@ baseline play: compose `preflight`, `os`, `sshd` and the rest (ADR-0016).
 - `ufw` role renamed `firewall`; vars `ufw_*` → `firewall_*`. `os` no longer installs `ufw`, `firewall` does.
 - `rclone` requires its three R2 credentials and fails naming the missing ones, instead of installing without a remote.
   Add it to the plays of hosts that back up. `rclone_deb_sha256` is replaced by `rclone_debs`.
-- `playbooks/baseline.yml` is removed: consumers compose the roles per group (README, "Use"). Replace
-  `import_playbook: fabbrito.infra.baseline` with a play listing `preflight`, `os`, `sshd`, `firewall`, `fail2ban`, and
-  `docker`/`rclone` where the host needs them.
+- `playbooks/baseline.yml` is removed: consumers compose the roles per group (README, "Use"). Replace `import_playbook:
+  fabbrito.infra.baseline` with a play listing `preflight`, `os`, `sshd`, `firewall`, `fail2ban`, and `docker`/`rclone`
+  where the host needs them.
 
 ### Upgrading from 1.x
 

@@ -185,10 +185,10 @@ overriding anything.
 
 ## Where the gate lives
 
-This repo can only prove the static half, and it splits by cost. `make check` is the fast leg - formatting, playbook
-syntax, `ansible-lint` at the **production** profile and `shellcheck` - and the pre-commit hook runs it on every commit.
-`make sanity` is `ansible-test sanity`; it builds a venv per supported Python on first run, so it stays out of `check`.
-`make test` renders the templates against checked-in fixtures and diffs the bytes. There is no CI (ADR-0013):
+This repo can only prove the static half, and it splits by cost. `make check` is the fast leg - dprint, playbook syntax,
+`ansible-lint` at the **production** profile and `shellcheck` - and the pre-commit hook grades the staged set on every
+commit. `make sanity` is `ansible-test sanity`; it builds a venv per supported Python on first run, so it stays out of
+`check`. `make test` renders the templates against checked-in fixtures and diffs the bytes. There is no CI (ADR-0013):
 `make release` runs `sanity`, `test` and the collection build before it tags.
 
 That last one exists because linting and validating both stop short of the same thing. `ansible-lint` reads the tasks
@@ -216,10 +216,10 @@ install time.
 ## Development
 
 ```bash
-make hooks   # the pinned tools (mise), then the git hooks - once per clone
-make deps    # install the collections the roles depend on
-make upgrade # bump the mise pins; then make hooks
-make fmt     # prettier + shfmt
+make deps    # the pinned tools (mise), then the collections - once per clone
+make hooks   # the git hooks - after make deps
+make upgrade # preview pin bumps; APPLY=1 bumps, formats and gates
+make fmt     # dprint + shfmt
 make check   # every lane over the whole tree - must be green to commit
 make sanity  # ansible-test sanity - a release leg; slow on a cold venv
 make test    # golden render tests - a release leg

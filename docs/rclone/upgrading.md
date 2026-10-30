@@ -18,7 +18,7 @@ On the controller, never on a host. rclone's release signing key fingerprint is
 `FBF737ECE9F8AB18604BD2AC93935E02FF3B54FA` ([release signing](https://rclone.org/release_signing/)).
 
 ```bash
-ver=v1.75.1
+ver=v1.75.2
 export GNUPGHOME=$(mktemp -d)
 curl -fsSL https://rclone.org/KEYS | gpg --import
 gpg --fingerprint FBF737ECE9F8AB18604BD2AC93935E02FF3B54FA
