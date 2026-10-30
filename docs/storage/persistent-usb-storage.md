@@ -75,8 +75,8 @@ findmnt /srv/data   # SOURCE is the stick, OPTIONS include noatime
 
 1. Reboot: mounted again.
 2. Power off, move the stick to another port, boot: same path.
-3. Power off, remove the stick, boot: the board is reachable, `findmnt /srv/data` prints nothing, and
-   `touch /srv/data/x` fails with "Operation not permitted".
+3. Power off, remove the stick, boot: the board is reachable, `findmnt /srv/data` prints nothing, and `touch
+   /srv/data/x` fails with "Operation not permitted".
 
 Plugged back in after boot, the stick mounts with `sudo mount /srv/data`, a reboot, or a service that requires it.
 

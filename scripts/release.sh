@@ -81,7 +81,7 @@ done
 # The commit runs the hooks and can be rejected; a stamp left behind would
 # refuse the next run as "tree not clean".
 # --no-verify: the legs above gated the stamped tree whole; a hook would
-# re-gate the one staged file, and its prettier --write could rewrite it after
+# re-gate the one staged file, and its dprint fmt could rewrite it after
 # the gate passed.
 git add galaxy.yml || die 'cannot stage the stamp'
 if ! git commit -q --no-verify -m "$subject"; then

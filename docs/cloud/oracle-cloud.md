@@ -25,5 +25,5 @@ So leave both roles out of the plays for OCI hosts:
 - `firewall` refuses a host with `netfilter-persistent` installed, before it installs ufw.
 - `fail2ban` bans through ufw and refuses a host where ufw is inactive.
 
-A host port beyond the image's rules goes into `/etc/iptables/rules.v4`, applied with
-`sudo iptables-restore < /etc/iptables/rules.v4`. That file is the consumer's to manage.
+A host port beyond the image's rules goes into `/etc/iptables/rules.v4`, applied with `sudo iptables-restore <
+/etc/iptables/rules.v4`. That file is the consumer's to manage.

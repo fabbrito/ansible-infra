@@ -118,9 +118,9 @@ baseline play: compose `preflight`, `os`, `sshd` and the rest (ADR-0016).
 - `ufw` role renamed `firewall`; vars `ufw_*` → `firewall_*`. `os` no longer installs `ufw`, `firewall` does.
 - `rclone` requires its three R2 credentials and fails naming the missing ones, instead of installing without a remote.
   Add it to the plays of hosts that back up. `rclone_deb_sha256` is replaced by `rclone_debs`.
-- `playbooks/baseline.yml` is removed: consumers compose the roles per group (README, "Use"). Replace
-  `import_playbook: fabbrito.infra.baseline` with a play listing `preflight`, `os`, `sshd`, `firewall`, `fail2ban`, and
-  `docker`/`rclone` where the host needs them.
+- `playbooks/baseline.yml` is removed: consumers compose the roles per group (README, "Use"). Replace `import_playbook:
+  fabbrito.infra.baseline` with a play listing `preflight`, `os`, `sshd`, `firewall`, `fail2ban`, and `docker`/`rclone`
+  where the host needs them.
 
 ### Upgrading from 1.x
 

@@ -9,6 +9,8 @@ min_version = "2026.9"
 "pypi:ansible-lint" = { version = "26.10.1", uvx_args = "--with-executables-from ansible-core==2.21.4" }
 # The pypi backend installs through uv; pinned so uvx_args always applies.
 uv = "0.13.5"
-# Prettier is this repo's docs formatter; repokit ships none. Its node is
-# base.toml's.
-"npm:prettier" = "3.9.10"
+
+# A release younger than this is skipped: yanked ones go early. In days:
+# scripts/upgrade-tooling.sh hands it to dprint too.
+[settings]
+minimum_release_age = "1d"

@@ -77,8 +77,8 @@ level that holds the knowledge.
 | `docs/<topic>/` | runbooks for operators of fleets we do not run                                 |
 | `docs/agents/`  | how the engineering skills read this repo - issue tracker, labels, domain docs |
 
-A settled decision the collection still lives under a year from now goes to `docs/adr/` - `## Chosen`, `## Why`,
-`## Cost`, `## Reverses`, no paths or symbols.
+A settled decision the collection still lives under a year from now goes to `docs/adr/` - `## Chosen`, `## Why`, `##
+Cost`, `## Reverses`, no paths or symbols.
 
 Contradicting a row is allowed. Doing it quietly is not - name the line, and say which of the two you would change.
 

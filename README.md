@@ -188,8 +188,8 @@ overriding anything.
 This repo can only prove the static half, and it splits by cost. `make check` is the fast leg - formatting, playbook
 syntax, `ansible-lint` at the **production** profile and `shellcheck` - and the pre-commit hook runs it on every commit.
 `make sanity` is `ansible-test sanity`; it builds a venv per supported Python on first run, so it stays out of `check`.
-`make test` renders the templates against checked-in fixtures and diffs the bytes. There is no CI (ADR-0013):
-`make release` runs `sanity`, `test` and the collection build before it tags.
+`make test` renders the templates against checked-in fixtures and diffs the bytes. There is no CI (ADR-0013): `make
+release` runs `sanity`, `test` and the collection build before it tags.
 
 That last one exists because linting and validating both stop short of the same thing. `ansible-lint` reads the tasks
 and `caddy validate` reads the syntax; neither can see a config that is _valid_ and says the wrong thing - a proxy-trust

@@ -53,8 +53,7 @@ build_ignore:
   - .config
   - .gitignore
   - .ansible-lint
-  - .prettierignore
-  - .prettierrc.json
+  - dprint.json
   - AGENTS.md
   - CLAUDE.md
   # Both configure this repo's authoring, like AGENTS.md.

@@ -49,7 +49,7 @@ check-codes: ## Sweep for plan labels (manual, not in check)
 
 .PHONY: fmt
 fmt: ## Run the same lanes over the whole tree, writing; never stages
-	lefthook run fix --all-files
+	dprint fmt --allow-no-files
 
 ##@ Release legs
 
