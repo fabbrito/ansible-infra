@@ -39,8 +39,8 @@ $(error APPLY is 1 or unset, got '$(APPLY)')
 endif
 
 .PHONY: upgrade
-upgrade: ## Preview pin bumps; APPLY=1 bumps, formats and gates
-	scripts/upgrade-tooling.sh $(if $(APPLY),apply)
+upgrade: ## Preview pin and image bumps; APPLY=1 bumps, formats and gates, MAJOR=1 majors too
+	scripts/upgrade-tooling.sh $(if $(APPLY),$(if $(MAJOR),major,apply))
 
 ##@ Local checks
 
