@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Bump the pins: ./scripts/upgrade-tooling.sh [apply]
+# Bump the pins: ./scripts/upgrade-tooling.sh [apply|major]
 #
 # mise and dprint bump their own pins, each skipping too-young releases;
-# previews by default. Hand pins live in .config/upgrade-pins.tsv and only get
-# a hint: a changelog to read first. `apply` refuses a dirty tree, bumps, then
-# formats and gates. Needs curl and jq.
+# previews by default. Image tags follow their registry to the highest tag
+# shaped like the pinned one, once its build is as old; a major bump is held
+# (a 0.x minor counts) unless `major`. Other hand pins live in
+# .config/upgrade-pins.tsv and only get a hint: a changelog to read first.
+# `apply` refuses a dirty tree, bumps, then formats and gates. Needs curl, jq
+# and crane.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
@@ -13,9 +16,9 @@ fail=0
 pins='.config/upgrade-pins.tsv'
 
 case $apply in
-	'' | apply) ;;
+	'' | apply | major) ;;
 	*)
-		echo 'usage: upgrade-tooling.sh [apply]' >&2
+		echo 'usage: upgrade-tooling.sh [apply|major]' >&2
 		exit 1
 		;;
 esac
@@ -62,7 +65,94 @@ if [[ -z $age ]]; then
 	echo 'upgrade-tooling: no minimum_release_age in days in mise.toml' >&2
 	exit 1
 fi
+age_days=$age
 age=P${age}D
+min_age_s=$((age_days * 86400))
+now=$(date +%s)
+
+# version: its breaking-change series - the leading number, or for 0.x the
+# minor too, since 0.x minors break.
+series() {
+	local v=${1#v}
+	if [[ ${v%%.*} == 0 ]]; then
+		echo "${v%.*}"
+	else
+		echo "${v%%.*}"
+	fi
+}
+
+# version...: the highest, by version sort.
+newest() {
+	printf '%s\n' "$@" | sort -V | tail -n 1
+}
+
+# tag: an anchored regex for tags of its shape. Digit runs vary, the rest is
+# literal: `v` and `-alpine` stay, `latest` and `-rc1` fall out.
+tag_regex() {
+	local re=${1//./\\.}
+	re=$(sed -E 's/[0-9]+/[0-9]+/g' <<<"$re")
+	echo "^$re\$"
+}
+
+# repo tag: the highest tag of tag's shape.
+latest_tag() {
+	local re t tags=()
+	re=$(tag_regex "$2")
+	while IFS= read -r t; do
+		[[ $t =~ $re ]] && tags+=("$t")
+	done < <(crane ls "$1")
+	((${#tags[@]})) || return 1
+	newest "${tags[@]}"
+}
+
+# file var old new: the var's value in file. Matched by var, since the hub
+# and the agent share a number.
+set_var() {
+	sed -i -E "s/^($2: \"?)$3(\"?)( |\$)/\1$4\2\3/" "$1"
+}
+
+# label repo cur file var: bump one image tag, or follow with `-` as repo.
+# Prints the tag it settled on in `picked`.
+declare -A picked
+bump_image() {
+	local label=$1 repo=$2 cur=$3 file=$4 var=$5 new=${6:-} config created ts src
+	if [[ -z $new ]]; then
+		if ! new=$(latest_tag "$repo" "$cur"); then
+			echo "  $label: no tags shaped like $cur" >&2
+			fail=1
+			return
+		fi
+	fi
+	picked[$label]=$cur
+	[[ $(newest "$cur" "$new") != "$cur" ]] || return
+	if ! config=$(crane config "$repo:$new"); then
+		echo "  $label: $repo:$new has no config" >&2
+		fail=1
+		return
+	fi
+	created=$(jq -r '.created // empty' <<<"$config")
+	src=$(jq -r '.config.Labels["org.opencontainers.image.source"] // empty' \
+		<<<"$config")
+	if ! ts=$(date -d "$created" +%s 2>/dev/null); then
+		echo "  $label: $repo:$new unreadable build date '$created'" >&2
+		fail=1
+		return
+	fi
+	local note=''
+	[[ $(series "$cur") != "$(series "$new")" ]] && note=' (major)'
+	echo "  $label: $cur -> $new$note${src:+ $src}"
+	picked[$label]=$new
+	[[ -n $apply ]] || return
+	if [[ -n $note && $apply != major ]]; then
+		echo "  $label: major, held"
+		picked[$label]=$cur
+	elif ((now - ts < min_age_s)); then
+		echo "  $label: younger than ${age_days}d, skipped"
+		picked[$label]=$cur
+	else
+		set_var "$file" "$var" "$cur" "$new"
+	fi
+}
 
 # The diff is the bumps: untracked files are in no diff.
 if [[ -n $apply ]] &&
@@ -93,7 +183,13 @@ else
 	fail=1
 fi
 
-echo '==> by hand (hints only)'
+if [[ -n $(sed -n '/^\(image\|follow\)\t/p' "$pins") ]] &&
+	! crane version >/dev/null 2>&1; then
+	echo "upgrade-tooling: needs crane (mise's: make deps)" >&2
+	exit 1
+fi
+
+echo '==> by hand and images'
 # kind label file sed target extra-file extra-sed. `-` is an unused column.
 while IFS=$'\t' read -r kind label file script target xfile xscript; do
 	[[ -z $kind || $kind == '#'* ]] && continue
@@ -138,6 +234,26 @@ while IFS=$'\t' read -r kind label file script target xfile xscript; do
 			elif [[ $a != "$b" ]]; then
 				echo "  $label: $file has $a, $xfile has $b" >&2
 				fail=1
+			fi
+			;;
+		# Registry tags; xscript names the var to rewrite.
+		image)
+			bump_image "$label" "$target" "$(pin "$script" "$file")" \
+				"$file" "$xscript"
+			;;
+		# Rides its leader's tag (xfile), held when it is held: one release.
+		follow)
+			cur=$(pin "$script" "$file")
+			lead=${picked[$xfile]:-}
+			if [[ -z $lead ]]; then
+				echo "  $label: leader $xfile did not run" >&2
+				fail=1
+			elif [[ $lead != "$cur" ]] &&
+				! crane manifest "$target:$lead" >/dev/null 2>&1; then
+				echo "  $label: $target has no $lead, held" >&2
+				fail=1
+			else
+				bump_image "$label" "$target" "$cur" "$file" "$xscript" "$lead"
 			fi
 			;;
 		*)

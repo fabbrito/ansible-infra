@@ -218,7 +218,7 @@ install time.
 ```bash
 make deps    # the pinned tools (mise), then the collections - once per clone
 make hooks   # the git hooks - after make deps
-make upgrade # preview pin bumps; APPLY=1 bumps, formats and gates
+make upgrade # preview pin and image bumps; APPLY=1 bumps, formats and gates; MAJOR=1 majors too
 make fmt     # dprint + shfmt
 make check   # every lane over the whole tree - must be green to commit
 make sanity  # ansible-test sanity - a release leg; slow on a cold venv

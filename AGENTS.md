@@ -40,7 +40,8 @@ The gate itself is make's: `check::` / `fmt::` lanes, one per `.config/make/*.mk
 Every tool is pinned in mise - dprint in `.config/mise/conf.d/`, ansible in `mise.toml`. Hooks and `make` put them on
 `PATH` and fail without mise. Run lanes with `make check` / `make fmt`, or `mise exec -- …`; never bare `lefthook run`:
 a hook grades the staged set, the gate reads the whole tree. A pin kept by hand goes in `.config/upgrade-pins.tsv`:
-`make upgrade` previews it, `APPLY=1` writes, and a hint is all a hand pin ever gets.
+`make upgrade` previews it, `APPLY=1` writes, and a hint is all a hand pin ever gets. Image tags are bumped, majors held
+unless `MAJOR=1`.
 
 The gate is lanes matching paths by glob. A file no lane matches is never checked, so a new kind of file means a lane. A
 missing tool fails: a skipped lane is not a green commit. The goldens and `ansible-test sanity` are not lanes - too slow

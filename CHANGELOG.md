@@ -6,6 +6,15 @@ consumers pin the tag, so a change that is not released is a change nobody gets.
 A released tag is never repointed. 1.0.0 moved while the repo was private and nothing pinned it; going public ended
 that, and the next correction is 1.0.1.
 
+## 2.5.0
+
+### Changed
+
+- Collection floors: `community.general` to 14.0.1 (`<15`, a new major), `community.docker` to 5.4.0, `ansible.posix` to
+  2.2.2. A consumer on `community.general` 13 upgrades it before adopting this tag.
+- `rclone`: the pinned `.deb` table moves to v1.76.0, hashes taken from the signed `SHA256SUMS`.
+- `monitoring`: Beszel hub and agent to 0.21.2, Dozzle to v11.5.0.
+
 ## 2.4.0
 
 ### Changed
