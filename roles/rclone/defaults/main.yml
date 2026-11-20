@@ -3,17 +3,17 @@
 # distros ship 1.60, too old for R2. Bump the version and every hash together,
 # after verifying rclone's signed SHA256SUMS: docs/rclone/upgrading.md.
 
-rclone_version: v1.75.2
+rclone_version: v1.76.0
 rclone_debs:
   amd64:
     asset: linux-amd64
-    sha256: efbfe852181f7191eb3c9043ed1ab49c9b2d0ba045c61c926a5da111c939ec5c
+    sha256: 9db7ee9b725bce7cdd195b9183449a4c6fb93cad3e6578e70b87c0bc7f6062e9
   armhf:
     asset: linux-arm-v7
-    sha256: 5c7a02f6e828c687868bd18716a3b1e9d0be8c1ee9948f10109d120a3517ff29
+    sha256: 5406975674ce3436626042a600635a4f6157832fa0d786018f41fca223e33c0f
   arm64:
     asset: linux-arm64
-    sha256: b8ba161d5c837206fad79ff1aabf0a81aa02a5fb164cdbc0ff5db4160aecd278
+    sha256: c486d404ecbc4bb3d54052a0efaf9e652cf0d2c645e4523f7a2aefa112fe029c
 
 # What the [r2crypt] wrapper encrypts into. Services write to `r2crypt:<path>`.
 rclone_crypt_target: r2:backups

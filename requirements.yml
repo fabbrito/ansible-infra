@@ -5,8 +5,8 @@ collections:
   # Bump bounds explicitly when adopting a new major: a deprecation should surface
   # as a chosen upgrade, not silent drift.
   - name: community.docker
-    version: ">=5.0.0,<6.0.0" # `docker_compose_v2` arrived in 5.x; v4 removed the legacy module
+    version: ">=5.4.0,<6.0.0" # `docker_compose_v2` arrived in 5.x; v4 removed the legacy module
   - name: community.general
-    version: ">=13.0.0,<14.0.0"
+    version: ">=14.0.1,<15.0.0"
   - name: ansible.posix
-    version: ">=2.0.0,<3.0.0"
+    version: ">=2.2.2,<3.0.0"
